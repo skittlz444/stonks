@@ -1,19 +1,18 @@
 import { generatePageLayout, generateChartGridLayout, createResponse } from './utils.js';
 import { generateMiniSymbolWidget, generateMarketOverviewWidget } from './chartWidgets.js';
-import { parseStockHoldings, formatForChartGrid, extractSymbol } from './dataUtils.js';
+import { getStockHoldings, formatStructuredDataForChartGrid } from './dataUtils.js';
 
 /**
  * Generate the chart grid page (originally chart-grid.js)
  */
-export async function generateChartGridPage(stonksKV) {
-  const stonkPairs = await parseStockHoldings(stonksKV);
-  const marketSymbols = formatForChartGrid(stonkPairs);
+export async function generateChartGridPage(databaseService) {
+  const holdings = await getStockHoldings(databaseService);
+  const marketSymbols = formatStructuredDataForChartGrid(holdings);
 
   // Generate mini symbol widgets
   let miniWidgets = "";
-  for (const stonkPair of stonkPairs) {
-    const symbol = extractSymbol(stonkPair);
-    miniWidgets += generateMiniSymbolWidget(symbol);
+  for (const holding of holdings) {
+    miniWidgets += generateMiniSymbolWidget(`"${holding.symbol}"`);
   }
   
   // Generate market overview widget

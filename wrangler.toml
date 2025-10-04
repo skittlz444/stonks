@@ -6,10 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 # Environment variables will be defined here
 
-[[kv_namespaces]]
-binding = "STONKS"
-id = "a8b064f13b7d4612a2361a551dfd6f91"
-preview_id = "a8b064f13b7d4612a2361a551dfd6f91"
+[[d1_databases]]
+binding = "STONKS_DB"
+database_name = "stonks-portfolio"
+database_id = "0015b265-8d4e-4e57-9f18-c8973ecb46c6"
 
 routes = [
   "*haydencarson.com/stonks/*"
