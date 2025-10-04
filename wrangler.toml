@@ -8,8 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "STONKS"
-id = "Stonks"
-preview_id = "Stonks"
+id = "a8b064f13b7d4612a2361a551dfd6f91"
+preview_id = "a8b064f13b7d4612a2361a551dfd6f91"
 
 routes = [
   "*haydencarson.com/stonks/*"
