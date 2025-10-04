@@ -1,0 +1,16 @@
+name = "stonks-portfolio-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Environment variables will be defined here
+
+[[kv_namespaces]]
+binding = "STONKS"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+routes = [
+  "*haydencarson.com/stonks/*"
+]
