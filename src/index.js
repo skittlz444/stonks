@@ -1,6 +1,7 @@
 import { generateTickerPage } from './ticker.js';
 import { generateChartGridPage } from './chartGrid.js';
 import { generateLargeChartPage } from './chartLarge.js';
+import { generateConfigPage, handleConfigSubmission } from './config.js';
 import { DatabaseService, MockD1Database } from './databaseService.js';
 
 /**
@@ -44,8 +45,15 @@ async function handleRequest(request, env) {
       case '/stonks/charts/large':
         return await generateLargeChartPage(databaseService);
       
+      case '/stonks/config':
+        if (request.method === 'POST') {
+          return await handleConfigSubmission(request, databaseService);
+        } else {
+          return await generateConfigPage(databaseService);
+        }
+      
       default:
-        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large', {
+        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large, /stonks/config', {
           status: 404,
           headers: {
             'content-type': 'text/plain',

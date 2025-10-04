@@ -5,9 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "check": "tsc && wrangler deploy --dry-run",
-    "dev": "pnpm seedLocalD1 && wrangler dev",
+    "dev": "pnpm seedLocalD1 && wrangler dev --local --persist-to ./local-db",
     "deploy": "wrangler deploy",
-    "seedLocalD1": "wrangler d1 migrations apply STONKS_DB --local"
+    "seedLocalD1": "wrangler d1 migrations apply stonks-portfolio --local --persist-to ./local-db"
   },
   "keywords": ["cloudflare", "worker", "stocks", "portfolio"],
   "author": "",

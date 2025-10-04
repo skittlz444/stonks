@@ -60,7 +60,27 @@ export function generateFooter() {
     <a style="padding-left:1.5rem" href="/stonks/ticker">Ticker</a>
     <a style="padding-left:1.5rem" href="/stonks/charts">Chart Grid</a>
     <a style="padding-left:1.5rem" href="/stonks/charts/large">Large Chart</a>
+    <a style="padding-left:1.5rem" href="/stonks/config">Config</a>
   </footer>`;
+}
+
+/**
+ * Create a complete HTML layout with Bootstrap and proper structure
+ */
+export function createLayout(title, content, bodyStyles = "background-color:#212529;color:#ffffff") {
+  return createResponse(`<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
+</head>
+<body style="${bodyStyles}">
+    ${content}
+    ${generateFooter()}
+</html>`);
 }
 
 export function createResponse(html) {
