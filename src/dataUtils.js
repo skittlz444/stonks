@@ -3,14 +3,43 @@
  */
 
 /**
- * Parse stock holdings from KV data
+ * Get stock holdings as structured objects from database service
  */
-export async function parseStockHoldings(stonksKV) {
-  const holdingsData = await stonksKV.get("currentHoldings");
-  if (!holdingsData) {
+export async function getStockHoldings(databaseService) {
+  try {
+    const holdings = await databaseService.getHoldings();
+    if (!holdings || holdings.length === 0) {
+      throw new Error("No stock holdings data found");
+    }
+    return holdings;
+  } catch (error) {
+    console.error("Error getting stock holdings:", error);
     throw new Error("No stock holdings data found");
   }
-  return holdingsData.split("|");
+}
+
+/**
+ * @deprecated Use getStockHoldings() instead - this is for backward compatibility
+ * Parse stock holdings from database service into legacy string format
+ */
+export async function parseStockHoldings(databaseService) {
+  try {
+    // Get structured data and convert to legacy format
+    const holdings = await getStockHoldings(databaseService);
+    return holdings.map(holding => `"${holding.name}","${holding.symbol}"`);
+  } catch (error) {
+    // Fallback to compatibility format if structured method fails
+    try {
+      const holdingsData = await databaseService.getCurrentHoldings();
+      if (!holdingsData) {
+        throw new Error("No stock holdings data found");
+      }
+      return holdingsData.split("|");
+    } catch (fallbackError) {
+      console.error("Error parsing stock holdings:", error);
+      throw new Error("No stock holdings data found");
+    }
+  }
 }
 
 /**
@@ -20,7 +49,35 @@ export function formatForTickerTape(stonkPairs) {
   const symbols = [];
   for (const stonkPairIndex in stonkPairs) {
     const stonkSplit = stonkPairs[stonkPairIndex].split(",");
-    symbols.push(`{"description":${stonkSplit[0]}, "proName":${stonkSplit[1]}}`);
+    
+    // Clean up the data
+    let description = stonkSplit[0] ? stonkSplit[0].trim() : "";
+    let symbol = stonkSplit[1] ? stonkSplit[1].trim() : "";
+    
+    // Remove quotes if present
+    if (description.startsWith('"') && description.endsWith('"')) {
+      description = description.slice(1, -1);
+    }
+    if (symbol.startsWith('"') && symbol.endsWith('"')) {
+      symbol = symbol.slice(1, -1);
+    }
+    
+    if (description && symbol) {
+      symbols.push(`{"description":"${description}", "proName":"${symbol}"}`);
+    }
+  }
+  return symbols.join(",");
+}
+
+/**
+ * Format structured holdings data for ticker tape widget (optimized)
+ */
+export function formatStructuredDataForTickerTape(holdings) {
+  const symbols = [];
+  for (const holding of holdings) {
+    if (holding.name && holding.symbol) {
+      symbols.push(`{"description":"${holding.name}", "proName":"${holding.symbol}"}`);
+    }
   }
   return symbols.join(",");
 }
@@ -82,6 +139,22 @@ export function formatForChartGrid(stonkPairs) {
 }
 
 /**
+ * Format structured holdings data for chart grid (optimized)
+ */
+export function formatStructuredDataForChartGrid(holdings) {
+  const symbols = [];
+  for (const holding of holdings) {
+    if (holding.name && holding.symbol) {
+      symbols.push(`{
+          "s": "${holding.symbol}",
+          "d": "${holding.name}"
+        }`);
+    }
+  }
+  return symbols.join(",\n");
+}
+
+/**
  * Format stock data for large charts
  */
 export function formatForLargeChart(stonkPairs) {
@@ -99,8 +172,76 @@ export function formatForLargeChart(stonkPairs) {
 }
 
 /**
+ * Format structured holdings data for large charts (optimized)
+ */
+export function formatStructuredDataForLargeChart(holdings) {
+  const symbols = [];
+  for (let i = 0; i < holdings.length; i++) {
+    const holding = holdings[i];
+    if (holding.name && holding.symbol) {
+      if (i !== holdings.length - 1) {
+        symbols.push(`["${holding.name}", "${holding.symbol}|3M|USD"]`);
+      } else {
+        symbols.push(`["${holding.name}", "${holding.symbol}|3M|USD"]`);
+      }
+    }
+  }
+  return symbols.join(",\n");
+}
+
+/**
  * Extract symbol from stock pair
  */
 export function extractSymbol(stonkPair) {
-  return stonkPair.split(",")[1];
+  const symbol = stonkPair.split(",")[1];
+  if (!symbol) return "";
+  
+  // Clean up symbol
+  let cleanSymbol = symbol.trim();
+  if (cleanSymbol.startsWith('"') && cleanSymbol.endsWith('"')) {
+    cleanSymbol = cleanSymbol.slice(1, -1);
+  }
+  return cleanSymbol;
+}
+
+/**
+ * Smart formatter that detects data type and uses appropriate formatting
+ */
+export async function getOptimizedHoldingsData(databaseService, formatType = 'ticker') {
+  try {
+    // Try to get structured data first (more efficient)
+    if (typeof databaseService.getAllHoldings === 'function') {
+      const holdings = await databaseService.getAllHoldings();
+      if (holdings && holdings.length > 0) {
+        switch (formatType) {
+          case 'ticker':
+            return formatStructuredDataForTickerTape(holdings);
+          case 'chartGrid':
+            return formatStructuredDataForChartGrid(holdings);
+          case 'largeChart':
+            return formatStructuredDataForLargeChart(holdings);
+          case 'raw':
+            return holdings;
+          default:
+            return holdings.map(holding => `"${holding.name}","${holding.symbol}"`);
+        }
+      }
+    }
+    
+    // Fallback to parsing pipe-separated format
+    const stonkPairs = await parseStockHoldings(databaseService);
+    switch (formatType) {
+      case 'ticker':
+        return formatForTickerTape(stonkPairs);
+      case 'chartGrid':
+        return formatForChartGrid(stonkPairs);
+      case 'largeChart':
+        return formatForLargeChart(stonkPairs);
+      default:
+        return stonkPairs;
+    }
+  } catch (error) {
+    console.error("Error getting optimized holdings data:", error);
+    throw error;
+  }
 }

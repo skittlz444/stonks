@@ -1,7 +1,7 @@
 import { generateTickerPage } from './ticker.js';
 import { generateChartGridPage } from './chartGrid.js';
 import { generateLargeChartPage } from './chartLarge.js';
-import { MockKV } from './mockKV.js';
+import { DatabaseService, MockD1Database } from './databaseService.js';
 
 /**
  * Main Cloudflare Worker that handles routing for all three stock portfolio pages
@@ -16,35 +16,33 @@ async function handleRequest(request, env) {
   const url = new URL(request.url);
   const pathname = url.pathname;
   
-  // Use MockKV for development if STONKS KV is not available
-  let stonksKV;
+  // Use MockD1Database for development if STONKS_DB is not available
+  let databaseService;
   
   try {
-    // Test if the real KV works by trying to get a key
-    if (env.STONKS) {
-      const testValue = await env.STONKS.get("currentHoldings");
-      if (testValue === null) {
-        stonksKV = new MockKV();
-      } else {
-        stonksKV = env.STONKS;
-      }
+    if (env.STONKS_DB) {
+      databaseService = new DatabaseService(env.STONKS_DB);
+      // Test database connection
+      await databaseService.getCurrentHoldings();
     } else {
-      stonksKV = new MockKV();
+      console.log('No D1 database found, using mock database');
+      databaseService = new DatabaseService(new MockD1Database());
     }
   } catch (error) {
-    stonksKV = new MockKV();
+    console.log('Database error, falling back to mock database:', error);
+    databaseService = new DatabaseService(new MockD1Database());
   }
   // Route to appropriate page based on URL path
   try {
     switch (pathname) {
       case '/stonks/ticker':
-        return await generateTickerPage(stonksKV);
+        return await generateTickerPage(databaseService);
       
       case '/stonks/charts':
-        return await generateChartGridPage(stonksKV);
+        return await generateChartGridPage(databaseService);
       
       case '/stonks/charts/large':
-        return await generateLargeChartPage(stonksKV);
+        return await generateLargeChartPage(databaseService);
       
       default:
         return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large', {
@@ -67,5 +65,5 @@ async function handleRequest(request, env) {
 
 // For backwards compatibility with addEventListener style
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request, { STONKS: typeof STONKS !== 'undefined' ? STONKS : null }));
+  event.respondWith(handleRequest(event.request, { STONKS_DB: typeof STONKS_DB !== 'undefined' ? STONKS_DB : null }));
 });

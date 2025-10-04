@@ -9,6 +9,11 @@ node_modules/
 # Ignore wrangler output
 .wrangler/
 
+# Ignore local D1 database
+local-db/
+*.sqlite
+*.sqlite3
+
 # Ignore OS files
 .DS_Store
 Thumbs.db
