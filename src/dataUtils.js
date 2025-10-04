@@ -31,25 +31,51 @@ export function formatForTickerTape(stonkPairs) {
 export function formatForChartGrid(stonkPairs) {
   const symbols = [];
   for (const stonkPairIndex in stonkPairs) {
+    // Skip empty entries
+    if (!stonkPairs[stonkPairIndex] || !stonkPairs[stonkPairIndex].trim()) {
+      continue;
+    }
+    
     const stonkSplit = stonkPairs[stonkPairIndex].split(",");
+    
+    // Skip if we don't have both description and symbol
+    if (stonkSplit.length < 2) {
+      continue;
+    }
+    
     let description = stonkSplit[0];
     let symbol = stonkSplit[1];
     
-    if (description[0] === "\n") {
-      description = description.slice(1, description.length);
+    // Clean up description - remove leading/trailing whitespace and newlines
+    description = description.trim();
+    if (description.startsWith('\n')) {
+      description = description.slice(1);
     }
+    description = description.trim();
     
-    // Remove quotes from symbol if present and re-add them properly
-    if (symbol.startsWith('"')) {
+    // Clean up symbol - remove leading/trailing whitespace and newlines
+    symbol = symbol.trim();
+    if (symbol.startsWith('\n')) {
       symbol = symbol.slice(1);
     }
-    if (symbol.endsWith('"')) {
-      symbol = symbol.slice(0, -1);
+    symbol = symbol.trim();
+    
+    // Remove quotes from both description and symbol if present
+    if (description.startsWith('"') && description.endsWith('"')) {
+      description = description.slice(1, -1);
+    }
+    if (symbol.startsWith('"') && symbol.endsWith('"')) {
+      symbol = symbol.slice(1, -1);
+    }
+    
+    // Skip if either is empty after cleaning
+    if (!description || !symbol) {
+      continue;
     }
     
     symbols.push(`{
           "s": "${symbol}",
-          "d": ${description}
+          "d": "${description}"
         }`);
   }
   return symbols.join(",\n");
