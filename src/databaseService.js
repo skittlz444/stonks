@@ -208,7 +208,7 @@ export class MockD1Database {
     ];
     
     this.portfolioSettings = {
-      cash_amount: 101.8,
+      cash_amount: "101.8",
       portfolio_name: "My Portfolio"
     };
     
