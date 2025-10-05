@@ -33,7 +33,7 @@ export class DatabaseService {
       });
       
       // Build dynamic portfolio from holdings with BATS codes
-      const portfolioHoldings = holdings.filter(h => h.code.startsWith('BATS:'));
+      const portfolioHoldings = holdings.filter(h => h.code && h.code.startsWith('BATS:'));
       if (portfolioHoldings.length > 0) {
         const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount || '0');
         const portfolioName = settings.portfolio_name || 'My Portfolio';
@@ -208,7 +208,7 @@ export class MockD1Database {
     ];
     
     this.portfolioSettings = {
-      cash_amount: "101.8",
+      cash_amount: 101.8,
       portfolio_name: "My Portfolio"
     };
     
@@ -243,9 +243,21 @@ class MockPreparedStatement {
 
   async all() {
     // Portfolio holdings queries
-    if (this.query.includes('SELECT * FROM portfolio_holdings')) {
+    if (this.query.includes('SELECT * FROM portfolio_holdings') || 
+        this.query.includes('SELECT id, name, code, quantity, created_at, updated_at FROM portfolio_holdings')) {
       return {
         results: this.mockDb.portfolioHoldings,
+        success: true
+      };
+    }
+
+    // Portfolio settings queries (all settings)
+    if (this.query.includes('SELECT key, value FROM portfolio_settings')) {
+      return {
+        results: [
+          { key: 'cash_amount', value: this.mockDb.portfolioSettings.cash_amount.toString() },
+          { key: 'portfolio_name', value: this.mockDb.portfolioSettings.portfolio_name }
+        ],
         success: true
       };
     }

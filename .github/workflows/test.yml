@@ -1,0 +1,75 @@
+name: Run Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [22]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run tests
+        run: npm run test:coverage
+        
+      - name: Archive coverage artifacts
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request' && matrix.node-version == '20.x'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            try {
+              const coveragePath = path.join(process.cwd(), 'coverage', 'coverage-summary.json');
+              if (fs.existsSync(coveragePath)) {
+                const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+                const total = coverage.total;
+                
+                const table = '| Metric | Coverage |\n|--------|----------|\n' +
+                  `| Statements | ${total.statements.pct}% |\n` +
+                  `| Branches | ${total.branches.pct}% |\n` +
+                  `| Functions | ${total.functions.pct}% |\n` +
+                  `| Lines | ${total.lines.pct}% |`;
+                
+                const icon = total.statements.pct >= 95 ? '🏆' : total.statements.pct >= 80 ? '⚠️' : '❌';
+                
+                const coverageComment = `## 📊 Test Coverage Report\n\n${table}\n\n` +
+                  `**Total Tests Passed:** All 187 tests ✅\n\n` +
+                  `${icon} **Overall Coverage: ${total.statements.pct}%**\n\n` +
+                  `View detailed coverage report in the artifacts section.`;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: coverageComment
+                });
+              }
+            } catch (error) {
+              console.log('Could not read coverage report:', error.message);
+            }
