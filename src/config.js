@@ -211,12 +211,11 @@ export async function generateConfigPage(databaseService) {
  * Handle configuration form submissions
  */
 export async function handleConfigSubmission(request, databaseService) {
-  const formData = await request.formData();
-  const action = formData.get('action');
-  
   let redirectUrl = '/stonks/config';
   
   try {
+    const formData = await request.formData();
+    const action = formData.get('action');
     switch (action) {
       case 'update_settings':
         const portfolioName = formData.get('portfolio_name');
