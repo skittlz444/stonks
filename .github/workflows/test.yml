@@ -52,21 +52,18 @@ jobs:
                 const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
                 const total = coverage.total;
                 
-                const coverageComment = `## 📊 Test Coverage Report
+                const table = '| Metric | Coverage |\n|--------|----------|\n' +
+                  `| Statements | ${total.statements.pct}% |\n` +
+                  `| Branches | ${total.branches.pct}% |\n` +
+                  `| Functions | ${total.functions.pct}% |\n` +
+                  `| Lines | ${total.lines.pct}% |`;
                 
-| Metric | Coverage |
-|--------|----------|
-| Statements | ${total.statements.pct}% |
-| Branches | ${total.branches.pct}% |
-| Functions | ${total.functions.pct}% |
-| Lines | ${total.lines.pct}% |
-
-**Total Tests Passed:** All 187 tests ✅
-
-${total.statements.pct >= 95 ? '🏆' : total.statements.pct >= 80 ? '⚠️' : '❌'} **Overall Coverage: ${total.statements.pct}%**
-
-View detailed coverage report in the artifacts section.
-                `;
+                const icon = total.statements.pct >= 95 ? '🏆' : total.statements.pct >= 80 ? '⚠️' : '❌';
+                
+                const coverageComment = `## 📊 Test Coverage Report\n\n${table}\n\n` +
+                  `**Total Tests Passed:** All 187 tests ✅\n\n` +
+                  `${icon} **Overall Coverage: ${total.statements.pct}%**\n\n` +
+                  `View detailed coverage report in the artifacts section.`;
                 
                 github.rest.issues.createComment({
                   issue_number: context.issue.number,
