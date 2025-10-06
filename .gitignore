@@ -34,3 +34,5 @@ yarn-error.log*
 coverage/
 /coverage
 icons_preview.png
+coverage/coverage-final.json
+coverage/index.html

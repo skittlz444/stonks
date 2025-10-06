@@ -263,7 +263,8 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
       // Calculate old and new weight diffs for rebalance mode
       const oldWeightDiff = targetWeight != null ? weight - targetWeight : null;
       const newWeightDiff = (rebalanceMode && rebalanceRec && targetWeight != null) ? rebalanceRec.newWeight - targetWeight : null;
-      const weightDiffChange = (oldWeightDiff != null && newWeightDiff != null) ? newWeightDiff - oldWeightDiff : null;
+      // Calculate change in absolute deviation from target (how much closer/further from target)
+      const weightDiffChange = (oldWeightDiff != null && newWeightDiff != null) ? Math.abs(newWeightDiff) - Math.abs(oldWeightDiff) : null;
       
       // For display: use new diff in rebalance mode, old diff otherwise
       const weightDiff = (rebalanceMode && rebalanceRec) ? newWeightDiff : oldWeightDiff;
