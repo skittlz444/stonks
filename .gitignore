@@ -33,3 +33,5 @@ yarn-error.log*
 # Ignore test coverage reports
 coverage/
 /coverage
+coverage/coverage-final.json
+coverage/index.html
