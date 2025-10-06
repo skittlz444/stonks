@@ -551,17 +551,8 @@ describe('Prices Page Generation', () => {
 
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000);
-
-  describe('Sticky columns CSS', () => {
-    it('should include sticky column styles for Name and Symbol columns', async () => {
-      const mockHoldings = [
-        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
-      ];
-
-      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
-      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
       mockDatabaseService.getTransactionsByCode.mockResolvedValue([
-        { type: 'buy', value: 750, fee: 0 }
+        { type: 'buy', value: 1500, fee: 0 }
       ]);
 
       mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
@@ -591,6 +582,38 @@ describe('Prices Page Generation', () => {
           costBasis: 0,
           gain: 0,
           gainPercent: 0,
+          error: null
+        }
+      ]);
+
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({ size: 2, symbols: ['AAPL', 'TSLA'], cacheDurationMs: 60000 });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, true);
+      const html = await response.text();
+
+      expect(html).toContain('Tesla Inc');
+      expect(html).toContain('TSLA');
+    });
+  });
+
+  describe('Sticky columns CSS', () => {
+    it('should include sticky column styles for Name and Symbol columns', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
+        { type: 'buy', value: 750, fee: 0 }
+      ]);
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
+        {
+          id: 1,
+          code: 'AAPL',
+          name: 'Apple Inc',
           quantity: 5,
           averageCost: 150.00,
           target_weight: null,
@@ -604,13 +627,6 @@ describe('Prices Page Generation', () => {
       ]);
 
       mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
-      mockFinnhubService.getCacheStats.mockReturnValue({ size: 2, symbols: ['AAPL', 'TSLA'], cacheDurationMs: 60000 });
-
-      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, true);
-      const html = await response.text();
-
-      expect(html).toContain('Tesla Inc');
-      expect(html).toContain('TSLA');
       mockFinnhubService.getCacheStats.mockReturnValue({
         size: 1,
         symbols: ['AAPL'],
