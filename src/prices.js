@@ -202,33 +202,33 @@ export async function generatePricesPage(databaseService, finnhubService) {
         </div>
 
         <!-- Portfolio Summary -->
-        <div class="row mb-4">
-          <div class="col-md-2">
-            <div class="card bg-primary text-white">
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-2">
+            <div class="card bg-primary text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Portfolio Value</h6>
                 <h3 class="card-title mb-0">$${portfolioTotal.toFixed(2)}</h3>
               </div>
             </div>
           </div>
-          <div class="col-md-2">
-            <div class="card">
+          <div class="col-6 col-md-2">
+            <div class="card h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2 text-muted">Market Value</h6>
                 <h3 class="card-title mb-0">$${totalMarketValue.toFixed(2)}</h3>
               </div>
             </div>
           </div>
-          <div class="col-md-2">
-            <div class="card">
+          <div class="col-6 col-md-2">
+            <div class="card h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2 text-muted">Cash</h6>
                 <h3 class="card-title mb-0">$${cashAmount.toFixed(2)}</h3>
               </div>
             </div>
           </div>
-          <div class="col-md-2">
-            <div class="card ${totalChangeValue >= 0 ? 'bg-success' : 'bg-danger'} text-white">
+          <div class="col-6 col-md-2">
+            <div class="card ${totalChangeValue >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Day Change</h6>
                 <h3 class="card-title mb-0">$${totalChangeValue.toFixed(2)}</h3>
@@ -236,8 +236,8 @@ export async function generatePricesPage(databaseService, finnhubService) {
               </div>
             </div>
           </div>
-          <div class="col-md-2">
-            <div class="card ${totalGain >= 0 ? 'bg-success' : 'bg-danger'} text-white">
+          <div class="col-6 col-md-2">
+            <div class="card ${totalGain >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Total Gain/Loss</h6>
                 <h3 class="card-title mb-0">$${totalGain.toFixed(2)}</h3>
@@ -245,8 +245,8 @@ export async function generatePricesPage(databaseService, finnhubService) {
               </div>
             </div>
           </div>
-          <div class="col-md-2">
-            <div class="card ${totalWeightDeviation > 10 ? 'bg-warning' : 'bg-info'} text-white">
+          <div class="col-6 col-md-2">
+            <div class="card ${totalWeightDeviation > 10 ? 'bg-warning' : 'bg-info'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Weight Dev.</h6>
                 <h3 class="card-title mb-0">${totalWeightDeviation.toFixed(2)}%</h3>

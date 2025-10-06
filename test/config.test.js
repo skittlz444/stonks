@@ -73,7 +73,8 @@ describe('Config', () => {
     });
 
     it('should handle empty portfolio holdings', async () => {
-      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
       mockDatabaseService.getTransactions.mockResolvedValue([]);
       
       const mockPrepareChain = {
@@ -93,7 +94,8 @@ describe('Config', () => {
     });
 
     it('should use default portfolio name when none exists', async () => {
-      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
       mockDatabaseService.getTransactions.mockResolvedValue([]);
       
       const mockPrepareChain = {
@@ -113,7 +115,8 @@ describe('Config', () => {
     });
 
     it('should display custom portfolio name when exists', async () => {
-      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
       mockDatabaseService.getTransactions.mockResolvedValue([]);
       
       const mockPrepareChain = {
@@ -166,7 +169,8 @@ describe('Config', () => {
     });
 
     it('should include navigation links', async () => {
-      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
       mockDatabaseService.getTransactions.mockResolvedValue([]);
       
       const mockPrepareChain = {
@@ -190,7 +194,8 @@ describe('Config', () => {
     });
 
     it('should include add and edit modals', async () => {
-      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
       mockDatabaseService.getTransactions.mockResolvedValue([]);
       
       const mockPrepareChain = {
