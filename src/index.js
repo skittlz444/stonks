@@ -51,7 +51,8 @@ async function handleRequest(request, env) {
         return await generateLargeChartPage(databaseService);
       
       case '/stonks/prices':
-        return await generatePricesPage(databaseService, finnhubService);
+        const rebalanceMode = url.searchParams.get('mode') === 'rebalance';
+        return await generatePricesPage(databaseService, finnhubService, rebalanceMode);
       
       case '/stonks/config':
         if (request.method === 'POST') {

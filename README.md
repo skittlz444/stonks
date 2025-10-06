@@ -31,6 +31,7 @@ The worker serves the following routes:
 - `/stonks/charts` - Grid of mini chart widgets with market overview
 - `/stonks/charts/large` - Large interactive charts with advanced features
 - `/stonks/prices` - Live prices with sortable/filterable columns, gain/loss tracking, and closed positions
+- `/stonks/prices?mode=rebalance` - Portfolio rebalancing mode with buy/sell recommendations
 - `/stonks/config` - Portfolio configuration interface for managing holdings, transactions, and settings
 
 ## Setup and Deployment
@@ -99,6 +100,7 @@ npm run deploy
   - Total gain/loss with percentage
   - Column visibility controls
   - Closed positions section
+  - **Rebalance Mode**: Calculate optimal buy/sell recommendations to reach target weights
 
 ### Portfolio Configuration
 - Add/edit/delete holdings
@@ -107,6 +109,24 @@ npm run deploy
 - Hide/show holdings (e.g., for closed positions)
 - Configure cash amount and portfolio name
 - View transaction history per holding
+
+### Portfolio Rebalancing
+Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️ Rebalance" button on the prices page.
+
+**Features:**
+- Shows all holdings with target weights, even if they have no current position
+- Calculates optimal buy/sell recommendations to minimize weight deviation
+- Displays current vs. target quantities and values with visual strikethrough
+- Color-coded changes (green for buys, red for sells)
+- Ensures cash never goes negative
+- Prioritizes holdings with largest deviations from target
+- Recommends whole stock purchases/sales only
+
+**UI in Rebalance Mode:**
+- Hides: Daily change metric, total gain/loss metric, price change column, MV change column, closed positions
+- Shows: Current quantity (strikethrough) → New quantity (change in brackets)
+- Cash row shows new cash balance after rebalancing
+- Action badges (BUY/SELL/HOLD) for each position
 
 ## Database Schema
 
