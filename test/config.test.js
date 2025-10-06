@@ -223,6 +223,139 @@ describe('Config', () => {
       await expect(generateConfigPage(mockDatabaseService))
         .rejects.toThrow('Database connection failed');
     });
+
+    it('should display target weight total in footer when holdings have target weights', async () => {
+      const mockHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 40, hidden: 0 },
+        { id: 2, name: 'Tesla Inc.', code: 'NASDAQ:TSLA', quantity: 5, target_weight: 60, hidden: 0 }
+      ];
+      
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+
+      const result = await generateConfigPage(mockDatabaseService);
+
+      const layoutCall = createLayout.mock.calls[0];
+      const content = layoutCall[1];
+      
+      expect(content).toContain('Total Target Weight:');
+      expect(content).toContain('100.00%');
+      expect(content).toContain('bg-success');
+    });
+
+    it('should show warning badge when target weight is close to 100%', async () => {
+      const mockHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 45, hidden: 0 },
+        { id: 2, name: 'Tesla Inc.', code: 'NASDAQ:TSLA', quantity: 5, target_weight: 50, hidden: 0 }
+      ];
+      
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+
+      const result = await generateConfigPage(mockDatabaseService);
+
+      const layoutCall = createLayout.mock.calls[0];
+      const content = layoutCall[1];
+      
+      expect(content).toContain('Total Target Weight:');
+      expect(content).toContain('95.00%');
+      expect(content).toContain('bg-warning');
+    });
+
+    it('should show danger badge when target weight is far from 100%', async () => {
+      const mockHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 30, hidden: 0 },
+        { id: 2, name: 'Tesla Inc.', code: 'NASDAQ:TSLA', quantity: 5, target_weight: 40, hidden: 0 }
+      ];
+      
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+
+      const result = await generateConfigPage(mockDatabaseService);
+
+      const layoutCall = createLayout.mock.calls[0];
+      const content = layoutCall[1];
+      
+      expect(content).toContain('Total Target Weight:');
+      expect(content).toContain('70.00%');
+      expect(content).toContain('bg-danger');
+    });
+
+    it('should handle holdings with mixed target weights (some null)', async () => {
+      const mockHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50, hidden: 0 },
+        { id: 2, name: 'Tesla Inc.', code: 'NASDAQ:TSLA', quantity: 5, target_weight: null, hidden: 0 }
+      ];
+      
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+
+      const result = await generateConfigPage(mockDatabaseService);
+
+      const layoutCall = createLayout.mock.calls[0];
+      const content = layoutCall[1];
+      
+      expect(content).toContain('Total Target Weight:');
+      expect(content).toContain('50.00%');
+      expect(content).toContain('bg-danger');
+    });
+
+    it('should not display target weight footer when no holdings', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue(null)
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(0);
+
+      const result = await generateConfigPage(mockDatabaseService);
+
+      const layoutCall = createLayout.mock.calls[0];
+      const content = layoutCall[1];
+      
+      expect(content).not.toContain('Total Target Weight:');
+    });
   });
 
   describe('handleConfigSubmission', () => {

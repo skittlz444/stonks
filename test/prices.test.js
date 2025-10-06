@@ -486,4 +486,170 @@ describe('Prices Page Generation', () => {
       expect(html).toContain('1 symbol in cache');
     });
   });
+
+  describe('Rebalance mode', () => {
+    it('should show rebalancing UI when rebalanceMode is true', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 10, averageCost: 150.00, target_weight: 50 },
+        { id: 2, code: 'GOOGL', name: 'Alphabet Inc', quantity: 5, averageCost: 100.00, target_weight: 30 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(500);
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
+        {
+          id: 1,
+          code: 'AAPL',
+          name: 'Apple Inc',
+          quantity: 10,
+          averageCost: 150.00,
+          target_weight: 50,
+          quote: { symbol: 'AAPL', current: 150.00, previousClose: 149.00, change: 1.00, changePercent: 0.67 },
+          marketValue: 1500.00,
+          costBasis: 1500.00,
+          gain: 0,
+          gainPercent: 0,
+          error: null
+        },
+        {
+          id: 2,
+          code: 'GOOGL',
+          name: 'Alphabet Inc',
+          quantity: 5,
+          averageCost: 100.00,
+          target_weight: 30,
+          quote: { symbol: 'GOOGL', current: 100.00, previousClose: 99.00, change: 1.00, changePercent: 1.01 },
+          marketValue: 500.00,
+          costBasis: 500.00,
+          gain: 0,
+          gainPercent: 0,
+          error: null
+        }
+      ]);
+
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({ size: 2, symbols: ['AAPL', 'GOOGL'], cacheDurationMs: 60000 });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, true);
+      const html = await response.text();
+
+      expect(html).toContain('Portfolio Rebalancing');
+      expect(html).toContain('Rebalancing Recommendations');
+      expect(html).toContain('Back to Prices');
+      // In rebalance mode, Day Change and Total Gain/Loss metrics should be hidden
+      expect(html).not.toContain('<h6 class="card-subtitle mb-2">Day Change</h6>');
+      expect(html).not.toContain('<h6 class="card-subtitle mb-2">Total Gain/Loss</h6>');
+      expect(html).not.toContain('closedPositionsAccordion');
+    });
+
+    it('should include holdings with target weight even if quantity is 0', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 10, averageCost: 150.00, target_weight: 40 },
+        { id: 2, code: 'TSLA', name: 'Tesla Inc', quantity: 0, averageCost: 0, target_weight: 20 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
+        { type: 'buy', value: 1500, fee: 0 }
+      ]);
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
+        {
+          id: 1,
+          code: 'AAPL',
+          name: 'Apple Inc',
+          quantity: 10,
+          averageCost: 150.00,
+          target_weight: 40,
+          quote: { symbol: 'AAPL', current: 150.00, previousClose: 149.00, change: 1.00, changePercent: 0.67 },
+          marketValue: 1500.00,
+          costBasis: 1500.00,
+          gain: 0,
+          gainPercent: 0,
+          error: null
+        },
+        {
+          id: 2,
+          code: 'TSLA',
+          name: 'Tesla Inc',
+          quantity: 0,
+          averageCost: 0,
+          target_weight: 20,
+          quote: { symbol: 'TSLA', current: 200.00, previousClose: 199.00, change: 1.00, changePercent: 0.50 },
+          marketValue: 0,
+          costBasis: 0,
+          gain: 0,
+          gainPercent: 0,
+          error: null
+        }
+      ]);
+
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({ size: 2, symbols: ['AAPL', 'TSLA'], cacheDurationMs: 60000 });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, true);
+      const html = await response.text();
+
+      expect(html).toContain('Tesla Inc');
+      expect(html).toContain('TSLA');
+    });
+  });
+
+  describe('Sticky columns CSS', () => {
+    it('should include sticky column styles for Name and Symbol columns', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
+        { type: 'buy', value: 750, fee: 0 }
+      ]);
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
+        {
+          id: 1,
+          code: 'AAPL',
+          name: 'Apple Inc',
+          quantity: 5,
+          averageCost: 150.00,
+          target_weight: null,
+          quote: { symbol: 'AAPL', current: 151.00, previousClose: 150.00, change: 1.00, changePercent: 0.67 },
+          marketValue: 755.00,
+          costBasis: 750.00,
+          gain: 5.00,
+          gainPercent: 0.67,
+          error: null
+        }
+      ]);
+
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['AAPL'],
+        cacheDurationMs: 60000
+      });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      // Check for sticky column CSS for holdings table
+      expect(html).toContain('position: sticky');
+      expect(html).toContain('#holdingsTable thead th:nth-child(1)');
+      expect(html).toContain('#holdingsTable tbody td:nth-child(1)');
+      expect(html).toContain('#holdingsTable thead th:nth-child(2)');
+      expect(html).toContain('#holdingsTable tbody td:nth-child(2)');
+      expect(html).toContain('left: 0');
+      expect(html).toContain('left: 100px');
+      
+      // Check for sticky column CSS for closed positions table
+      expect(html).toContain('#closedPositionsTable thead th:nth-child(1)');
+      expect(html).toContain('#closedPositionsTable tbody td:nth-child(1)');
+      expect(html).toContain('#closedPositionsTable thead th:nth-child(2)');
+      expect(html).toContain('#closedPositionsTable tbody td:nth-child(2)');
+    });
+  });
 });
