@@ -9,7 +9,7 @@
     "deploy": "wrangler deploy",
     "seedLocalD1": "wrangler d1 migrations apply stonks-portfolio --local --persist-to ./local-db",
     "predeploy": "wrangler d1 migrations apply stonks-portfolio --remote",
-    "test": "vitest",
+    "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage"
   },

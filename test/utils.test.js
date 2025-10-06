@@ -44,7 +44,8 @@ describe('Utils', () => {
       expect(layout).toContain('<body style="background-color:black;margin:0px">');
       expect(layout).toContain('<div>Test content</div>');
       expect(layout).toContain('</body>');
-      expect(layout).toContain('<footer>');
+      expect(layout).toContain('</html>');
+      expect(layout).toContain('class="card');
     });
 
     test('should use custom body styles when provided', () => {
@@ -58,11 +59,11 @@ describe('Utils', () => {
     test('should include footer with navigation links', () => {
       const layout = generatePageLayout('<div>content</div>');
       
-      expect(layout).toContain('<footer>');
       expect(layout).toContain('href="/stonks/ticker"');
       expect(layout).toContain('href="/stonks/charts"');
       expect(layout).toContain('href="/stonks/charts/large"');
       expect(layout).toContain('href="/stonks/config"');
+      expect(layout).toContain('href="/stonks/prices"');
     });
   });
 
@@ -138,23 +139,23 @@ describe('Utils', () => {
       const footer = generateFooter();
       
       expect(footer).toContain('</body>');
-      expect(footer).toContain('<footer>');
-      expect(footer).toContain('href="/stonks/ticker">Ticker</a>');
-      expect(footer).toContain('href="/stonks/charts">Chart Grid</a>');
-      expect(footer).toContain('href="/stonks/charts/large">Large Chart</a>');
-      expect(footer).toContain('href="/stonks/config">Config</a>');
+      expect(footer).toContain('href="/stonks/ticker"');
+      expect(footer).toContain('href="/stonks/charts"');
+      expect(footer).toContain('href="/stonks/charts/large"');
+      expect(footer).toContain('href="/stonks/config"');
+      expect(footer).toContain('href="/stonks/prices"');
     });
 
-    test('should include proper styling for links', () => {
+    test('should include proper styling for navigation', () => {
       const footer = generateFooter();
       
-      expect(footer).toContain('style="padding-left:1.5rem"');
+      expect(footer).toContain('class="btn');
+      expect(footer).toContain('class="card');
     });
 
     test('should close body tag', () => {
       const footer = generateFooter();
       expect(footer).toContain('</body>');
-      expect(footer).toContain('</footer>');
     });
   });
 
@@ -209,9 +210,10 @@ describe('Utils', () => {
       const response = createLayout('Test', '<div>content</div>');
       const html = await response.text();
       
-      expect(html).toContain('<footer>');
-      expect(html).toContain('/stonks/ticker');
-      expect(html).toContain('/stonks/config');
+      expect(html).toContain('href="/stonks/ticker"');
+      expect(html).toContain('href="/stonks/config"');
+      expect(html).toContain('href="/stonks/prices"');
+      expect(html).toContain('class="btn');
     });
   });
 
@@ -262,7 +264,7 @@ describe('Utils', () => {
       expect(html).toContain('<title>Portfolio</title>');
       expect(html).toContain('<h1>My Portfolio</h1>');
       expect(html).toContain('bootstrap');
-      expect(html).toContain('<footer>');
+      expect(html).toContain('href="/stonks/');
       expect(html).toContain('</html>');
     });
   });

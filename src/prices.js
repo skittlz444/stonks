@@ -182,13 +182,6 @@ export async function generatePricesPage(databaseService, finnhubService) {
             </small>
           </div>
         </div>
-
-        <!-- Navigation -->
-        <div class="mt-4">
-          <a href="/stonks/ticker" class="btn btn-outline-primary me-2">Ticker View</a>
-          <a href="/stonks/charts" class="btn btn-outline-primary me-2">Grid Charts</a>
-          <a href="/stonks/charts/large" class="btn btn-outline-primary">Large Charts</a>
-        </div>
       </div>
 
       <style>

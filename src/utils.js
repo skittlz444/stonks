@@ -13,11 +13,12 @@ export function generateHTMLHeader() {
 /**
  * Generate standard page layout with dark theme
  */
-export function generatePageLayout(content, bodyStyles = "background-color:black;margin:0px") {
+export function generatePageLayout(content, bodyStyles = "background-color:#212529;margin:0px") {
   return `${generateHTMLHeader()}
     <body style="${bodyStyles}">
     ${content}
-    ${generateFooter()}`;
+    ${generateFooter()}
+    </html>`;
 }
 
 /**
@@ -54,14 +55,26 @@ export function generateFullHeightContainer(content) {
     </div>`;
 }
 
+/**
+ * Generate standardized button-based navigation footer
+ */
+export function generateNavigation() {
+  return `
+    <div class="container mt-4 mb-4">
+      <div class="card bg-dark border-secondary">
+        <div class="card-body text-center">
+          <a href="/stonks/prices" class="btn btn-outline-success me-2 mb-2">📊 Live Prices</a>
+          <a href="/stonks/ticker" class="btn btn-outline-info me-2 mb-2">📈 Ticker View</a>
+          <a href="/stonks/charts" class="btn btn-outline-info me-2 mb-2">📉 Grid Charts</a>
+          <a href="/stonks/charts/large" class="btn btn-outline-info mb-2">📊 Large Charts</a>
+          <a href="/stonks/config" class="btn btn-outline-light me-2 mb-2">⚙️ Config</a>
+        </div>
+      </div>
+    </div>`;
+}
+
 export function generateFooter() {
-  return `</body>
-  <footer>
-    <a style="padding-left:1.5rem" href="/stonks/ticker">Ticker</a>
-    <a style="padding-left:1.5rem" href="/stonks/charts">Chart Grid</a>
-    <a style="padding-left:1.5rem" href="/stonks/charts/large">Large Chart</a>
-    <a style="padding-left:1.5rem" href="/stonks/config">Config</a>
-  </footer>`;
+  return `${generateNavigation()}</body>`;
 }
 
 /**

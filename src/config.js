@@ -101,17 +101,6 @@ export async function generateConfigPage(databaseService) {
           }
         </div>
       </div>
-
-      <!-- Navigation -->
-      <div class="card">
-        <div class="card-body">
-          <h5>Navigation</h5>
-          <a href="/stonks/prices" class="btn btn-outline-success me-2">📊 Live Prices</a>
-          <a href="/stonks/ticker" class="btn btn-outline-primary me-2">Ticker View</a>
-          <a href="/stonks/charts" class="btn btn-outline-primary me-2">Grid Charts</a>
-          <a href="/stonks/charts/large" class="btn btn-outline-primary">Large Charts</a>
-        </div>
-      </div>
     </div>
 
     <!-- Add Holding Modal -->

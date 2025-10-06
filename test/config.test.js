@@ -156,12 +156,14 @@ describe('Config', () => {
 
       const result = await generateConfigPage(mockDatabaseService);
 
+      // Navigation is now in the footer, not in the content
+      // Content should not contain navigation links anymore
       const layoutCall = createLayout.mock.calls[0];
       const content = layoutCall[1];
       
-      expect(content).toContain('/stonks/ticker');
-      expect(content).toContain('/stonks/charts');
-      expect(content).toContain('/stonks/charts/large');
+      expect(content).not.toContain('/stonks/ticker');
+      expect(content).not.toContain('/stonks/charts');
+      expect(content).not.toContain('/stonks/charts/large');
     });
 
     it('should include add and edit modals', async () => {
