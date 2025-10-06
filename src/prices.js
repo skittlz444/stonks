@@ -5,15 +5,7 @@ import { createLayout } from './utils.js';
  * @param {Array} holdings - Array of holdings with current quantities and target weights
  * @param {Number} cashAmount - Available cash
  * @param {Number} portfolioTotal - Total portfolio value (market value + cash)
- * @returns {Obje      // Get rebalancing recommendation if in rebalance mode
-      const rebalanceRec = rebalanceMode && rebalancingData ? rebalancingData.recommendations[idx] : null;
-      
-      // Calculate weight difference if target is set
-      const targetWeight = holding.target_weight;
-      // In rebalance mode, show difference for NEW weight, otherwise current weight
-      const weightForDiff = rebalanceMode && rebalanceRec ? rebalanceRec.newWeight : weight;
-      const weightDiff = targetWeight != null ? weightForDiff - targetWeight : null;
-      const weightDiffClass = weightDiff != null ? (weightDiff >= 0 ? 'text-success' : 'text-danger') : '';ebalancing recommendations with new quantities, cash usage, etc.
+ * @returns {{recommendations: Array, newCash: Number, cashChange: Number}} Object containing rebalancing recommendations with new quantities, cash usage, etc.
  */
 function calculateRebalancing(holdings, cashAmount, portfolioTotal) {
   const recommendations = [];
