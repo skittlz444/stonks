@@ -486,4 +486,60 @@ describe('Prices Page Generation', () => {
       expect(html).toContain('1 symbol in cache');
     });
   });
+
+  describe('Sticky columns CSS', () => {
+    it('should include sticky column styles for Name and Symbol columns', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
+        { type: 'buy', value: 750, fee: 0 }
+      ]);
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
+        {
+          id: 1,
+          code: 'AAPL',
+          name: 'Apple Inc',
+          quantity: 5,
+          averageCost: 150.00,
+          target_weight: null,
+          quote: { symbol: 'AAPL', current: 151.00, previousClose: 150.00, change: 1.00, changePercent: 0.67 },
+          marketValue: 755.00,
+          costBasis: 750.00,
+          gain: 5.00,
+          gainPercent: 0.67,
+          error: null
+        }
+      ]);
+
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['AAPL'],
+        cacheDurationMs: 60000
+      });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      // Check for sticky column CSS for holdings table
+      expect(html).toContain('position: sticky');
+      expect(html).toContain('#holdingsTable thead th:nth-child(1)');
+      expect(html).toContain('#holdingsTable tbody td:nth-child(1)');
+      expect(html).toContain('#holdingsTable thead th:nth-child(2)');
+      expect(html).toContain('#holdingsTable tbody td:nth-child(2)');
+      expect(html).toContain('left: 0');
+      expect(html).toContain('left: 150px');
+      
+      // Check for sticky column CSS for closed positions table
+      expect(html).toContain('#closedPositionsTable thead th:nth-child(1)');
+      expect(html).toContain('#closedPositionsTable tbody td:nth-child(1)');
+      expect(html).toContain('#closedPositionsTable thead th:nth-child(2)');
+      expect(html).toContain('#closedPositionsTable tbody td:nth-child(2)');
+    });
+  });
 });
