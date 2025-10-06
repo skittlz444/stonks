@@ -1,9 +1,94 @@
 import { createLayout } from './utils.js';
 
 /**
+ * Calculate rebalancing recommendations for holdings
+ * @param {Array} holdings - Array of holdings with current quantities and target weights
+ * @param {Number} cashAmount - Available cash
+ * @param {Number} portfolioTotal - Total portfolio value (market value + cash)
+ * @returns {Object} - Rebalancing recommendations with new quantities, cash usage, etc.
+ */
+function calculateRebalancing(holdings, cashAmount, portfolioTotal) {
+  const recommendations = [];
+  let remainingCash = cashAmount;
+  
+  // Calculate current state for each holding
+  for (const holding of holdings) {
+    if (!holding.quote || holding.error) {
+      continue;
+    }
+    
+    const currentPrice = holding.quote.current;
+    const currentQuantity = holding.quantity;
+    const currentValue = currentPrice * currentQuantity;
+    const currentWeight = portfolioTotal > 0 ? (currentValue / portfolioTotal) * 100 : 0;
+    const targetWeight = holding.target_weight || 0;
+    
+    // Calculate target value and quantity
+    const targetValue = (targetWeight / 100) * portfolioTotal;
+    const targetQuantity = Math.floor(targetValue / currentPrice);
+    const actualTargetValue = targetQuantity * currentPrice;
+    
+    // Calculate changes
+    const quantityChange = targetQuantity - currentQuantity;
+    const valueChange = actualTargetValue - currentValue;
+    const newWeight = portfolioTotal > 0 ? (actualTargetValue / portfolioTotal) * 100 : 0;
+    
+    recommendations.push({
+      ...holding,
+      currentQuantity,
+      currentValue,
+      currentWeight,
+      targetWeight,
+      targetQuantity,
+      targetValue: actualTargetValue,
+      quantityChange,
+      valueChange,
+      newWeight,
+      action: quantityChange > 0 ? 'BUY' : (quantityChange < 0 ? 'SELL' : 'HOLD')
+    });
+    
+    // Update remaining cash
+    remainingCash -= valueChange;
+  }
+  
+  // If cash would go negative, we need to optimize
+  if (remainingCash < 0) {
+    // Reduce buy recommendations to keep cash non-negative
+    remainingCash = cashAmount;
+    const sortedByDeviation = [...recommendations]
+      .filter(r => r.quantityChange > 0)
+      .sort((a, b) => Math.abs(b.currentWeight - b.targetWeight) - Math.abs(a.currentWeight - a.targetWeight));
+    
+    for (const rec of recommendations) {
+      if (rec.quantityChange > 0) {
+        const currentPrice = rec.quote.current;
+        // Calculate max quantity we can buy with remaining cash
+        const maxBuyQuantity = Math.floor(remainingCash / currentPrice);
+        const actualBuyQuantity = Math.min(rec.quantityChange, maxBuyQuantity);
+        
+        rec.targetQuantity = rec.currentQuantity + actualBuyQuantity;
+        rec.quantityChange = actualBuyQuantity;
+        rec.targetValue = rec.targetQuantity * currentPrice;
+        rec.valueChange = rec.targetValue - rec.currentValue;
+        rec.newWeight = portfolioTotal > 0 ? (rec.targetValue / portfolioTotal) * 100 : 0;
+        rec.action = actualBuyQuantity > 0 ? 'BUY' : 'HOLD';
+        
+        remainingCash -= rec.valueChange;
+      }
+    }
+  }
+  
+  return {
+    recommendations,
+    newCash: remainingCash,
+    cashChange: remainingCash - cashAmount
+  };
+}
+
+/**
  * Generate the stock prices page with live quotes
  */
-export async function generatePricesPage(databaseService, finnhubService) {
+export async function generatePricesPage(databaseService, finnhubService, rebalanceMode = false) {
   if (!finnhubService) {
     return createLayout('Stock Prices', `
       <div class="container mt-4">
@@ -30,8 +115,11 @@ export async function generatePricesPage(databaseService, finnhubService) {
     // Get visible portfolio holdings with calculated quantities from transactions
     const holdings = await databaseService.getVisiblePortfolioHoldings();
     
-    // Filter out holdings with zero quantity (closed positions handled separately)
-    const activeHoldings = holdings.filter(h => h.quantity > 0);
+    // In rebalance mode, include holdings with target weight even if quantity is 0
+    // In normal mode, filter out holdings with zero quantity (closed positions handled separately)
+    const activeHoldings = rebalanceMode 
+      ? holdings.filter(h => h.quantity > 0 || h.target_weight != null)
+      : holdings.filter(h => h.quantity > 0);
 
     if (activeHoldings.length === 0) {
       return createLayout('Stock Prices', `
@@ -104,8 +192,14 @@ export async function generatePricesPage(databaseService, finnhubService) {
     let totalChangeValue = 0;
     let totalChangePercent = 0;
     
+    // Calculate rebalancing if in rebalance mode
+    let rebalancingData = null;
+    if (rebalanceMode) {
+      rebalancingData = calculateRebalancing(holdingsWithQuotes, cashAmount, portfolioTotal);
+    }
+    
     // Generate holdings table rows
-    const holdingsRows = holdingsWithQuotes.map(holding => {
+    const holdingsRows = holdingsWithQuotes.map((holding, idx) => {
       if (holding.error) {
         return `
           <tr>
@@ -129,6 +223,9 @@ export async function generatePricesPage(databaseService, finnhubService) {
       const changeValue = quote.change * holding.quantity;
       totalChangeValue += changeValue;
       
+      // Get rebalancing recommendation if in rebalance mode
+      const rebalanceRec = rebalanceMode && rebalancingData ? rebalancingData.recommendations[idx] : null;
+      
       // Calculate weight difference if target is set
       const targetWeight = holding.target_weight;
       const weightDiff = targetWeight != null ? weight - targetWeight : null;
@@ -142,30 +239,66 @@ export async function generatePricesPage(databaseService, finnhubService) {
       // Extract stock code (part after ':')
       const stockCode = holding.code.includes(':') ? holding.code.split(':')[1] : holding.code;
       
-      return `
-        <tr data-holding="true">
-          <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
-          <td data-value="${stockCode}"><code>${stockCode}</code></td>
-          <td class="text-end" data-value="${quote.current}">$${quote.current.toFixed(2)}</td>
-          <td class="text-end ${changeClass}" data-value="${quote.change}">
-            ${changeIcon} $${Math.abs(quote.change).toFixed(2)} (${quote.changePercent.toFixed(2)}%)
-          </td>
-          <td class="text-end" data-value="${holding.quantity}">${holding.quantity.toFixed(2)}</td>
-          <td class="text-end" data-value="${holding.costBasis}" style="display: none;">$${holding.costBasis.toFixed(2)}</td>
-          <td class="text-end" data-value="${holding.marketValue}">$${holding.marketValue.toFixed(2)}</td>
-          <td class="text-end ${changeClass}" data-value="${changeValue}">
-            ${changeIcon} $${Math.abs(changeValue).toFixed(2)}
-          </td>
-          <td class="text-end" data-value="${weight}">${weight.toFixed(2)}%</td>
-          <td class="text-end" data-value="${targetWeight != null ? targetWeight : -999}">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
-          <td class="text-end ${weightDiffClass}" data-value="${weightDiff != null ? weightDiff : -999}">
-            ${weightDiff != null ? (weightDiff >= 0 ? '+' : '') + weightDiff.toFixed(2) + '%' : '-'}
-          </td>
-          <td class="text-end ${gainClass}" data-value="${holding.gain}">
-            $${holding.gain.toFixed(2)} (${holding.gainPercent.toFixed(2)}%)
-          </td>
-        </tr>
-      `;
+      // In rebalance mode, show different columns
+      if (rebalanceMode && rebalanceRec) {
+        const qtyChangeClass = rebalanceRec.quantityChange > 0 ? 'text-success' : (rebalanceRec.quantityChange < 0 ? 'text-danger' : 'text-muted');
+        const valueChangeClass = rebalanceRec.valueChange > 0 ? 'text-danger' : (rebalanceRec.valueChange < 0 ? 'text-success' : 'text-muted');
+        const actionBadgeClass = rebalanceRec.action === 'BUY' ? 'bg-success' : (rebalanceRec.action === 'SELL' ? 'bg-danger' : 'bg-secondary');
+        
+        return `
+          <tr data-holding="true">
+            <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+            <td data-value="${stockCode}"><code>${stockCode}</code></td>
+            <td class="text-end" data-value="${quote.current}">$${quote.current.toFixed(2)}</td>
+            <td class="text-end" data-value="${holding.quantity}">
+              <span class="text-muted" style="text-decoration: line-through;">${holding.quantity.toFixed(2)}</span>
+              <strong>${rebalanceRec.targetQuantity.toFixed(2)}</strong>
+              <span class="${qtyChangeClass}"> (${rebalanceRec.quantityChange >= 0 ? '+' : ''}${rebalanceRec.quantityChange.toFixed(2)})</span>
+            </td>
+            <td class="text-end" data-value="${holding.marketValue}">
+              <span class="text-muted" style="text-decoration: line-through;">$${holding.marketValue.toFixed(2)}</span>
+              <strong>$${rebalanceRec.targetValue.toFixed(2)}</strong>
+              <span class="${valueChangeClass}"> (${rebalanceRec.valueChange >= 0 ? '+$' : '-$'}${Math.abs(rebalanceRec.valueChange).toFixed(2)})</span>
+            </td>
+            <td class="text-end" data-value="${weight}">
+              <span class="text-muted" style="text-decoration: line-through;">${weight.toFixed(2)}%</span>
+              <strong>${rebalanceRec.newWeight.toFixed(2)}%</strong>
+            </td>
+            <td class="text-end" data-value="${targetWeight != null ? targetWeight : -999}">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
+            <td class="text-end ${weightDiffClass}" data-value="${weightDiff != null ? weightDiff : -999}">
+              ${weightDiff != null ? (weightDiff >= 0 ? '+' : '') + weightDiff.toFixed(2) + '%' : '-'}
+            </td>
+            <td class="text-center" data-value="${rebalanceRec.action}">
+              <span class="badge ${actionBadgeClass}">${rebalanceRec.action}</span>
+            </td>
+          </tr>
+        `;
+      } else {
+        return `
+          <tr data-holding="true">
+            <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+            <td data-value="${stockCode}"><code>${stockCode}</code></td>
+            <td class="text-end" data-value="${quote.current}">$${quote.current.toFixed(2)}</td>
+            <td class="text-end ${changeClass}" data-value="${quote.change}">
+              ${changeIcon} $${Math.abs(quote.change).toFixed(2)} (${quote.changePercent.toFixed(2)}%)
+            </td>
+            <td class="text-end" data-value="${holding.quantity}">${holding.quantity.toFixed(2)}</td>
+            <td class="text-end" data-value="${holding.costBasis}" style="display: none;">$${holding.costBasis.toFixed(2)}</td>
+            <td class="text-end" data-value="${holding.marketValue}">$${holding.marketValue.toFixed(2)}</td>
+            <td class="text-end ${changeClass}" data-value="${changeValue}">
+              ${changeIcon} $${Math.abs(changeValue).toFixed(2)}
+            </td>
+            <td class="text-end" data-value="${weight}">${weight.toFixed(2)}%</td>
+            <td class="text-end" data-value="${targetWeight != null ? targetWeight : -999}">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
+            <td class="text-end ${weightDiffClass}" data-value="${weightDiff != null ? weightDiff : -999}">
+              ${weightDiff != null ? (weightDiff >= 0 ? '+' : '') + weightDiff.toFixed(2) + '%' : '-'}
+            </td>
+            <td class="text-end ${gainClass}" data-value="${holding.gain}">
+              $${holding.gain.toFixed(2)} (${holding.gainPercent.toFixed(2)}%)
+            </td>
+          </tr>
+        `;
+      }
     }).join('');
     
     // Calculate total change percentage
@@ -174,29 +307,66 @@ export async function generatePricesPage(databaseService, finnhubService) {
     
     // Add cash row
     const cashWeight = portfolioTotal > 0 ? (cashAmount / portfolioTotal) * 100 : 0;
-    const cashRow = `
-      <tr class="table-secondary">
-        <td><strong>Cash</strong></td>
-        <td>-</td>
-        <td class="text-end">-</td>
-        <td class="text-end">-</td>
-        <td class="text-end">-</td>
-        <td class="text-end" style="display: none;">-</td>
-        <td class="text-end">$${cashAmount.toFixed(2)}</td>
-        <td class="text-end">-</td>
-        <td class="text-end">${cashWeight.toFixed(2)}%</td>
-        <td class="text-end">-</td>
-        <td class="text-end">-</td>
-        <td class="text-end">-</td>
-      </tr>
-    `;
+    let cashRow = '';
+    
+    if (rebalanceMode && rebalancingData) {
+      const newCash = rebalancingData.newCash;
+      const cashChange = rebalancingData.cashChange;
+      const cashChangeClass = cashChange > 0 ? 'text-success' : (cashChange < 0 ? 'text-danger' : 'text-muted');
+      const newCashWeight = portfolioTotal > 0 ? (newCash / portfolioTotal) * 100 : 0;
+      
+      cashRow = `
+        <tr class="table-secondary">
+          <td><strong>Cash</strong></td>
+          <td>-</td>
+          <td class="text-end">-</td>
+          <td class="text-end">
+            <span class="text-muted" style="text-decoration: line-through;">-</span>
+            <strong>-</strong>
+          </td>
+          <td class="text-end">
+            <span class="text-muted" style="text-decoration: line-through;">$${cashAmount.toFixed(2)}</span>
+            <strong>$${newCash.toFixed(2)}</strong>
+            <span class="${cashChangeClass}"> (${cashChange >= 0 ? '+$' : '-$'}${Math.abs(cashChange).toFixed(2)})</span>
+          </td>
+          <td class="text-end">
+            <span class="text-muted" style="text-decoration: line-through;">${cashWeight.toFixed(2)}%</span>
+            <strong>${newCashWeight.toFixed(2)}%</strong>
+          </td>
+          <td class="text-end">-</td>
+          <td class="text-end">-</td>
+          <td class="text-center">-</td>
+        </tr>
+      `;
+    } else {
+      cashRow = `
+        <tr class="table-secondary">
+          <td><strong>Cash</strong></td>
+          <td>-</td>
+          <td class="text-end">-</td>
+          <td class="text-end">-</td>
+          <td class="text-end">-</td>
+          <td class="text-end" style="display: none;">-</td>
+          <td class="text-end">$${cashAmount.toFixed(2)}</td>
+          <td class="text-end">-</td>
+          <td class="text-end">${cashWeight.toFixed(2)}%</td>
+          <td class="text-end">-</td>
+          <td class="text-end">-</td>
+          <td class="text-end">-</td>
+        </tr>
+      `;
+    }
 
     const content = `
       <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-          <h1>📊 Live Stock Prices</h1>
+          <h1>📊 ${rebalanceMode ? 'Portfolio Rebalancing' : 'Live Stock Prices'}</h1>
           <div>
             <button class="btn btn-primary me-2" onclick="location.reload()">🔄 Refresh</button>
+            ${rebalanceMode 
+              ? '<a href="/stonks/prices" class="btn btn-warning me-2">← Back to Prices</a>'
+              : '<a href="/stonks/prices?mode=rebalance" class="btn btn-warning me-2">⚖️ Rebalance</a>'
+            }
             <a href="/stonks/config" class="btn btn-outline-secondary">⚙️ Settings</a>
           </div>
         </div>
@@ -227,6 +397,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
               </div>
             </div>
           </div>
+          ${!rebalanceMode ? `
           <div class="col-6 col-md-2">
             <div class="card ${totalChangeValue >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
@@ -244,7 +415,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
                 <small>${totalGainPercent.toFixed(2)}%</small>
               </div>
             </div>
-          </div>
+          </div>` : ''}
           <div class="col-6 col-md-2">
             <div class="card ${totalWeightDeviation > 10 ? 'bg-warning' : 'bg-info'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
@@ -259,12 +430,14 @@ export async function generatePricesPage(databaseService, finnhubService) {
         <!-- Holdings Table -->
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="mb-0">Portfolio Holdings</h3>
+            <h3 class="mb-0">${rebalanceMode ? 'Rebalancing Recommendations' : 'Portfolio Holdings'}</h3>
+            ${!rebalanceMode ? `
             <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#columnControls">
               ⚙️ Columns
             </button>
+            ` : ''}
           </div>
-          <div class="collapse" id="columnControls">
+          ${!rebalanceMode ? `<div class="collapse" id="columnControls">` : '<div style="display: none;" id="columnControls">'}
             <div class="card-body border-bottom">
               <div class="row g-2">
                 <div class="col-auto">
@@ -350,6 +523,14 @@ export async function generatePricesPage(databaseService, finnhubService) {
                     <th class="sortable" data-column="0" data-type="text">Name <span class="sort-indicator"></span></th>
                     <th class="sortable" data-column="1" data-type="text">Symbol <span class="sort-indicator"></span></th>
                     <th class="sortable text-end" data-column="2" data-type="number">Current Price <span class="sort-indicator"></span></th>
+                    ${rebalanceMode ? `
+                    <th class="sortable text-end" data-column="3" data-type="number">Quantity <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="4" data-type="number">Market Value <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="5" data-type="number">Weight <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="6" data-type="number">Target <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="7" data-type="number">Diff <span class="sort-indicator"></span></th>
+                    <th class="text-center" data-column="8">Action</th>
+                    ` : `
                     <th class="sortable text-end" data-column="3" data-type="number">Price Change <span class="sort-indicator"></span></th>
                     <th class="sortable text-end" data-column="4" data-type="number">Quantity <span class="sort-indicator"></span></th>
                     <th class="sortable text-end" data-column="5" data-type="number" style="display: none;">Cost <span class="sort-indicator"></span></th>
@@ -359,6 +540,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
                     <th class="sortable text-end" data-column="9" data-type="number">Target <span class="sort-indicator"></span></th>
                     <th class="sortable text-end" data-column="10" data-type="number">Diff <span class="sort-indicator"></span></th>
                     <th class="sortable text-end" data-column="11" data-type="number">Total Gain/Loss <span class="sort-indicator"></span></th>
+                    `}
                   </tr>
                 </thead>
                 <tbody>
@@ -380,7 +562,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
         </div>
 
         <!-- Closed Positions (Collapsed by default) -->
-        ${await generateClosedPositionsSection(databaseService)}
+        ${!rebalanceMode ? await generateClosedPositionsSection(databaseService) : ''}
       </div>
 
       <style>
