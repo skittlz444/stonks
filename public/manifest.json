@@ -1,0 +1,35 @@
+{
+  "name": "Stonks Portfolio Tracker",
+  "short_name": "Stonks",
+  "description": "Track your portfolio holdings, prices, and rebalancing recommendations",
+  "start_url": "/stonks",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d6efd",
+  "orientation": "portrait-primary",
+  "scope": "/stonks",
+  "icons": [
+    {
+      "src": "/stonks/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/stonks/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["finance", "productivity", "business"],
+  "screenshots": [
+    {
+      "src": "/stonks/icons/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Stonks portfolio tracker mobile view"
+    }
+  ]
+}

@@ -7,6 +7,75 @@ import { DatabaseService, MockD1Database } from './databaseService.js';
 import { createFinnhubService } from './finnhubService.js';
 
 /**
+ * Serve static files - these will be bundled by Wrangler
+ */
+async function serveStaticFile(env, filename, contentType) {
+  try {
+    // In production, these files will be uploaded as assets via wrangler.toml
+    // For now, we'll fetch from the origin or serve inline
+    const staticAssets = {
+      'manifest.json': JSON.stringify({
+        "name": "Stonks Portfolio Tracker",
+        "short_name": "Stonks",
+        "description": "Track your portfolio holdings, prices, and rebalancing recommendations",
+        "start_url": "/stonks",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#0d6efd",
+        "orientation": "portrait-primary",
+        "scope": "/stonks",
+        "icons": [
+          {
+            "src": "/stonks/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable any"
+          },
+          {
+            "src": "/stonks/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable any"
+          }
+        ],
+        "categories": ["finance", "productivity", "business"]
+      })
+    };
+    
+    // For service worker, it needs to be served from the actual file
+    // This will be handled by the assets configuration in wrangler.toml
+    if (filename === 'sw.js') {
+      // Fetch from assets if available, or return a minimal version
+      if (env.ASSETS) {
+        return env.ASSETS.fetch(new Request(`https://placeholder/sw.js`));
+      }
+      // Return a minimal service worker for development
+      return new Response('console.log("Service worker placeholder - run build to generate versioned cache");', {
+        headers: {
+          'content-type': contentType,
+          'cache-control': 'no-cache',
+        },
+      });
+    }
+    
+    const content = staticAssets[filename];
+    if (!content) {
+      return new Response('File not found', { status: 404 });
+    }
+    
+    return new Response(content, {
+      headers: {
+        'content-type': contentType,
+        'cache-control': 'public, max-age=3600',
+      },
+    });
+  } catch (error) {
+    console.error('Error serving static file:', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
+}
+
+/**
  * Main Cloudflare Worker that handles routing for all three stock portfolio pages
  */
 export default {
@@ -38,9 +107,23 @@ async function handleRequest(request, env) {
   
   // Initialize Finnhub service if API key is available
   const finnhubService = createFinnhubService(env.FINNHUB_API_KEY);
+  
   // Route to appropriate page based on URL path
   try {
     switch (pathname) {
+      case '/stonks/':
+      case '/stonks':
+        // Redirect to prices page as default
+        return Response.redirect(url.origin + '/stonks/prices', 302);
+      
+      case '/stonks/sw.js':
+        // Serve service worker
+        return await serveStaticFile(env, 'sw.js', 'application/javascript');
+      
+      case '/stonks/manifest.json':
+        // Serve PWA manifest
+        return await serveStaticFile(env, 'manifest.json', 'application/json');
+      
       case '/stonks/ticker':
         return await generateTickerPage(databaseService);
       
