@@ -41,7 +41,7 @@ describe('Utils', () => {
       const layout = generatePageLayout(content);
       
       expect(layout).toContain('<!DOCTYPE html>');
-      expect(layout).toContain('<body style="background-color:black;margin:0px">');
+      expect(layout).toContain('<body style="background-color:#212529;margin:0px">');
       expect(layout).toContain('<div>Test content</div>');
       expect(layout).toContain('</body>');
       expect(layout).toContain('</html>');

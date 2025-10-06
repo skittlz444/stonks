@@ -63,7 +63,7 @@ describe('ChartLarge', () => {
       );
       expect(generatePageLayout).toHaveBeenCalledWith(
         expect.stringContaining('full-height-container'),
-        'background-color:black;height:100vh'
+        'background-color:#212529;height:100vh'
       );
       expect(createResponse).toHaveBeenCalled();
     });
@@ -130,7 +130,7 @@ describe('ChartLarge', () => {
 
       expect(generatePageLayout).toHaveBeenCalledWith(
         expect.any(String),
-        'background-color:black;height:100vh'
+        'background-color:#212529;height:100vh'
       );
     });
 
@@ -186,7 +186,7 @@ describe('ChartLarge', () => {
     it('should return proper response object', async () => {
       const mockHoldings = [{ symbol: 'NASDAQ:AAPL', name: 'Apple', quantity: 1 }];
       const expectedResponse = {
-        body: '<html><head><style>background-color:black;height:100vh</style></head><body>test content</body></html>',
+        body: '<html><head><style>background-color:#212529;height:100vh</style></head><body>test content</body></html>',
         status: 200,
         headers: { 'Content-Type': 'text/html' }
       };
@@ -218,7 +218,7 @@ describe('ChartLarge', () => {
       // Verify the flow: holdings -> symbols -> widget -> container -> layout -> response
       expect(generateSymbolOverviewWidget).toHaveBeenCalledWith('"NASDAQ:AAPL"');
       expect(generateFullHeightContainer).toHaveBeenCalledWith(mockSymbolOverview);
-      expect(generatePageLayout).toHaveBeenCalledWith(mockContainer, 'background-color:black;height:100vh');
+      expect(generatePageLayout).toHaveBeenCalledWith(mockContainer, 'background-color:#212529;height:100vh');
     });
 
     it('should handle edge case with fractional quantities', async () => {
