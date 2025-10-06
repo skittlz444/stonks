@@ -13,7 +13,8 @@ export default defineConfig({
         'coverage/**',
         '**/*.test.js',
         '**/*.config.js',
-        'worker-configuration.d.ts'
+        'worker-configuration.d.ts',
+        '.wrangler/**'
       ]
     },
     globals: true,

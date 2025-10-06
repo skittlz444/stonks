@@ -29,5 +29,5 @@ export async function generateChartGridPage(databaseService) {
       </div>
     </div>`;
   
-  return createResponse(generatePageLayout(content, "background-color:black;margin:0px;height:100vh"));
+  return createResponse(generatePageLayout(content, "background-color:#212529;margin:0px;height:100vh"));
 }

@@ -2,7 +2,9 @@ import { generateTickerPage } from './ticker.js';
 import { generateChartGridPage } from './chartGrid.js';
 import { generateLargeChartPage } from './chartLarge.js';
 import { generateConfigPage, handleConfigSubmission } from './config.js';
+import { generatePricesPage } from './prices.js';
 import { DatabaseService, MockD1Database } from './databaseService.js';
+import { createFinnhubService } from './finnhubService.js';
 
 /**
  * Main Cloudflare Worker that handles routing for all three stock portfolio pages
@@ -33,6 +35,9 @@ async function handleRequest(request, env) {
     console.log('Database error, falling back to mock database:', error);
     databaseService = new DatabaseService(new MockD1Database());
   }
+  
+  // Initialize Finnhub service if API key is available
+  const finnhubService = createFinnhubService(env.FINNHUB_API_KEY);
   // Route to appropriate page based on URL path
   try {
     switch (pathname) {
@@ -45,6 +50,9 @@ async function handleRequest(request, env) {
       case '/stonks/charts/large':
         return await generateLargeChartPage(databaseService);
       
+      case '/stonks/prices':
+        return await generatePricesPage(databaseService, finnhubService);
+      
       case '/stonks/config':
         if (request.method === 'POST') {
           return await handleConfigSubmission(request, databaseService);
@@ -53,7 +61,7 @@ async function handleRequest(request, env) {
         }
       
       default:
-        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large, /stonks/config', {
+        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large, /stonks/prices, /stonks/config', {
           status: 404,
           headers: {
             'content-type': 'text/plain',

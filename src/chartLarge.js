@@ -15,5 +15,5 @@ export async function generateLargeChartPage(databaseService) {
   // Wrap in full height container
   const content = generateFullHeightContainer(symbolOverview);
   
-  return createResponse(generatePageLayout(content, "background-color:black;height:100vh"));
+  return createResponse(generatePageLayout(content, "background-color:#212529;height:100vh"));
 }

@@ -62,7 +62,7 @@ describe('ChartGrid', () => {
       expect(generateMarketOverviewWidget).toHaveBeenCalledWith(mockMarketSymbols);
       expect(generatePageLayout).toHaveBeenCalledWith(
         expect.stringContaining('<div class="container-fluid">'),
-        'background-color:black;margin:0px;height:100vh'
+        'background-color:#212529;margin:0px;height:100vh'
       );
       expect(createResponse).toHaveBeenCalled();
     });
@@ -150,7 +150,7 @@ describe('ChartGrid', () => {
 
       expect(generatePageLayout).toHaveBeenCalledWith(
         expect.any(String),
-        'background-color:black;margin:0px;height:100vh'
+        'background-color:#212529;margin:0px;height:100vh'
       );
     });
 
@@ -194,7 +194,7 @@ describe('ChartGrid', () => {
     it('should return proper response object', async () => {
       const mockHoldings = [{ symbol: 'NASDAQ:AAPL', name: 'Apple', quantity: 1 }];
       const expectedResponse = {
-        body: '<html><head><style>background-color:black;margin:0px;height:100vh</style></head><body>test content</body></html>',
+        body: '<html><head><style>background-color:#212529;margin:0px;height:100vh</style></head><body>test content</body></html>',
         status: 200,
         headers: { 'Content-Type': 'text/html' }
       };
