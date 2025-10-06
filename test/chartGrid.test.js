@@ -18,14 +18,15 @@ vi.mock('../src/chartWidgets.js', () => ({
 }));
 
 vi.mock('../src/dataUtils.js', () => ({
-  getStockHoldings: vi.fn(),
+  getVisibleStockHoldings: vi.fn(),
+  getVisibleStockHoldings: vi.fn(),
   formatStructuredDataForChartGrid: vi.fn()
 }));
 
 // Import mocked modules for assertions
 import { generatePageLayout, createResponse } from '../src/utils.js';
 import { generateMiniSymbolWidget, generateMarketOverviewWidget } from '../src/chartWidgets.js';
-import { getStockHoldings, formatStructuredDataForChartGrid } from '../src/dataUtils.js';
+import { getVisibleStockHoldings, formatStructuredDataForChartGrid } from '../src/dataUtils.js';
 
 describe('ChartGrid', () => {
   let mockDatabaseService;
@@ -47,14 +48,14 @@ describe('ChartGrid', () => {
       ];
       const mockMarketSymbols = '"NASDAQ:AAPL","BATS:VOO"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue(mockMarketSymbols);
       generateMiniSymbolWidget.mockImplementation((symbol) => `<div class="mini-widget" data-symbol=${symbol}></div>`);
       generateMarketOverviewWidget.mockImplementation((symbols) => `<div class="market-overview" data-symbols="${symbols}"></div>`);
 
       const result = await generateChartGridPage(mockDatabaseService);
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
       expect(formatStructuredDataForChartGrid).toHaveBeenCalledWith(mockHoldings);
       expect(generateMiniSymbolWidget).toHaveBeenCalledTimes(2);
       expect(generateMiniSymbolWidget).toHaveBeenCalledWith('"NASDAQ:AAPL"');
@@ -71,12 +72,12 @@ describe('ChartGrid', () => {
       const mockHoldings = [];
       const mockMarketSymbols = '';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue(mockMarketSymbols);
 
       const result = await generateChartGridPage(mockDatabaseService);
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
       expect(formatStructuredDataForChartGrid).toHaveBeenCalledWith(mockHoldings);
       expect(generateMiniSymbolWidget).not.toHaveBeenCalled();
       expect(generateMarketOverviewWidget).toHaveBeenCalledWith(mockMarketSymbols);
@@ -90,7 +91,7 @@ describe('ChartGrid', () => {
       ];
       const mockMarketSymbols = '"NASDAQ:AAPL"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue(mockMarketSymbols);
 
       await generateChartGridPage(mockDatabaseService);
@@ -110,7 +111,7 @@ describe('ChartGrid', () => {
       ];
       const mockMarketSymbols = '"NASDAQ:TSLA"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue(mockMarketSymbols);
 
       const result = await generateChartGridPage(mockDatabaseService);
@@ -129,7 +130,7 @@ describe('ChartGrid', () => {
       ];
       const mockMarketSymbols = '"NASDAQ:AAPL","BATS:VOO","NASDAQ:GOOGL","NASDAQ:MSFT"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue(mockMarketSymbols);
 
       const result = await generateChartGridPage(mockDatabaseService);
@@ -143,7 +144,7 @@ describe('ChartGrid', () => {
         { symbol: 'NASDAQ:AAPL', name: 'Apple Inc.', quantity: 10 }
       ];
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue('"NASDAQ:AAPL"');
 
       await generateChartGridPage(mockDatabaseService);
@@ -155,18 +156,18 @@ describe('ChartGrid', () => {
     });
 
     it('should handle database service errors', async () => {
-      getStockHoldings.mockRejectedValue(new Error('Database connection failed'));
+      getVisibleStockHoldings.mockRejectedValue(new Error('Database connection failed'));
 
       await expect(generateChartGridPage(mockDatabaseService))
         .rejects.toThrow('Database connection failed');
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
     });
 
     it('should handle formatting errors', async () => {
       const mockHoldings = [{ symbol: 'INVALID', name: 'Invalid', quantity: 1 }];
       
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockImplementation(() => {
         throw new Error('Formatting failed');
       });
@@ -181,7 +182,7 @@ describe('ChartGrid', () => {
         { symbol: 'BATS:VOO', name: 'Vanguard S&P 500 ETF', quantity: 5 }
       ];
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue('"NASDAQ:AAPL","BATS:VOO"');
 
       await generateChartGridPage(mockDatabaseService);
@@ -199,7 +200,7 @@ describe('ChartGrid', () => {
         headers: { 'Content-Type': 'text/html' }
       };
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForChartGrid.mockReturnValue('"NASDAQ:AAPL"');
       createResponse.mockReturnValue(expectedResponse);
 

@@ -19,6 +19,22 @@ export async function getStockHoldings(databaseService) {
 }
 
 /**
+ * Get only visible stock holdings (for ticker and charts)
+ */
+export async function getVisibleStockHoldings(databaseService) {
+  try {
+    const holdings = await databaseService.getVisibleHoldings();
+    if (!holdings || holdings.length === 0) {
+      throw new Error("No visible stock holdings data found");
+    }
+    return holdings;
+  } catch (error) {
+    console.error("Error getting visible stock holdings:", error);
+    throw new Error("No visible stock holdings data found");
+  }
+}
+
+/**
  * @deprecated Use getStockHoldings() instead - this is for backward compatibility
  * Parse stock holdings from database service into legacy string format
  */

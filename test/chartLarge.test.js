@@ -17,14 +17,14 @@ vi.mock('../src/chartWidgets.js', () => ({
 }));
 
 vi.mock('../src/dataUtils.js', () => ({
-  getStockHoldings: vi.fn(),
+  getVisibleStockHoldings: vi.fn(),
   formatStructuredDataForLargeChart: vi.fn()
 }));
 
 // Import mocked modules for assertions
 import { generatePageLayout, generateFullHeightContainer, createResponse } from '../src/utils.js';
 import { generateSymbolOverviewWidget } from '../src/chartWidgets.js';
-import { getStockHoldings, formatStructuredDataForLargeChart } from '../src/dataUtils.js';
+import { getVisibleStockHoldings, formatStructuredDataForLargeChart } from '../src/dataUtils.js';
 
 describe('ChartLarge', () => {
   let mockDatabaseService;
@@ -49,13 +49,13 @@ describe('ChartLarge', () => {
       ];
       const mockChartSymbols = '"NASDAQ:AAPL","BATS:VOO"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue(mockChartSymbols);
       generateSymbolOverviewWidget.mockImplementation((symbols) => `<div class="symbol-overview" data-symbols="${symbols}"></div>`);
 
       const result = await generateLargeChartPage(mockDatabaseService);
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
       expect(formatStructuredDataForLargeChart).toHaveBeenCalledWith(mockHoldings);
       expect(generateSymbolOverviewWidget).toHaveBeenCalledWith(mockChartSymbols);
       expect(generateFullHeightContainer).toHaveBeenCalledWith(
@@ -72,12 +72,12 @@ describe('ChartLarge', () => {
       const mockHoldings = [];
       const mockChartSymbols = '';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue(mockChartSymbols);
 
       const result = await generateLargeChartPage(mockDatabaseService);
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
       expect(formatStructuredDataForLargeChart).toHaveBeenCalledWith(mockHoldings);
       expect(generateSymbolOverviewWidget).toHaveBeenCalledWith(mockChartSymbols);
       expect(generateFullHeightContainer).toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe('ChartLarge', () => {
       ];
       const mockChartSymbols = '"NASDAQ:TSLA"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue(mockChartSymbols);
 
       const result = await generateLargeChartPage(mockDatabaseService);
@@ -109,7 +109,7 @@ describe('ChartLarge', () => {
       ];
       const mockChartSymbols = '"NASDAQ:AAPL","BATS:VOO","NASDAQ:GOOGL","NASDAQ:MSFT"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue(mockChartSymbols);
 
       const result = await generateLargeChartPage(mockDatabaseService);
@@ -123,7 +123,7 @@ describe('ChartLarge', () => {
         { symbol: 'NASDAQ:AAPL', name: 'Apple Inc.', quantity: 10 }
       ];
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue('"NASDAQ:AAPL"');
 
       await generateLargeChartPage(mockDatabaseService);
@@ -140,7 +140,7 @@ describe('ChartLarge', () => {
       ];
       const mockSymbolOverview = '<div class="symbol-overview">test</div>';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue('"NASDAQ:AAPL"');
       generateSymbolOverviewWidget.mockReturnValue(mockSymbolOverview);
 
@@ -150,18 +150,18 @@ describe('ChartLarge', () => {
     });
 
     it('should handle database service errors', async () => {
-      getStockHoldings.mockRejectedValue(new Error('Database connection failed'));
+      getVisibleStockHoldings.mockRejectedValue(new Error('Database connection failed'));
 
       await expect(generateLargeChartPage(mockDatabaseService))
         .rejects.toThrow('Database connection failed');
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
     });
 
     it('should handle formatting errors', async () => {
       const mockHoldings = [{ symbol: 'INVALID', name: 'Invalid', quantity: 1 }];
       
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockImplementation(() => {
         throw new Error('Formatting failed');
       });
@@ -173,7 +173,7 @@ describe('ChartLarge', () => {
     it('should handle widget generation errors', async () => {
       const mockHoldings = [{ symbol: 'NASDAQ:AAPL', name: 'Apple', quantity: 1 }];
       
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue('"NASDAQ:AAPL"');
       generateSymbolOverviewWidget.mockImplementation(() => {
         throw new Error('Widget generation failed');
@@ -191,7 +191,7 @@ describe('ChartLarge', () => {
         headers: { 'Content-Type': 'text/html' }
       };
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue('"NASDAQ:AAPL"');
       createResponse.mockReturnValue(expectedResponse);
 
@@ -208,7 +208,7 @@ describe('ChartLarge', () => {
       const mockSymbolOverview = '<div class="symbol-overview">content</div>';
       const mockContainer = '<div class="full-height-container">wrapped content</div>';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue('"NASDAQ:AAPL"');
       generateSymbolOverviewWidget.mockReturnValue(mockSymbolOverview);
       generateFullHeightContainer.mockReturnValue(mockContainer);
@@ -228,7 +228,7 @@ describe('ChartLarge', () => {
       ];
       const mockChartSymbols = '"BATS:VOO","NASDAQ:AAPL"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue(mockChartSymbols);
 
       const result = await generateLargeChartPage(mockDatabaseService);
@@ -245,7 +245,7 @@ describe('ChartLarge', () => {
       ];
       const mockChartSymbols = '"NASDAQ:AAPL","BATS:VOO","NYSE:JPM"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForLargeChart.mockReturnValue(mockChartSymbols);
 
       const result = await generateLargeChartPage(mockDatabaseService);

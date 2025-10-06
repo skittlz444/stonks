@@ -27,26 +27,25 @@ export async function generatePricesPage(databaseService, finnhubService) {
   }
 
   try {
-    // Get portfolio holdings from database
-    const portfolioHoldings = await databaseService.db.prepare(
-      'SELECT * FROM portfolio_holdings ORDER BY id'
-    ).all();
+    // Get visible portfolio holdings with calculated quantities from transactions
+    const holdings = await databaseService.getVisiblePortfolioHoldings();
     
-    const holdings = portfolioHoldings.results || [];
+    // Filter out holdings with zero quantity (closed positions handled separately)
+    const activeHoldings = holdings.filter(h => h.quantity > 0);
 
-    if (holdings.length === 0) {
+    if (activeHoldings.length === 0) {
       return createLayout('Stock Prices', `
         <div class="container mt-4">
           <h1 class="mb-4">📊 Live Stock Prices</h1>
           <div class="alert alert-info" role="alert">
-            <p class="mb-0">No holdings configured. <a href="/stonks/config" class="alert-link">Add some holdings</a> to see live prices.</p>
+            <p class="mb-0">No active holdings. <a href="/stonks/config" class="alert-link">Add some holdings and transactions</a> to see live prices.</p>
           </div>
         </div>
       `);
     }
 
-    // Fetch quotes for all holdings
-    const holdingsWithQuotes = await finnhubService.getPortfolioQuotes(holdings);
+    // Fetch quotes for all active holdings
+    const holdingsWithQuotes = await finnhubService.getPortfolioQuotes(activeHoldings);
 
     // Get cache timestamp for "last updated" display
     const oldestCacheTime = finnhubService.getOldestCacheTimestamp();
@@ -54,15 +53,57 @@ export async function generatePricesPage(databaseService, finnhubService) {
     const cacheStats = finnhubService.getCacheStats();
     const isCached = cacheStats.size > 0;
 
-    // Calculate portfolio totals
-    const totalMarketValue = holdingsWithQuotes.reduce((sum, h) => sum + (h.marketValue || 0), 0);
-    const totalGain = holdingsWithQuotes.reduce((sum, h) => sum + (h.gain || 0), 0);
-    const totalGainPercent = totalMarketValue > 0 ? (totalGain / (totalMarketValue - totalGain)) * 100 : 0;
+    // Calculate actual cost basis and gains for each holding from transactions
+    let totalMarketValue = 0;
+    let totalCostBasis = 0;
+    
+    for (const holding of holdingsWithQuotes) {
+      if (!holding.error && holding.quote) {
+        const transactions = await databaseService.getTransactionsByCode(holding.code);
+        let costBasis = 0;
+        
+        for (const txn of transactions) {
+          if (txn.type === 'buy') {
+            costBasis += parseFloat(txn.value) + parseFloat(txn.fee);
+          } else if (txn.type === 'sell') {
+            // For partial sells, reduce cost basis proportionally
+            const sellRevenue = parseFloat(txn.value) - parseFloat(txn.fee);
+            // Note: We don't reduce costBasis here because we want total invested
+          }
+        }
+        
+        holding.costBasis = costBasis;
+        holding.marketValue = holding.quote.current * holding.quantity;
+        holding.gain = holding.marketValue - costBasis;
+        holding.gainPercent = costBasis > 0 ? (holding.gain / costBasis) * 100 : 0;
+        
+        totalMarketValue += holding.marketValue;
+        totalCostBasis += costBasis;
+      }
+    }
+    
+    // Get closed positions to include their realized gains
+    const closedPositions = await databaseService.getClosedPositions();
+    const closedPositionsGain = closedPositions.reduce((sum, pos) => sum + pos.profitLoss, 0);
+    
+    // Calculate total gain including closed positions
+    const openPositionsGain = totalMarketValue - totalCostBasis;
+    const totalGain = openPositionsGain + closedPositionsGain;
+    const totalGainPercent = (totalCostBasis + Math.abs(closedPositionsGain)) > 0 
+      ? (totalGain / (totalCostBasis + Math.abs(closedPositionsGain))) * 100 
+      : 0;
 
     // Get cash amount
     const cashAmount = await databaseService.getCashAmount();
     const portfolioTotal = totalMarketValue + cashAmount;
 
+    // Calculate weight deviations
+    let totalWeightDeviation = 0;
+    
+    // Calculate total change value and percentage for metrics
+    let totalChangeValue = 0;
+    let totalChangePercent = 0;
+    
     // Generate holdings table rows
     const holdingsRows = holdingsWithQuotes.map(holding => {
       if (holding.error) {
@@ -71,7 +112,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
             <td>${holding.name}</td>
             <td><code>${holding.code}</code></td>
             <td class="text-end">${holding.quantity}</td>
-            <td colspan="5" class="text-danger">
+            <td colspan="10" class="text-danger">
               <small>Error: ${holding.error}</small>
             </td>
           </tr>
@@ -82,23 +123,72 @@ export async function generatePricesPage(databaseService, finnhubService) {
       const changeClass = quote.change >= 0 ? 'text-success' : 'text-danger';
       const changeIcon = quote.change >= 0 ? '▲' : '▼';
       const gainClass = holding.gain >= 0 ? 'text-success' : 'text-danger';
+      const weight = portfolioTotal > 0 ? (holding.marketValue / portfolioTotal) * 100 : 0;
+      
+      // Calculate change in value: day change * quantity
+      const changeValue = quote.change * holding.quantity;
+      totalChangeValue += changeValue;
+      
+      // Calculate weight difference if target is set
+      const targetWeight = holding.target_weight;
+      const weightDiff = targetWeight != null ? weight - targetWeight : null;
+      const weightDiffClass = weightDiff != null ? (weightDiff >= 0 ? 'text-success' : 'text-danger') : '';
+      const weightDiffIcon = weightDiff != null ? (weightDiff >= 0 ? '▲' : '▼') : '';
+      
+      // Add to total deviation if target is set
+      if (weightDiff != null) {
+        totalWeightDeviation += Math.abs(weightDiff);
+      }
 
+      // Extract stock code (part after ':')
+      const stockCode = holding.code.includes(':') ? holding.code.split(':')[1] : holding.code;
+      
       return `
         <tr>
           <td><strong>${holding.name}</strong></td>
-          <td><code>${holding.code}</code></td>
+          <td><code>${stockCode}</code></td>
           <td class="text-end">${holding.quantity}</td>
           <td class="text-end">$${quote.current.toFixed(2)}</td>
           <td class="text-end ${changeClass}">
             ${changeIcon} $${Math.abs(quote.change).toFixed(2)} (${quote.changePercent.toFixed(2)}%)
           </td>
+          <td class="text-end ${changeClass}">
+            ${changeIcon} $${Math.abs(changeValue).toFixed(2)}
+          </td>
           <td class="text-end">$${holding.marketValue.toFixed(2)}</td>
+          <td class="text-end">${weight.toFixed(2)}%</td>
+          <td class="text-end">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
+          <td class="text-end ${weightDiffClass}">
+            ${weightDiff != null ? weightDiffIcon + ' ' + Math.abs(weightDiff).toFixed(2) + '%' : '-'}
+          </td>
           <td class="text-end ${gainClass}">
             $${holding.gain.toFixed(2)} (${holding.gainPercent.toFixed(2)}%)
           </td>
         </tr>
       `;
     }).join('');
+    
+    // Calculate total change percentage
+    const previousValue = totalMarketValue - totalChangeValue;
+    totalChangePercent = previousValue > 0 ? (totalChangeValue / previousValue) * 100 : 0;
+    
+    // Add cash row
+    const cashWeight = portfolioTotal > 0 ? (cashAmount / portfolioTotal) * 100 : 0;
+    const cashRow = `
+      <tr class="table-secondary">
+        <td><strong>Cash</strong></td>
+        <td>-</td>
+        <td class="text-end">-</td>
+        <td class="text-end">-</td>
+        <td class="text-end">-</td>
+        <td class="text-end">-</td>
+        <td class="text-end">$${cashAmount.toFixed(2)}</td>
+        <td class="text-end">${cashWeight.toFixed(2)}%</td>
+        <td class="text-end">-</td>
+        <td class="text-end">-</td>
+        <td class="text-end">-</td>
+      </tr>
+    `;
 
     const content = `
       <div class="container mt-4">
@@ -112,36 +202,54 @@ export async function generatePricesPage(databaseService, finnhubService) {
 
         <!-- Portfolio Summary -->
         <div class="row mb-4">
-          <div class="col-md-3">
+          <div class="col-md-2">
             <div class="card bg-primary text-white">
-              <div class="card-body">
+              <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Portfolio Value</h6>
                 <h3 class="card-title mb-0">$${portfolioTotal.toFixed(2)}</h3>
               </div>
             </div>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
             <div class="card">
-              <div class="card-body">
+              <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2 text-muted">Market Value</h6>
                 <h3 class="card-title mb-0">$${totalMarketValue.toFixed(2)}</h3>
               </div>
             </div>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
             <div class="card">
-              <div class="card-body">
+              <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2 text-muted">Cash</h6>
                 <h3 class="card-title mb-0">$${cashAmount.toFixed(2)}</h3>
               </div>
             </div>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
+            <div class="card ${totalChangeValue >= 0 ? 'bg-success' : 'bg-danger'} text-white">
+              <div class="card-body" style="min-height: 100px;">
+                <h6 class="card-subtitle mb-2">Day Change</h6>
+                <h3 class="card-title mb-0">$${totalChangeValue.toFixed(2)}</h3>
+                <small>${totalChangePercent.toFixed(2)}%</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-2">
             <div class="card ${totalGain >= 0 ? 'bg-success' : 'bg-danger'} text-white">
-              <div class="card-body">
+              <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Total Gain/Loss</h6>
                 <h3 class="card-title mb-0">$${totalGain.toFixed(2)}</h3>
                 <small>${totalGainPercent.toFixed(2)}%</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="card ${totalWeightDeviation > 10 ? 'bg-warning' : 'bg-info'} text-white">
+              <div class="card-body" style="min-height: 100px;">
+                <h6 class="card-subtitle mb-2">Weight Dev.</h6>
+                <h3 class="card-title mb-0">${totalWeightDeviation.toFixed(2)}%</h3>
+                <small>Abs. differences</small>
               </div>
             </div>
           </div>
@@ -161,13 +269,18 @@ export async function generatePricesPage(databaseService, finnhubService) {
                     <th>Symbol</th>
                     <th class="text-end">Quantity</th>
                     <th class="text-end">Current Price</th>
-                    <th class="text-end">Day Change</th>
+                    <th class="text-end">Price Change</th>
+                    <th class="text-end">Change $</th>
                     <th class="text-end">Market Value</th>
+                    <th class="text-end">Weight</th>
+                    <th class="text-end">Target</th>
+                    <th class="text-end">Diff</th>
                     <th class="text-end">Total Gain/Loss</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${holdingsRows}
+                  ${cashRow}
                 </tbody>
               </table>
             </div>
@@ -182,6 +295,9 @@ export async function generatePricesPage(databaseService, finnhubService) {
             </small>
           </div>
         </div>
+
+        <!-- Closed Positions (Collapsed by default) -->
+        ${await generateClosedPositionsSection(databaseService)}
       </div>
 
       <style>
@@ -215,4 +331,96 @@ export async function generatePricesPage(databaseService, finnhubService) {
       </div>
     `);
   }
+}
+
+/**
+ * Generate closed positions section (collapsed by default)
+ */
+async function generateClosedPositionsSection(databaseService) {
+  const closedPositions = await databaseService.getClosedPositions();
+  
+  if (closedPositions.length === 0) {
+    return '';
+  }
+  
+  const closedRows = closedPositions.map(position => {
+    const profitClass = position.profitLoss >= 0 ? 'text-success' : 'text-danger';
+    const profitIcon = position.profitLoss >= 0 ? '▲' : '▼';
+    const stockCode = position.code.includes(':') ? position.code.split(':')[1] : position.code;
+    
+    return `
+      <tr>
+        <td><strong>${position.name}</strong></td>
+        <td><code>${stockCode}</code></td>
+        <td class="text-end">$${position.totalCost.toFixed(2)}</td>
+        <td class="text-end">$${position.totalRevenue.toFixed(2)}</td>
+        <td class="text-end ${profitClass}">
+          ${profitIcon} $${Math.abs(position.profitLoss).toFixed(2)}
+        </td>
+        <td class="text-end ${profitClass}">
+          ${profitIcon} ${Math.abs(position.profitLossPercent).toFixed(2)}%
+        </td>
+        <td class="text-end"><small class="text-muted">${position.transactions} txns</small></td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Calculate totals for closed positions
+  const totalClosedCost = closedPositions.reduce((sum, pos) => sum + pos.totalCost, 0);
+  const totalClosedRevenue = closedPositions.reduce((sum, pos) => sum + pos.totalRevenue, 0);
+  const totalClosedProfit = totalClosedRevenue - totalClosedCost;
+  const totalClosedPercent = totalClosedCost > 0 ? (totalClosedProfit / totalClosedCost) * 100 : 0;
+  const totalProfitClass = totalClosedProfit >= 0 ? 'text-success' : 'text-danger';
+  const totalProfitIcon = totalClosedProfit >= 0 ? '▲' : '▼';
+  
+  const totalRow = `
+    <tr class="table-secondary fw-bold">
+      <td colspan="2"><strong>Total Realized Gains</strong></td>
+      <td class="text-end">$${totalClosedCost.toFixed(2)}</td>
+      <td class="text-end">$${totalClosedRevenue.toFixed(2)}</td>
+      <td class="text-end ${totalProfitClass}">
+        ${totalProfitIcon} $${Math.abs(totalClosedProfit).toFixed(2)}
+      </td>
+      <td class="text-end ${totalProfitClass}">
+        ${totalProfitIcon} ${Math.abs(totalClosedPercent).toFixed(2)}%
+      </td>
+      <td class="text-end">-</td>
+    </tr>
+  `;
+  
+  return `
+    <!-- Closed Positions (Accordion) -->
+    <div class="accordion mt-4" id="closedPositionsAccordion">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="closedPositionsHeading">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#closedPositionsCollapse" aria-expanded="false" aria-controls="closedPositionsCollapse">
+            <strong>📈 Closed Positions (${closedPositions.length})</strong>
+          </button>
+        </h2>
+        <div id="closedPositionsCollapse" class="accordion-collapse collapse" aria-labelledby="closedPositionsHeading" data-bs-parent="#closedPositionsAccordion">
+          <div class="accordion-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Symbol</th>
+                    <th class="text-end">Total Cost</th>
+                    <th class="text-end">Total Revenue</th>
+                    <th class="text-end">Profit/Loss $</th>
+                    <th class="text-end">Profit/Loss %</th>
+                    <th class="text-end">Transactions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${closedRows}
+                  ${totalRow}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }

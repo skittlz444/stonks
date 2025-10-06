@@ -15,7 +15,16 @@ describe('MockD1Database', () => {
       expect(mockDb.portfolioHoldings[0]).toHaveProperty('id');
       expect(mockDb.portfolioHoldings[0]).toHaveProperty('name');
       expect(mockDb.portfolioHoldings[0]).toHaveProperty('code');
-      expect(mockDb.portfolioHoldings[0]).toHaveProperty('quantity');
+      expect(mockDb.portfolioHoldings[0]).toHaveProperty('target_weight');
+    });
+    
+    test('should initialize with default transactions', () => {
+      expect(mockDb.transactions).toBeDefined();
+      expect(mockDb.transactions.length).toBeGreaterThan(0);
+      expect(mockDb.transactions[0]).toHaveProperty('id');
+      expect(mockDb.transactions[0]).toHaveProperty('code');
+      expect(mockDb.transactions[0]).toHaveProperty('type');
+      expect(mockDb.transactions[0]).toHaveProperty('quantity');
     });
 
     test('should initialize with portfolio settings', () => {
@@ -51,7 +60,7 @@ describe('MockD1Database', () => {
     test('should handle INSERT operations for portfolio holdings', async () => {
       const initialCount = mockDb.portfolioHoldings.length;
       const stmt = mockDb.prepare('INSERT INTO portfolio_holdings');
-      const result = await stmt.bind('Test Stock', 'NASDAQ:TEST', 10).run();
+      const result = await stmt.bind('Test Stock', 'NASDAQ:TEST', null).run();
       
       expect(result.success).toBe(true);
       expect(mockDb.portfolioHoldings.length).toBe(initialCount + 1);
@@ -59,20 +68,20 @@ describe('MockD1Database', () => {
       const newHolding = mockDb.portfolioHoldings[mockDb.portfolioHoldings.length - 1];
       expect(newHolding.name).toBe('Test Stock');
       expect(newHolding.code).toBe('NASDAQ:TEST');
-      expect(newHolding.quantity).toBe(10);
+      expect(newHolding.target_weight).toBe(null);
     });
 
     test('should handle UPDATE operations for portfolio holdings', async () => {
       const holdingId = mockDb.portfolioHoldings[0].id;
       const stmt = mockDb.prepare('UPDATE portfolio_holdings SET');
-      const result = await stmt.bind('Updated Name', 'NASDAQ:UPDATED', 20, holdingId).run();
+      const result = await stmt.bind('Updated Name', 'NASDAQ:UPDATED', 25.5, holdingId).run();
       
       expect(result.success).toBe(true);
       
       const updatedHolding = mockDb.portfolioHoldings.find(h => h.id === holdingId);
       expect(updatedHolding.name).toBe('Updated Name');
       expect(updatedHolding.code).toBe('NASDAQ:UPDATED');
-      expect(updatedHolding.quantity).toBe(20);
+      expect(updatedHolding.target_weight).toBe(25.5);
     });
 
     test('should handle DELETE operations for portfolio holdings', async () => {

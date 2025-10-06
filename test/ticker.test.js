@@ -18,14 +18,14 @@ vi.mock('../src/chartWidgets.js', () => ({
 }));
 
 vi.mock('../src/dataUtils.js', () => ({
-  getStockHoldings: vi.fn(),
+  getVisibleStockHoldings: vi.fn(),
   formatStructuredDataForTickerTape: vi.fn()
 }));
 
 // Import mocked modules for assertions
 import { generatePageLayout, generateGridContainer, createResponse } from '../src/utils.js';
 import { generateTickerTapeWidget, generateSingleQuoteWidget } from '../src/chartWidgets.js';
-import { getStockHoldings, formatStructuredDataForTickerTape } from '../src/dataUtils.js';
+import { getVisibleStockHoldings, formatStructuredDataForTickerTape } from '../src/dataUtils.js';
 
 describe('Ticker', () => {
   let mockDatabaseService;
@@ -51,14 +51,14 @@ describe('Ticker', () => {
       ];
       const mockTickerSymbols = '"NASDAQ:AAPL","BATS:VOO"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
       generateTickerTapeWidget.mockImplementation((symbols) => `<div class="ticker-tape" data-symbols="${symbols}"></div>`);
       generateSingleQuoteWidget.mockImplementation((symbol) => `<div class="single-quote" data-symbol=${symbol}></div>`);
 
       const result = await generateTickerPage(mockDatabaseService);
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
       expect(formatStructuredDataForTickerTape).toHaveBeenCalledWith(mockHoldings);
       expect(generateTickerTapeWidget).toHaveBeenCalledWith(mockTickerSymbols);
       expect(generateSingleQuoteWidget).toHaveBeenCalledTimes(2);
@@ -73,12 +73,12 @@ describe('Ticker', () => {
       const mockHoldings = [];
       const mockTickerSymbols = '';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
 
       const result = await generateTickerPage(mockDatabaseService);
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
       expect(formatStructuredDataForTickerTape).toHaveBeenCalledWith(mockHoldings);
       expect(generateTickerTapeWidget).toHaveBeenCalledWith(mockTickerSymbols);
       expect(generateSingleQuoteWidget).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe('Ticker', () => {
       ];
       const mockTickerSymbols = '"NASDAQ:TSLA"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
 
       const result = await generateTickerPage(mockDatabaseService);
@@ -113,7 +113,7 @@ describe('Ticker', () => {
       ];
       const mockTickerSymbols = '"NASDAQ:AAPL","BATS:VOO","NASDAQ:GOOGL","NASDAQ:MSFT"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
 
       const result = await generateTickerPage(mockDatabaseService);
@@ -131,7 +131,7 @@ describe('Ticker', () => {
       const mockTickerTape = '<div class="ticker-tape">ticker</div>';
       const mockGridContainer = '<div class="grid-container">quotes</div>';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
       generateTickerTapeWidget.mockReturnValue(mockTickerTape);
       generateGridContainer.mockReturnValue(mockGridContainer);
@@ -149,7 +149,7 @@ describe('Ticker', () => {
         { symbol: 'BATS:VOO', name: 'Vanguard S&P 500 ETF', quantity: 5 }
       ];
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue('"NASDAQ:AAPL","BATS:VOO"');
 
       await generateTickerPage(mockDatabaseService);
@@ -160,18 +160,18 @@ describe('Ticker', () => {
     });
 
     it('should handle database service errors', async () => {
-      getStockHoldings.mockRejectedValue(new Error('Database connection failed'));
+      getVisibleStockHoldings.mockRejectedValue(new Error('Database connection failed'));
 
       await expect(generateTickerPage(mockDatabaseService))
         .rejects.toThrow('Database connection failed');
 
-      expect(getStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getVisibleStockHoldings).toHaveBeenCalledWith(mockDatabaseService);
     });
 
     it('should handle formatting errors', async () => {
       const mockHoldings = [{ symbol: 'INVALID', name: 'Invalid', quantity: 1 }];
       
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockImplementation(() => {
         throw new Error('Formatting failed');
       });
@@ -183,7 +183,7 @@ describe('Ticker', () => {
     it('should handle ticker tape widget generation errors', async () => {
       const mockHoldings = [{ symbol: 'NASDAQ:AAPL', name: 'Apple', quantity: 1 }];
       
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue('"NASDAQ:AAPL"');
       generateTickerTapeWidget.mockImplementation(() => {
         throw new Error('Ticker widget generation failed');
@@ -196,7 +196,7 @@ describe('Ticker', () => {
     it('should handle quote widget generation errors', async () => {
       const mockHoldings = [{ symbol: 'NASDAQ:AAPL', name: 'Apple', quantity: 1 }];
       
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue('"NASDAQ:AAPL"');
       // Reset ticker tape to work normally, then break quote widget
       generateTickerTapeWidget.mockImplementation((symbols) => `<div class="ticker-tape" data-symbols="${symbols}"></div>`);
@@ -216,7 +216,7 @@ describe('Ticker', () => {
         headers: { 'Content-Type': 'text/html' }
       };
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue('"NASDAQ:AAPL"');
       createResponse.mockReturnValue(expectedResponse);
 
@@ -231,7 +231,7 @@ describe('Ticker', () => {
     it('should use default page styles when none specified', async () => {
       const mockHoldings = [{ symbol: 'NASDAQ:AAPL', name: 'Apple', quantity: 1 }];
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue('"NASDAQ:AAPL"');
 
       await generateTickerPage(mockDatabaseService);
@@ -247,7 +247,7 @@ describe('Ticker', () => {
       ];
       const mockTickerSymbols = '"BATS:VOO","NASDAQ:AAPL"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
 
       const result = await generateTickerPage(mockDatabaseService);
@@ -265,7 +265,7 @@ describe('Ticker', () => {
       ];
       const mockTickerSymbols = '"NASDAQ:AAPL","BATS:VOO","NYSE:JPM"';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue(mockTickerSymbols);
 
       const result = await generateTickerPage(mockDatabaseService);
@@ -283,7 +283,7 @@ describe('Ticker', () => {
       const mockQuoteWidget = '<div class="single-quote">quote content</div>';
       const mockGridContainer = '<div class="grid-container">grid content</div>';
 
-      getStockHoldings.mockResolvedValue(mockHoldings);
+      getVisibleStockHoldings.mockResolvedValue(mockHoldings);
       formatStructuredDataForTickerTape.mockReturnValue('"NASDAQ:AAPL"');
       generateTickerTapeWidget.mockReturnValue(mockTickerTape);
       generateSingleQuoteWidget.mockReturnValue(mockQuoteWidget);
