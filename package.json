@@ -11,7 +11,7 @@
     "predeploy": "wrangler d1 migrations apply stonks-portfolio --remote",
     "test": "vitest run",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "cloudflare",

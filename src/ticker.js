@@ -1,12 +1,12 @@
 import { generatePageLayout, generateGridContainer, createResponse } from './utils.js';
 import { generateTickerTapeWidget, generateSingleQuoteWidget } from './chartWidgets.js';
-import { getStockHoldings, formatStructuredDataForTickerTape } from './dataUtils.js';
+import { getVisibleStockHoldings, formatStructuredDataForTickerTape } from './dataUtils.js';
 
 /**
  * Generate the ticker tape page (originally ticker.js)
  */
 export async function generateTickerPage(databaseService) {
-  const holdings = await getStockHoldings(databaseService);
+  const holdings = await getVisibleStockHoldings(databaseService);
   const tickerSymbols = formatStructuredDataForTickerTape(holdings);
 
   // Generate ticker tape widget

@@ -16,7 +16,11 @@ describe('Prices Page Generation', () => {
       db: {
         prepare: vi.fn()
       },
-      getCashAmount: vi.fn()
+      getCashAmount: vi.fn(),
+      getPortfolioHoldings: vi.fn(),
+      getVisiblePortfolioHoldings: vi.fn(),
+      getClosedPositions: vi.fn().mockResolvedValue([]),
+      getTransactionsByCode: vi.fn().mockResolvedValue([])
     };
 
     // Mock Finnhub service
@@ -41,14 +45,12 @@ describe('Prices Page Generation', () => {
 
   describe('Empty portfolio', () => {
     it('should display message when no holdings exist', async () => {
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: [] })
-      });
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
 
       const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
       const html = await response.text();
 
-      expect(html).toContain('No holdings configured');
+      expect(html).toContain('No active holdings');
       expect(html).toContain('Add some holdings');
       expect(html).toContain('/stonks/config');
     });
@@ -57,15 +59,26 @@ describe('Prices Page Generation', () => {
   describe('Portfolio with holdings', () => {
     beforeEach(() => {
       const mockHoldings = [
-        { id: 1, code: 'BATS:VOO', name: 'Vanguard S&P 500', quantity: 10, averageCost: 380.00 },
-        { id: 2, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 5, averageCost: 145.00 }
+        { id: 1, code: 'BATS:VOO', name: 'Vanguard S&P 500', quantity: 10, averageCost: 380.00, target_weight: null },
+        { id: 2, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 5, averageCost: 145.00, target_weight: null }
       ];
 
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: mockHoldings })
-      });
-
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      
+      // Mock transactions for cost basis calculation
+      mockDatabaseService.getTransactionsByCode.mockImplementation((code) => {
+        if (code === 'BATS:VOO') {
+          return Promise.resolve([
+            { type: 'buy', quantity: 10, value: 3800, fee: 10, date: '2024-01-01' }
+          ]);
+        } else if (code === 'NASDAQ:AAPL') {
+          return Promise.resolve([
+            { type: 'buy', quantity: 5, value: 725, fee: 5, date: '2024-01-01' }
+          ]);
+        }
+        return Promise.resolve([]);
+      });
 
       const enrichedHoldings = [
         {
@@ -135,9 +148,9 @@ describe('Prices Page Generation', () => {
       expect(html).toContain('Cash');
       expect(html).toContain('$1000.00');
 
-      // Total gain
+      // Total gain (calculated from transactions: VOO $42 + AAPL $22.50 = $64.50)
       expect(html).toContain('Total Gain/Loss');
-      expect(html).toContain('$79.50'); // 52 + 27.50
+      expect(html).toContain('$64.50');
     });
 
     it('should display holdings table with correct data', async () => {
@@ -146,17 +159,17 @@ describe('Prices Page Generation', () => {
 
       // VOO holding
       expect(html).toContain('Vanguard S&P 500');
-      expect(html).toContain('BATS:VOO');
+      expect(html).toContain('VOO'); // Stock code without exchange
       expect(html).toContain('$385.20');
       expect(html).toContain('$3852.00');
-      expect(html).toContain('$52.00');
+      expect(html).toContain('$42.00'); // Gain calculated from transactions: 3852 - 3810
 
       // AAPL holding
       expect(html).toContain('Apple Inc');
-      expect(html).toContain('NASDAQ:AAPL');
+      expect(html).toContain('AAPL'); // Stock code without exchange
       expect(html).toContain('$150.50');
       expect(html).toContain('$752.50');
-      expect(html).toContain('$27.50');
+      expect(html).toContain('$22.50'); // Gain calculated from transactions: 752.50 - 730
     });
 
     it('should display day change with correct formatting', async () => {
@@ -230,14 +243,12 @@ describe('Prices Page Generation', () => {
   describe('Holdings with errors', () => {
     it('should display error for holdings with API errors', async () => {
       const mockHoldings = [
-        { id: 1, code: 'INVALID:SYMBOL', name: 'Invalid Stock', quantity: 10, averageCost: 100.00 }
+        { id: 1, code: 'INVALID:SYMBOL', name: 'Invalid Stock', quantity: 10, averageCost: 100.00, target_weight: null }
       ];
 
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: mockHoldings })
-      });
-
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([]);
 
       const enrichedHoldings = [
         {
@@ -259,7 +270,7 @@ describe('Prices Page Generation', () => {
       const html = await response.text();
 
       expect(html).toContain('Invalid Stock');
-      expect(html).toContain('INVALID:SYMBOL');
+      expect(html).toContain('SYMBOL'); // Stock code without exchange prefix
       expect(html).toContain('Error:');
       expect(html).toContain('404 Not Found');
       expect(html).toContain('text-danger');
@@ -269,14 +280,14 @@ describe('Prices Page Generation', () => {
   describe('Portfolio with losses', () => {
     it('should display negative gains with danger styling', async () => {
       const mockHoldings = [
-        { id: 1, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 5, averageCost: 160.00 }
+        { id: 1, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 5, averageCost: 160.00, target_weight: null }
       ];
 
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: mockHoldings })
-      });
-
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
+        { type: 'buy', quantity: 5, value: 800, fee: 10, date: '2024-01-01' }
+      ]);
 
       const enrichedHoldings = [
         {
@@ -293,9 +304,9 @@ describe('Prices Page Generation', () => {
             timestamp: 1696598400
           },
           marketValue: 750.00,
-          costBasis: 800.00,
-          gain: -50.00,
-          gainPercent: -6.25,
+          costBasis: 810.00, // 800 + 10 fee
+          gain: -60.00,
+          gainPercent: -7.41,
           error: null
         }
       ];
@@ -311,27 +322,27 @@ describe('Prices Page Generation', () => {
       const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
       const html = await response.text();
 
-      // Negative day change (uses Math.abs, so shows $1.00 not -$1.00)
+      // Negative day change (uses Math.abs with arrow, so shows ▼ $1.00)
       expect(html).toContain('text-danger');
       expect(html).toContain('▼');
       expect(html).toContain('$1.00');
       expect(html).toContain('-0.66%');
 
-      // Negative total gain (shows $-50.00)
-      expect(html).toContain('$-50.00');
-      expect(html).toContain('-6.25%');
+      // Negative total gain (calculated from transactions: 750 - 810 = -60)
+      expect(html).toContain('$-60.00');
+      expect(html).toContain('-7.41%');
     });
 
     it('should show danger background for negative total gain card', async () => {
       const mockHoldings = [
-        { id: 1, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 5, averageCost: 160.00 }
+        { id: 1, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 5, averageCost: 160.00, target_weight: null }
       ];
 
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: mockHoldings })
-      });
-
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
+        { type: 'buy', quantity: 5, value: 800, fee: 10, date: '2024-01-01' }
+      ]);
 
       const enrichedHoldings = [
         {
@@ -348,9 +359,9 @@ describe('Prices Page Generation', () => {
             timestamp: 1696598400
           },
           marketValue: 750.00,
-          costBasis: 800.00,
-          gain: -50.00,
-          gainPercent: -6.25,
+          costBasis: 810.00,
+          gain: -60.00,
+          gainPercent: -7.41,
           error: null
         }
       ];
@@ -372,9 +383,7 @@ describe('Prices Page Generation', () => {
 
   describe('Error handling', () => {
     it('should handle database errors gracefully', async () => {
-      mockDatabaseService.db.prepare.mockImplementation(() => {
-        throw new Error('Database connection failed');
-      });
+      mockDatabaseService.getVisiblePortfolioHoldings.mockRejectedValue(new Error('Database connection failed'));
 
       const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
       const html = await response.text();
@@ -385,11 +394,9 @@ describe('Prices Page Generation', () => {
     });
 
     it('should handle Finnhub service errors gracefully', async () => {
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({
-          results: [{ id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00 }]
-        })
-      });
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
+      ]);
 
       mockFinnhubService.getPortfolioQuotes.mockRejectedValue(new Error('API rate limit exceeded'));
 
@@ -401,11 +408,9 @@ describe('Prices Page Generation', () => {
     });
 
     it('should handle getCashAmount errors', async () => {
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({
-          results: [{ id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00 }]
-        })
-      });
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
+      ]);
 
       mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
         {
@@ -414,6 +419,7 @@ describe('Prices Page Generation', () => {
           name: 'Apple Inc',
           quantity: 5,
           averageCost: 150.00,
+          target_weight: null,
           quote: { symbol: 'AAPL', current: 150.00, previousClose: 149.00, change: 1.00, changePercent: 0.67 },
           marketValue: 750.00,
           costBasis: 750.00,
@@ -439,13 +445,10 @@ describe('Prices Page Generation', () => {
   describe('Singular/plural handling', () => {
     it('should use singular "symbol" for one cached symbol', async () => {
       const mockHoldings = [
-        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00 }
+        { id: 1, code: 'AAPL', name: 'Apple Inc', quantity: 5, averageCost: 150.00, target_weight: null }
       ];
 
-      mockDatabaseService.db.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: mockHoldings })
-      });
-
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
 
       mockFinnhubService.getPortfolioQuotes.mockResolvedValue([

@@ -21,10 +21,17 @@ describe('Config', () => {
         prepare: vi.fn()
       },
       getCashAmount: vi.fn(),
+      getPortfolioHoldings: vi.fn(),
+      getVisiblePortfolioHoldings: vi.fn(),
+      getHiddenPortfolioHoldings: vi.fn(),
+      getTransactions: vi.fn().mockResolvedValue([]),
       addPortfolioHolding: vi.fn(),
       updatePortfolioHolding: vi.fn(),
       deletePortfolioHolding: vi.fn(),
-      updateCashAmount: vi.fn()
+      toggleHoldingVisibility: vi.fn(),
+      updateCashAmount: vi.fn(),
+      addTransaction: vi.fn(),
+      deleteTransaction: vi.fn()
     };
 
     mockRequest = {
@@ -34,14 +41,18 @@ describe('Config', () => {
 
   describe('generateConfigPage', () => {
     it('should generate config page with portfolio holdings', async () => {
-      const mockHoldings = [
-        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10 },
-        { id: 2, name: 'Vanguard S&P 500 ETF', code: 'BATS:VOO', quantity: 5 }
+      const mockVisibleHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: null, hidden: 0 },
+        { id: 2, name: 'Vanguard S&P 500 ETF', code: 'BATS:VOO', quantity: 5, target_weight: null, hidden: 0 }
       ];
+      const mockHiddenHoldings = [];
 
-      // Mock database queries
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue(mockHiddenHoldings);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
+      // Mock database queries for settings
       const mockPrepareChain = {
-        all: vi.fn().mockResolvedValue({ results: mockHoldings }),
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue({ value: 'My Test Portfolio' })
       };
@@ -51,9 +62,9 @@ describe('Config', () => {
 
       const result = await generateConfigPage(mockDatabaseService);
 
-      expect(mockDatabaseService.db.prepare).toHaveBeenCalledWith(
-        'SELECT * FROM portfolio_holdings ORDER BY id'
-      );
+      expect(mockDatabaseService.getVisiblePortfolioHoldings).toHaveBeenCalled();
+      expect(mockDatabaseService.getHiddenPortfolioHoldings).toHaveBeenCalled();
+      expect(mockDatabaseService.getTransactions).toHaveBeenCalled();
       expect(mockDatabaseService.getCashAmount).toHaveBeenCalled();
       expect(createLayout).toHaveBeenCalledWith(
         'Portfolio Configuration',
@@ -62,8 +73,11 @@ describe('Config', () => {
     });
 
     it('should handle empty portfolio holdings', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
       const mockPrepareChain = {
-        all: vi.fn().mockResolvedValue({ results: [] }),
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue(null)
       };
@@ -75,13 +89,16 @@ describe('Config', () => {
 
       expect(createLayout).toHaveBeenCalledWith(
         'Portfolio Configuration',
-        expect.stringContaining('No holdings configured')
+        expect.stringContaining('No visible holdings')
       );
     });
 
     it('should use default portfolio name when none exists', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
       const mockPrepareChain = {
-        all: vi.fn().mockResolvedValue({ results: [] }),
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue(null)
       };
@@ -98,8 +115,11 @@ describe('Config', () => {
     });
 
     it('should display custom portfolio name when exists', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
       const mockPrepareChain = {
-        all: vi.fn().mockResolvedValue({ results: [] }),
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue({ value: 'Custom Portfolio Name' })
       };
@@ -118,9 +138,13 @@ describe('Config', () => {
 
     it('should render holdings table with data', async () => {
       const mockHoldings = [
-        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10 },
-        { id: 2, name: 'Tesla Inc.', code: 'NASDAQ:TSLA', quantity: 5 }
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: null, hidden: 0 },
+        { id: 2, name: 'Tesla Inc.', code: 'NASDAQ:TSLA', quantity: 5, target_weight: null, hidden: 0 }
       ];
+      
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
 
       const mockPrepareChain = {
         all: vi.fn().mockResolvedValue({ results: mockHoldings }),
@@ -145,8 +169,11 @@ describe('Config', () => {
     });
 
     it('should include navigation links', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]); 
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
       const mockPrepareChain = {
-        all: vi.fn().mockResolvedValue({ results: [] }),
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue(null)
       };
@@ -167,8 +194,11 @@ describe('Config', () => {
     });
 
     it('should include add and edit modals', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+      
       const mockPrepareChain = {
-        all: vi.fn().mockResolvedValue({ results: [] }),
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue(null)
       };
@@ -187,9 +217,8 @@ describe('Config', () => {
     });
 
     it('should handle database errors gracefully', async () => {
-      mockDatabaseService.db.prepare.mockImplementation(() => {
-        throw new Error('Database connection failed');
-      });
+      mockDatabaseService.getVisiblePortfolioHoldings.mockRejectedValue(new Error('Database connection failed'));
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
 
       await expect(generateConfigPage(mockDatabaseService))
         .rejects.toThrow('Database connection failed');
@@ -235,7 +264,7 @@ describe('Config', () => {
           ['action', 'add_holding'],
           ['name', 'Microsoft Corp.'],
           ['code', 'NASDAQ:MSFT'],
-          ['quantity', '15']
+          ['target_weight', '']
         ]);
         mockRequest.formData.mockResolvedValue(mockFormData);
         mockDatabaseService.addPortfolioHolding.mockResolvedValue();
@@ -245,7 +274,7 @@ describe('Config', () => {
         expect(mockDatabaseService.addPortfolioHolding).toHaveBeenCalledWith(
           'Microsoft Corp.',
           'NASDAQ:MSFT',
-          15
+          null
         );
         expect(result.status).toBe(302);
         expect(result.headers.get('Location')).toBe('/stonks/config?success=1');
@@ -259,7 +288,7 @@ describe('Config', () => {
           ['holding_id', '1'],
           ['name', 'Updated Apple Inc.'],
           ['code', 'NASDAQ:AAPL'],
-          ['quantity', '20.5']
+          ['target_weight', '']
         ]);
         mockRequest.formData.mockResolvedValue(mockFormData);
         mockDatabaseService.updatePortfolioHolding.mockResolvedValue();
@@ -270,7 +299,7 @@ describe('Config', () => {
           1,
           'Updated Apple Inc.',
           'NASDAQ:AAPL',
-          20.5
+          null
         );
         expect(result.status).toBe(302);
         expect(result.headers.get('Location')).toBe('/stonks/config?success=1');
@@ -402,12 +431,12 @@ describe('Config', () => {
         expect(mockDatabaseService.updateCashAmount).toHaveBeenCalledWith(1000.50);
       });
 
-      it('should handle fractional quantities', async () => {
+      it('should handle fractional target weights', async () => {
         const mockFormData = new Map([
           ['action', 'add_holding'],
           ['name', 'Vanguard ETF'],
           ['code', 'BATS:VOO'],
-          ['quantity', '10.5']
+          ['target_weight', '10.5']
         ]);
         mockRequest.formData.mockResolvedValue(mockFormData);
         mockDatabaseService.addPortfolioHolding.mockResolvedValue();
@@ -427,7 +456,7 @@ describe('Config', () => {
           ['holding_id', '123'],
           ['name', 'Test'],
           ['code', 'TEST:TEST'],
-          ['quantity', '1']
+          ['target_weight', '']
         ]);
         mockRequest.formData.mockResolvedValue(mockFormData);
         mockDatabaseService.updatePortfolioHolding.mockResolvedValue();
@@ -438,7 +467,7 @@ describe('Config', () => {
           123,
           'Test',
           'TEST:TEST',
-          1
+          null
         );
       });
     });

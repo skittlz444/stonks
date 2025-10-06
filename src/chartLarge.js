@@ -1,12 +1,12 @@
 import { generatePageLayout, generateFullHeightContainer, createResponse } from './utils.js';
 import { generateSymbolOverviewWidget } from './chartWidgets.js';
-import { getStockHoldings, formatStructuredDataForLargeChart } from './dataUtils.js';
+import { getVisibleStockHoldings, formatStructuredDataForLargeChart } from './dataUtils.js';
 
 /**
  * Generate the large chart page (originally chart-large.js)
  */
 export async function generateLargeChartPage(databaseService) {
-  const holdings = await getStockHoldings(databaseService);
+  const holdings = await getVisibleStockHoldings(databaseService);
   const chartSymbols = formatStructuredDataForLargeChart(holdings);
 
   // Generate symbol overview widget

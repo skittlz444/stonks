@@ -1,12 +1,12 @@
 import { generatePageLayout, generateChartGridLayout, createResponse } from './utils.js';
 import { generateMiniSymbolWidget, generateMarketOverviewWidget } from './chartWidgets.js';
-import { getStockHoldings, formatStructuredDataForChartGrid } from './dataUtils.js';
+import { getVisibleStockHoldings, formatStructuredDataForChartGrid } from './dataUtils.js';
 
 /**
  * Generate the chart grid page (originally chart-grid.js)
  */
 export async function generateChartGridPage(databaseService) {
-  const holdings = await getStockHoldings(databaseService);
+  const holdings = await getVisibleStockHoldings(databaseService);
   const marketSymbols = formatStructuredDataForChartGrid(holdings);
 
   // Generate mini symbol widgets
