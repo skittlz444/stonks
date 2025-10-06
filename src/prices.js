@@ -431,16 +431,14 @@ export async function generatePricesPage(databaseService, finnhubService) {
           position: sticky;
           left: 0;
           z-index: 10;
-          background-color: #fff;
         }
         
         /* Symbol column (second column) - offset by approximate width of Name column */
         #holdingsTable thead th:nth-child(2),
         #holdingsTable tbody td:nth-child(2) {
           position: sticky;
-          left: 150px; /* Approximate width of Name column */
+          left: 100px; /* Approximate width of Name column */
           z-index: 10;
-          background-color: #fff;
         }
         
         /* Ensure header cells have higher z-index */
@@ -464,7 +462,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
         /* Ensure proper width for Name column to match the sticky offset */
         #holdingsTable th:nth-child(1),
         #holdingsTable td:nth-child(1) {
-          min-width: 150px;
+          min-width: 100px;
         }
         
         /* Sticky columns for Name and Symbol - Closed Positions Table */
@@ -474,16 +472,14 @@ export async function generatePricesPage(databaseService, finnhubService) {
           position: sticky;
           left: 0;
           z-index: 10;
-          background-color: #fff;
         }
         
         /* Symbol column (second column) - offset by approximate width of Name column */
         #closedPositionsTable thead th:nth-child(2),
         #closedPositionsTable tbody td:nth-child(2) {
           position: sticky;
-          left: 150px; /* Approximate width of Name column */
+          left: 100px; /* Approximate width of Name column */
           z-index: 10;
-          background-color: #fff;
         }
         
         /* Ensure header cells have higher z-index */
@@ -501,7 +497,6 @@ export async function generatePricesPage(databaseService, finnhubService) {
         /* Handle striped rows in closed positions table */
         #closedPositionsTable tbody tr:nth-of-type(odd) td:nth-child(1),
         #closedPositionsTable tbody tr:nth-of-type(odd) td:nth-child(2) {
-          background-color: rgba(0,0,0,0.05);
         }
         
         /* Add a subtle shadow to the Symbol column to indicate sticky boundary */
@@ -513,7 +508,7 @@ export async function generatePricesPage(databaseService, finnhubService) {
         /* Ensure proper width for Name column to match the sticky offset */
         #closedPositionsTable th:nth-child(1),
         #closedPositionsTable td:nth-child(1) {
-          min-width: 150px;
+          min-width: 100px;
         }
       </style>
       </style>

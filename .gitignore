@@ -32,3 +32,4 @@ yarn-error.log*
 
 # Ignore test coverage reports
 coverage/
+/coverage

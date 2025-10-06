@@ -533,7 +533,7 @@ describe('Prices Page Generation', () => {
       expect(html).toContain('#holdingsTable thead th:nth-child(2)');
       expect(html).toContain('#holdingsTable tbody td:nth-child(2)');
       expect(html).toContain('left: 0');
-      expect(html).toContain('left: 150px');
+      expect(html).toContain('left: 100px');
       
       // Check for sticky column CSS for closed positions table
       expect(html).toContain('#closedPositionsTable thead th:nth-child(1)');
