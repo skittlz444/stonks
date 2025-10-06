@@ -717,6 +717,38 @@ class MockPreparedStatement {
       return { success: true };
     }
     
+    // Handle UPDATE operations for toggling hidden status (CASE WHEN version)
+    if (this.query.includes('UPDATE portfolio_holdings SET hidden = CASE WHEN hidden')) {
+      const id = this.bindings[0];
+      const holdingIndex = this.mockDb.portfolioHoldings.findIndex(h => h.id === id);
+      
+      if (holdingIndex !== -1) {
+        this.mockDb.portfolioHoldings[holdingIndex] = {
+          ...this.mockDb.portfolioHoldings[holdingIndex],
+          hidden: this.mockDb.portfolioHoldings[holdingIndex].hidden === 0 ? 1 : 0,
+          updated_at: new Date().toISOString()
+        };
+      }
+      
+      return { success: true };
+    }
+    
+    // Handle UPDATE operations for setting hidden status (simple version)
+    if (this.query.includes('UPDATE portfolio_holdings SET hidden = ?')) {
+      const [hidden, id] = this.bindings;
+      const holdingIndex = this.mockDb.portfolioHoldings.findIndex(h => h.id === id);
+      
+      if (holdingIndex !== -1) {
+        this.mockDb.portfolioHoldings[holdingIndex] = {
+          ...this.mockDb.portfolioHoldings[holdingIndex],
+          hidden,
+          updated_at: new Date().toISOString()
+        };
+      }
+      
+      return { success: true };
+    }
+    
     // Handle UPDATE operations for portfolio holdings (new structure)
     if (this.query.includes('UPDATE portfolio_holdings SET')) {
       const [name, code, targetWeight, id] = this.bindings;

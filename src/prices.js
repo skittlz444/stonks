@@ -133,7 +133,6 @@ export async function generatePricesPage(databaseService, finnhubService) {
       const targetWeight = holding.target_weight;
       const weightDiff = targetWeight != null ? weight - targetWeight : null;
       const weightDiffClass = weightDiff != null ? (weightDiff >= 0 ? 'text-success' : 'text-danger') : '';
-      const weightDiffIcon = weightDiff != null ? (weightDiff >= 0 ? '▲' : '▼') : '';
       
       // Add to total deviation if target is set
       if (weightDiff != null) {
@@ -144,24 +143,25 @@ export async function generatePricesPage(databaseService, finnhubService) {
       const stockCode = holding.code.includes(':') ? holding.code.split(':')[1] : holding.code;
       
       return `
-        <tr>
-          <td><strong>${holding.name}</strong></td>
-          <td><code>${stockCode}</code></td>
-          <td class="text-end">${holding.quantity}</td>
-          <td class="text-end">$${quote.current.toFixed(2)}</td>
-          <td class="text-end ${changeClass}">
+        <tr data-holding="true">
+          <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+          <td data-value="${stockCode}"><code>${stockCode}</code></td>
+          <td class="text-end" data-value="${quote.current}">$${quote.current.toFixed(2)}</td>
+          <td class="text-end ${changeClass}" data-value="${quote.change}">
             ${changeIcon} $${Math.abs(quote.change).toFixed(2)} (${quote.changePercent.toFixed(2)}%)
           </td>
-          <td class="text-end ${changeClass}">
+          <td class="text-end" data-value="${holding.quantity}">${holding.quantity.toFixed(2)}</td>
+          <td class="text-end" data-value="${holding.costBasis}" style="display: none;">$${holding.costBasis.toFixed(2)}</td>
+          <td class="text-end" data-value="${holding.marketValue}">$${holding.marketValue.toFixed(2)}</td>
+          <td class="text-end ${changeClass}" data-value="${changeValue}">
             ${changeIcon} $${Math.abs(changeValue).toFixed(2)}
           </td>
-          <td class="text-end">$${holding.marketValue.toFixed(2)}</td>
-          <td class="text-end">${weight.toFixed(2)}%</td>
-          <td class="text-end">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
-          <td class="text-end ${weightDiffClass}">
-            ${weightDiff != null ? weightDiffIcon + ' ' + Math.abs(weightDiff).toFixed(2) + '%' : '-'}
+          <td class="text-end" data-value="${weight}">${weight.toFixed(2)}%</td>
+          <td class="text-end" data-value="${targetWeight != null ? targetWeight : -999}">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
+          <td class="text-end ${weightDiffClass}" data-value="${weightDiff != null ? weightDiff : -999}">
+            ${weightDiff != null ? (weightDiff >= 0 ? '+' : '') + weightDiff.toFixed(2) + '%' : '-'}
           </td>
-          <td class="text-end ${gainClass}">
+          <td class="text-end ${gainClass}" data-value="${holding.gain}">
             $${holding.gain.toFixed(2)} (${holding.gainPercent.toFixed(2)}%)
           </td>
         </tr>
@@ -181,8 +181,9 @@ export async function generatePricesPage(databaseService, finnhubService) {
         <td class="text-end">-</td>
         <td class="text-end">-</td>
         <td class="text-end">-</td>
-        <td class="text-end">-</td>
+        <td class="text-end" style="display: none;">-</td>
         <td class="text-end">$${cashAmount.toFixed(2)}</td>
+        <td class="text-end">-</td>
         <td class="text-end">${cashWeight.toFixed(2)}%</td>
         <td class="text-end">-</td>
         <td class="text-end">-</td>
@@ -257,25 +258,107 @@ export async function generatePricesPage(databaseService, finnhubService) {
 
         <!-- Holdings Table -->
         <div class="card">
-          <div class="card-header">
+          <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="mb-0">Portfolio Holdings</h3>
+            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#columnControls">
+              ⚙️ Columns
+            </button>
+          </div>
+          <div class="collapse" id="columnControls">
+            <div class="card-body border-bottom">
+              <div class="row g-2">
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-name" data-column="0" checked>
+                    <label class="form-check-label" for="col-name">Name</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-symbol" data-column="1" checked>
+                    <label class="form-check-label" for="col-symbol">Symbol</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-price" data-column="2" checked>
+                    <label class="form-check-label" for="col-price">Current Price</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-pricechange" data-column="3" checked>
+                    <label class="form-check-label" for="col-pricechange">Price Change</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-quantity" data-column="4" checked>
+                    <label class="form-check-label" for="col-quantity">Quantity</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-cost" data-column="5">
+                    <label class="form-check-label" for="col-cost">Cost</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-marketvalue" data-column="6" checked>
+                    <label class="form-check-label" for="col-marketvalue">Market Value</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-mvchange" data-column="7" checked>
+                    <label class="form-check-label" for="col-mvchange">MV Change</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-weight" data-column="8" checked>
+                    <label class="form-check-label" for="col-weight">Weight</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-target" data-column="9" checked>
+                    <label class="form-check-label" for="col-target">Target</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-diff" data-column="10" checked>
+                    <label class="form-check-label" for="col-diff">Diff</label>
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input column-toggle" type="checkbox" id="col-gain" data-column="11" checked>
+                    <label class="form-check-label" for="col-gain">Total Gain/Loss</label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover mb-0">
+              <table id="holdingsTable" class="table table-hover mb-0">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Symbol</th>
-                    <th class="text-end">Quantity</th>
-                    <th class="text-end">Current Price</th>
-                    <th class="text-end">Price Change</th>
-                    <th class="text-end">Change $</th>
-                    <th class="text-end">Market Value</th>
-                    <th class="text-end">Weight</th>
-                    <th class="text-end">Target</th>
-                    <th class="text-end">Diff</th>
-                    <th class="text-end">Total Gain/Loss</th>
+                    <th class="sortable" data-column="0" data-type="text">Name <span class="sort-indicator"></span></th>
+                    <th class="sortable" data-column="1" data-type="text">Symbol <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="2" data-type="number">Current Price <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="3" data-type="number">Price Change <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="4" data-type="number">Quantity <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="5" data-type="number" style="display: none;">Cost <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="6" data-type="number">Market Value <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="7" data-type="number">MV Change <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="8" data-type="number">Weight <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="9" data-type="number">Target <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="10" data-type="number">Diff <span class="sort-indicator"></span></th>
+                    <th class="sortable text-end" data-column="11" data-type="number">Total Gain/Loss <span class="sort-indicator"></span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -315,7 +398,181 @@ export async function generatePricesPage(databaseService, finnhubService) {
         .text-danger {
           color: #dc3545 !important;
         }
+        .sortable {
+          cursor: pointer;
+          user-select: none;
+        }
+        .sortable:hover {
+          background-color: rgba(255,255,255,0.05);
+        }
+        .sort-indicator {
+          opacity: 0.3;
+          margin-left: 5px;
+        }
+        .sort-indicator:after {
+          content: '⇅';
+        }
+        .sort-indicator.asc:after {
+          content: '↑';
+          opacity: 1;
+        }
+        .sort-indicator.desc:after {
+          content: '↓';
+          opacity: 1;
+        }
+        .sortable.active .sort-indicator {
+          opacity: 1;
+        }
       </style>
+
+      <script>
+        // Column visibility toggle
+        document.querySelectorAll('.column-toggle').forEach(toggle => {
+          toggle.addEventListener('change', function() {
+            const columnIndex = parseInt(this.dataset.column);
+            const table = document.getElementById('holdingsTable');
+            const isChecked = this.checked;
+            
+            // Toggle header
+            const headers = table.querySelectorAll('thead th');
+            if (headers[columnIndex]) {
+              headers[columnIndex].style.display = isChecked ? '' : 'none';
+            }
+            
+            // Toggle all cells in that column
+            table.querySelectorAll('tbody tr').forEach(row => {
+              const cells = row.querySelectorAll('td');
+              if (cells[columnIndex]) {
+                cells[columnIndex].style.display = isChecked ? '' : 'none';
+              }
+            });
+          });
+        });
+
+        // Table sorting
+        let currentSort = { column: -1, direction: 'asc' };
+        
+        document.querySelectorAll('.sortable').forEach(header => {
+          header.addEventListener('click', function() {
+            const columnIndex = parseInt(this.dataset.column);
+            const dataType = this.dataset.type;
+            const table = document.getElementById('holdingsTable');
+            const tbody = table.querySelector('tbody');
+            
+            // Get all data rows (excluding cash row)
+            const rows = Array.from(tbody.querySelectorAll('tr[data-holding="true"]'));
+            const cashRow = tbody.querySelector('tr:not([data-holding])');
+            
+            // Determine sort direction
+            if (currentSort.column === columnIndex) {
+              currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+              currentSort.column = columnIndex;
+              currentSort.direction = 'asc';
+            }
+            
+            // Sort rows
+            rows.sort((a, b) => {
+              const aCell = a.querySelectorAll('td')[columnIndex];
+              const bCell = b.querySelectorAll('td')[columnIndex];
+              
+              let aValue = aCell.dataset.value;
+              let bValue = bCell.dataset.value;
+              
+              if (dataType === 'number') {
+                aValue = parseFloat(aValue);
+                bValue = parseFloat(bValue);
+                
+                // Handle null values (represented as -999)
+                if (aValue === -999) return 1;
+                if (bValue === -999) return -1;
+              }
+              
+              let comparison = 0;
+              if (aValue < bValue) comparison = -1;
+              if (aValue > bValue) comparison = 1;
+              
+              return currentSort.direction === 'asc' ? comparison : -comparison;
+            });
+            
+            // Clear tbody and re-append sorted rows
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+            if (cashRow) tbody.appendChild(cashRow);
+            
+            // Update sort indicators
+            document.querySelectorAll('.sortable').forEach(h => {
+              h.classList.remove('active');
+              const indicator = h.querySelector('.sort-indicator');
+              indicator.className = 'sort-indicator';
+            });
+            
+            this.classList.add('active');
+            const indicator = this.querySelector('.sort-indicator');
+            indicator.classList.add(currentSort.direction);
+          });
+        });
+
+        // Closed positions table sorting
+        let currentClosedSort = { column: -1, direction: 'asc' };
+        
+        document.querySelectorAll('.sortable-closed').forEach(header => {
+          header.addEventListener('click', function() {
+            const columnIndex = parseInt(this.dataset.column);
+            const dataType = this.dataset.type;
+            const table = document.getElementById('closedPositionsTable');
+            const tbody = table.querySelector('tbody');
+            
+            // Get all data rows (excluding total row)
+            const rows = Array.from(tbody.querySelectorAll('tr[data-closed="true"]'));
+            const totalRow = tbody.querySelector('tr:not([data-closed])');
+            
+            // Determine sort direction
+            if (currentClosedSort.column === columnIndex) {
+              currentClosedSort.direction = currentClosedSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+              currentClosedSort.column = columnIndex;
+              currentClosedSort.direction = 'asc';
+            }
+            
+            // Sort rows
+            rows.sort((a, b) => {
+              const aCell = a.querySelectorAll('td')[columnIndex];
+              const bCell = b.querySelectorAll('td')[columnIndex];
+              
+              let aValue = aCell.dataset.value;
+              let bValue = bCell.dataset.value;
+              
+              if (dataType === 'number') {
+                aValue = parseFloat(aValue);
+                bValue = parseFloat(bValue);
+              }
+              
+              let comparison = 0;
+              if (aValue < bValue) comparison = -1;
+              if (aValue > bValue) comparison = 1;
+              
+              return currentClosedSort.direction === 'asc' ? comparison : -comparison;
+            });
+            
+            // Clear tbody and re-append sorted rows
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+            if (totalRow) tbody.appendChild(totalRow);
+            
+            // Update sort indicators
+            document.querySelectorAll('.sortable-closed').forEach(h => {
+              h.classList.remove('active');
+              const indicator = h.querySelector('.sort-indicator');
+              indicator.className = 'sort-indicator';
+            });
+            
+            this.classList.add('active');
+            const indicator = this.querySelector('.sort-indicator');
+            indicator.classList.add(currentClosedSort.direction);
+          });
+        });
+      </script>
     `;
 
     return createLayout('Live Stock Prices', content);
@@ -345,22 +602,21 @@ async function generateClosedPositionsSection(databaseService) {
   
   const closedRows = closedPositions.map(position => {
     const profitClass = position.profitLoss >= 0 ? 'text-success' : 'text-danger';
-    const profitIcon = position.profitLoss >= 0 ? '▲' : '▼';
     const stockCode = position.code.includes(':') ? position.code.split(':')[1] : position.code;
     
     return `
-      <tr>
-        <td><strong>${position.name}</strong></td>
-        <td><code>${stockCode}</code></td>
-        <td class="text-end">$${position.totalCost.toFixed(2)}</td>
-        <td class="text-end">$${position.totalRevenue.toFixed(2)}</td>
-        <td class="text-end ${profitClass}">
-          ${profitIcon} $${Math.abs(position.profitLoss).toFixed(2)}
+      <tr data-closed="true">
+        <td data-value="${position.name}"><strong>${position.name}</strong></td>
+        <td data-value="${stockCode}"><code>${stockCode}</code></td>
+        <td class="text-end" data-value="${position.totalCost}">$${position.totalCost.toFixed(2)}</td>
+        <td class="text-end" data-value="${position.totalRevenue}">$${position.totalRevenue.toFixed(2)}</td>
+        <td class="text-end ${profitClass}" data-value="${position.profitLoss}">
+          $${position.profitLoss.toFixed(2)}
         </td>
-        <td class="text-end ${profitClass}">
-          ${profitIcon} ${Math.abs(position.profitLossPercent).toFixed(2)}%
+        <td class="text-end ${profitClass}" data-value="${position.profitLossPercent}">
+          ${position.profitLossPercent.toFixed(2)}%
         </td>
-        <td class="text-end"><small class="text-muted">${position.transactions} txns</small></td>
+        <td class="text-end" data-value="${position.transactions}"><small class="text-muted">${position.transactions} txns</small></td>
       </tr>
     `;
   }).join('');
@@ -371,7 +627,6 @@ async function generateClosedPositionsSection(databaseService) {
   const totalClosedProfit = totalClosedRevenue - totalClosedCost;
   const totalClosedPercent = totalClosedCost > 0 ? (totalClosedProfit / totalClosedCost) * 100 : 0;
   const totalProfitClass = totalClosedProfit >= 0 ? 'text-success' : 'text-danger';
-  const totalProfitIcon = totalClosedProfit >= 0 ? '▲' : '▼';
   
   const totalRow = `
     <tr class="table-secondary fw-bold">
@@ -379,10 +634,10 @@ async function generateClosedPositionsSection(databaseService) {
       <td class="text-end">$${totalClosedCost.toFixed(2)}</td>
       <td class="text-end">$${totalClosedRevenue.toFixed(2)}</td>
       <td class="text-end ${totalProfitClass}">
-        ${totalProfitIcon} $${Math.abs(totalClosedProfit).toFixed(2)}
+        $${totalClosedProfit.toFixed(2)}
       </td>
       <td class="text-end ${totalProfitClass}">
-        ${totalProfitIcon} ${Math.abs(totalClosedPercent).toFixed(2)}%
+        ${totalClosedPercent.toFixed(2)}%
       </td>
       <td class="text-end">-</td>
     </tr>
@@ -400,16 +655,16 @@ async function generateClosedPositionsSection(databaseService) {
         <div id="closedPositionsCollapse" class="accordion-collapse collapse" aria-labelledby="closedPositionsHeading" data-bs-parent="#closedPositionsAccordion">
           <div class="accordion-body p-0">
             <div class="table-responsive">
-              <table class="table table-striped mb-0">
+              <table id="closedPositionsTable" class="table table-striped mb-0">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Symbol</th>
-                    <th class="text-end">Total Cost</th>
-                    <th class="text-end">Total Revenue</th>
-                    <th class="text-end">Profit/Loss $</th>
-                    <th class="text-end">Profit/Loss %</th>
-                    <th class="text-end">Transactions</th>
+                    <th class="sortable-closed" data-column="0" data-type="text">Name <span class="sort-indicator"></span></th>
+                    <th class="sortable-closed" data-column="1" data-type="text">Symbol <span class="sort-indicator"></span></th>
+                    <th class="sortable-closed text-end" data-column="2" data-type="number">Total Cost <span class="sort-indicator"></span></th>
+                    <th class="sortable-closed text-end" data-column="3" data-type="number">Total Revenue <span class="sort-indicator"></span></th>
+                    <th class="sortable-closed text-end" data-column="4" data-type="number">Profit/Loss $ <span class="sort-indicator"></span></th>
+                    <th class="sortable-closed text-end" data-column="5" data-type="number">Profit/Loss % <span class="sort-indicator"></span></th>
+                    <th class="sortable-closed text-end" data-column="6" data-type="number">Transactions <span class="sort-indicator"></span></th>
                   </tr>
                 </thead>
                 <tbody>

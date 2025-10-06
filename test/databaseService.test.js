@@ -103,6 +103,147 @@ describe('MockD1Database', () => {
       expect(result.success).toBe(true);
       expect(mockDb.portfolioSettings.cash_amount).toBe('150.5');
     });
+
+    test('should return visible holdings with WHERE hidden = 0', async () => {
+      // Set one holding as hidden
+      mockDb.portfolioHoldings[0].hidden = 1;
+      
+      const stmt = mockDb.prepare('SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 0');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results.every(h => h.hidden === 0)).toBe(true);
+      expect(result.results.length).toBe(mockDb.portfolioHoldings.filter(h => h.hidden === 0).length);
+    });
+
+    test('should return hidden holdings with WHERE hidden = 1', async () => {
+      // Set one holding as hidden
+      mockDb.portfolioHoldings[0].hidden = 1;
+      
+      const stmt = mockDb.prepare('SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 1');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results.every(h => h.hidden === 1)).toBe(true);
+      expect(result.results.length).toBe(mockDb.portfolioHoldings.filter(h => h.hidden === 1).length);
+    });
+
+    test('should handle INSERT operations for transactions', async () => {
+      const initialCount = mockDb.transactions.length;
+      const stmt = mockDb.prepare('INSERT INTO transactions (code, type, date, quantity, value, fee) VALUES (?, ?, ?, ?, ?, ?)');
+      await stmt.bind('BATS:VOO', 'buy', '2024-01-15', 5, 1000, 10).run();
+      
+      expect(mockDb.transactions.length).toBe(initialCount + 1);
+      const newTransaction = mockDb.transactions[mockDb.transactions.length - 1];
+      expect(newTransaction.code).toBe('BATS:VOO');
+      expect(newTransaction.type).toBe('buy');
+      expect(newTransaction.quantity).toBe(5);
+      expect(newTransaction.value).toBe(1000);
+      expect(newTransaction.fee).toBe(10);
+    });
+
+    test('should handle DELETE operations for transactions', async () => {
+      const initialCount = mockDb.transactions.length;
+      const transactionId = mockDb.transactions[0].id;
+      const stmt = mockDb.prepare('DELETE FROM transactions WHERE id = ?');
+      await stmt.bind(transactionId).run();
+      
+      expect(mockDb.transactions.length).toBe(initialCount - 1);
+      expect(mockDb.transactions.find(t => t.id === transactionId)).toBeUndefined();
+    });
+
+    test('should filter transactions by code', async () => {
+      const targetCode = 'BATS:VOO';
+      const stmt = mockDb.prepare('SELECT id, code, type, date, quantity, value, fee, created_at FROM transactions WHERE code = ?');
+      const result = await stmt.bind(targetCode).all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results.every(t => t.code === targetCode)).toBe(true);
+    });
+
+    test('should return all transactions without filter', async () => {
+      const stmt = mockDb.prepare('SELECT id, code, type, date, quantity, value, fee, created_at FROM transactions');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results.length).toBe(mockDb.transactions.length);
+    });
+
+    test('should return distinct codes from transactions', async () => {
+      const stmt = mockDb.prepare('SELECT DISTINCT code FROM transactions');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      const uniqueCodes = [...new Set(mockDb.transactions.map(t => t.code))];
+      expect(result.results.length).toBe(uniqueCodes.length);
+      expect(result.results.every(r => uniqueCodes.includes(r.code))).toBe(true);
+    });
+
+    test('should return all portfolio settings', async () => {
+      const stmt = mockDb.prepare('SELECT key, value FROM portfolio_settings');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results).toEqual([
+        { key: 'cash_amount', value: mockDb.portfolioSettings.cash_amount.toString() },
+        { key: 'portfolio_name', value: mockDb.portfolioSettings.portfolio_name }
+      ]);
+    });
+
+    test('should return portfolio_name setting', async () => {
+      const stmt = mockDb.prepare('SELECT value FROM portfolio_settings WHERE key = ?');
+      const result = await stmt.bind('portfolio_name').first();
+      expect(result).toEqual({ value: 'My Portfolio' });
+    });
+
+    test('should return null for non-existent settings', async () => {
+      const stmt = mockDb.prepare('SELECT value FROM portfolio_settings WHERE key = ?');
+      const result = await stmt.bind('non_existent_key').first();
+      expect(result).toBeNull();
+    });
+
+    test('should return holding name by code', async () => {
+      const targetCode = mockDb.portfolioHoldings[0].code;
+      const stmt = mockDb.prepare('SELECT name FROM portfolio_holdings WHERE code = ?');
+      const result = await stmt.bind(targetCode).first();
+      
+      expect(result).not.toBeNull();
+      expect(result.name).toBe(mockDb.portfolioHoldings[0].name);
+    });
+
+    test('should return null for non-existent holding code', async () => {
+      const stmt = mockDb.prepare('SELECT name FROM portfolio_holdings WHERE code = ?');
+      const result = await stmt.bind('NASDAQ:NONEXISTENT').first();
+      
+      expect(result).toBeNull();
+    });
+
+    test('should return legacy holdings', async () => {
+      const stmt = mockDb.prepare('SELECT id, name, symbol, created_at, updated_at FROM holdings');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results).toEqual(mockDb.holdings);
+    });
+
+    test('should return legacy holdings with just name and symbol', async () => {
+      const stmt = mockDb.prepare('SELECT name, symbol FROM holdings');
+      const result = await stmt.all();
+      
+      expect(result.success).toBe(true);
+      expect(result.results).toEqual(mockDb.holdings);
+    });
+
+    test('should toggle hidden column via UPDATE', async () => {
+      const holdingId = mockDb.portfolioHoldings[0].id;
+      const originalHidden = mockDb.portfolioHoldings[0].hidden;
+      
+      const stmt = mockDb.prepare('UPDATE portfolio_holdings SET hidden = ? WHERE id = ?');
+      await stmt.bind(originalHidden === 0 ? 1 : 0, holdingId).run();
+      
+      const updatedHolding = mockDb.portfolioHoldings.find(h => h.id === holdingId);
+      expect(updatedHolding.hidden).toBe(originalHidden === 0 ? 1 : 0);
+    });
   });
 });
 
@@ -199,6 +340,148 @@ describe('DatabaseService', () => {
     });
   });
 
+  describe('hidden holdings management', () => {
+    test('should get visible portfolio holdings only', async () => {
+      // Set one holding as hidden
+      mockDb.portfolioHoldings[0].hidden = 1;
+      
+      const visibleHoldings = await databaseService.getVisiblePortfolioHoldings();
+      
+      expect(visibleHoldings).toBeDefined();
+      expect(visibleHoldings.every(h => h.hidden === 0)).toBe(true);
+      expect(visibleHoldings.length).toBe(mockDb.portfolioHoldings.filter(h => h.hidden === 0).length);
+    });
+
+    test('should get hidden portfolio holdings only', async () => {
+      // Set one holding as hidden
+      mockDb.portfolioHoldings[0].hidden = 1;
+      mockDb.portfolioHoldings[1].hidden = 1;
+      
+      const hiddenHoldings = await databaseService.getHiddenPortfolioHoldings();
+      
+      expect(hiddenHoldings).toBeDefined();
+      expect(hiddenHoldings.every(h => h.hidden === 1)).toBe(true);
+      expect(hiddenHoldings.length).toBe(2);
+    });
+
+    test('should toggle holding visibility from visible to hidden', async () => {
+      const holdingId = mockDb.portfolioHoldings[0].id;
+      expect(mockDb.portfolioHoldings[0].hidden).toBe(0);
+      
+      const result = await databaseService.toggleHoldingVisibility(holdingId);
+      
+      expect(result).toBe(true);
+      expect(mockDb.portfolioHoldings[0].hidden).toBe(1);
+    });
+
+    test('should toggle holding visibility from hidden to visible', async () => {
+      const holdingId = mockDb.portfolioHoldings[0].id;
+      mockDb.portfolioHoldings[0].hidden = 1;
+      
+      const result = await databaseService.toggleHoldingVisibility(holdingId);
+      
+      expect(result).toBe(true);
+      expect(mockDb.portfolioHoldings[0].hidden).toBe(0);
+    });
+
+    test('should get visible holdings with portfolio symbol', async () => {
+      // Set one holding as hidden
+      mockDb.portfolioHoldings[0].hidden = 1;
+      
+      const holdings = await databaseService.getVisibleHoldings();
+      
+      expect(holdings).toBeDefined();
+      expect(Array.isArray(holdings)).toBe(true);
+      
+      // Should have "My Portfolio" as first entry
+      if (holdings.length > 0) {
+        expect(holdings[0].name).toContain('Portfolio');
+      }
+    });
+  });
+
+  describe('transactions and closed positions', () => {
+    test('should add transaction', async () => {
+      const result = await databaseService.addTransaction('BATS:VOO', 'buy', '2024-01-15', 5, 1000, 10);
+      expect(result).toBe(true);
+    });
+
+    test('should delete transaction', async () => {
+      const transactionId = mockDb.transactions[0].id;
+      const result = await databaseService.deleteTransaction(transactionId);
+      expect(result).toBe(true);
+      expect(mockDb.transactions.find(t => t.id === transactionId)).toBeUndefined();
+    });
+
+    test('should get transactions for a holding', async () => {
+      const code = 'BATS:VOO';
+      const transactions = await databaseService.getTransactionsByCode(code);
+      
+      expect(transactions).toBeDefined();
+      expect(Array.isArray(transactions)).toBe(true);
+      expect(transactions.every(t => t.code === code)).toBe(true);
+    });
+
+    test('should get all transactions', async () => {
+      const transactions = await databaseService.getTransactions();
+      
+      expect(transactions).toBeDefined();
+      expect(Array.isArray(transactions)).toBe(true);
+      expect(transactions.length).toBeGreaterThan(0);
+    });
+
+    test('should calculate closed positions from transactions', async () => {
+      // Add some sell transactions to create closed positions
+      await databaseService.addTransaction('BATS:VOO', 'sell', '2024-01-20', 1, 500, 5);
+      
+      const closedPositions = await databaseService.getClosedPositions();
+      
+      expect(closedPositions).toBeDefined();
+      expect(Array.isArray(closedPositions)).toBe(true);
+      
+      // Find VOO in closed positions
+      const vooPosition = closedPositions.find(p => p.code === 'BATS:VOO');
+      if (vooPosition) {
+        expect(vooPosition).toHaveProperty('totalCost');
+        expect(vooPosition).toHaveProperty('totalRevenue');
+        expect(vooPosition).toHaveProperty('profitLoss');
+        expect(vooPosition).toHaveProperty('profitLossPercent');
+        expect(vooPosition).toHaveProperty('transactions');
+      }
+    });
+
+    test('should calculate profit/loss correctly for closed positions', async () => {
+      // Clear existing transactions and add controlled test data
+      mockDb.transactions = [];
+      
+      // Buy 10 shares at $100 each with $10 fee
+      await databaseService.addTransaction('NASDAQ:TEST', 'buy', '2024-01-01', 10, 1000, 10);
+      
+      // Sell 10 shares at $120 each with $5 fee
+      await databaseService.addTransaction('NASDAQ:TEST', 'sell', '2024-01-15', 10, 1200, 5);
+      
+      const closedPositions = await databaseService.getClosedPositions();
+      const testPosition = closedPositions.find(p => p.code === 'NASDAQ:TEST');
+      
+      expect(testPosition).toBeDefined();
+      expect(testPosition.totalCost).toBe(1010); // 1000 + 10
+      expect(testPosition.totalRevenue).toBe(1195); // 1200 - 5
+      expect(testPosition.profitLoss).toBe(185); // 1195 - 1010
+      expect(testPosition.profitLossPercent).toBeCloseTo(18.32, 1); // (185 / 1010) * 100
+    });
+
+    test('should handle no closed positions', async () => {
+      // Clear all transactions
+      mockDb.transactions = [];
+      
+      const closedPositions = await databaseService.getClosedPositions();
+      
+      expect(closedPositions).toBeDefined();
+      expect(Array.isArray(closedPositions)).toBe(true);
+      expect(closedPositions.length).toBe(0);
+    });
+  });
+
   describe('error handling', () => {
     test('should handle database errors gracefully in getHoldings', async () => {
       // Mock a database that throws errors
@@ -227,6 +510,52 @@ describe('DatabaseService', () => {
       
       const errorService = new DatabaseService(errorDb);
       const result = await errorService.addPortfolioHolding('Test', 'TEST', 1);
+      
+      expect(result).toBe(false);
+    });
+
+    test('should handle errors in getVisibleHoldings', async () => {
+      const errorDb = {
+        prepare: vi.fn(() => {
+          throw new Error('Database error');
+        })
+      };
+      
+      const errorService = new DatabaseService(errorDb);
+      const holdings = await errorService.getVisibleHoldings();
+      
+      expect(holdings).toEqual([]);
+    });
+
+    test('should handle errors in getClosedPositions', async () => {
+      const errorDb = {
+        prepare: vi.fn(() => {
+          throw new Error('Database error');
+        })
+      };
+      
+      const errorService = new DatabaseService(errorDb);
+      const positions = await errorService.getClosedPositions();
+      
+      expect(positions).toEqual([]);
+    });
+
+    test('should handle errors in toggleHoldingVisibility', async () => {
+      const errorDb = {
+        prepare: vi.fn(() => ({
+          bind: vi.fn(() => ({
+            run: vi.fn(() => {
+              throw new Error('Database error');
+            }),
+            first: vi.fn(() => {
+              throw new Error('Database error');
+            })
+          }))
+        }))
+      };
+      
+      const errorService = new DatabaseService(errorDb);
+      const result = await errorService.toggleHoldingVisibility(1);
       
       expect(result).toBe(false);
     });

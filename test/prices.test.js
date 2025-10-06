@@ -322,7 +322,7 @@ describe('Prices Page Generation', () => {
       const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
       const html = await response.text();
 
-      // Negative day change (uses Math.abs, so shows $1.00 not -$1.00)
+      // Negative day change (uses Math.abs with arrow, so shows ▼ $1.00)
       expect(html).toContain('text-danger');
       expect(html).toContain('▼');
       expect(html).toContain('$1.00');
