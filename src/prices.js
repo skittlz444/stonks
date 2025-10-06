@@ -686,6 +686,94 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
         .sortable.active .sort-indicator {
           opacity: 1;
         }
+        
+        /* Sticky columns for Name and Symbol - Holdings Table */
+        /* Name column (first column) */
+        #holdingsTable thead th:nth-child(1),
+        #holdingsTable tbody td:nth-child(1) {
+          position: sticky;
+          left: 0;
+          z-index: 10;
+        }
+        
+        /* Symbol column (second column) - offset by approximate width of Name column */
+        #holdingsTable thead th:nth-child(2),
+        #holdingsTable tbody td:nth-child(2) {
+          position: sticky;
+          left: 100px; /* Approximate width of Name column */
+          z-index: 10;
+        }
+        
+        /* Ensure header cells have higher z-index */
+        #holdingsTable thead th:nth-child(1),
+        #holdingsTable thead th:nth-child(2) {
+          z-index: 11;
+        }
+        
+        /* Ensure cash row (secondary) has proper background */
+        #holdingsTable tbody tr.table-secondary td:nth-child(1),
+        #holdingsTable tbody tr.table-secondary td:nth-child(2) {
+          background-color: #e2e3e5;
+        }
+        
+        /* Add a subtle shadow to the Symbol column to indicate sticky boundary */
+        #holdingsTable th:nth-child(2),
+        #holdingsTable td:nth-child(2) {
+          box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Ensure proper width for Name column to match the sticky offset */
+        #holdingsTable th:nth-child(1),
+        #holdingsTable td:nth-child(1) {
+          min-width: 100px;
+        }
+        
+        /* Sticky columns for Name and Symbol - Closed Positions Table */
+        /* Name column (first column) */
+        #closedPositionsTable thead th:nth-child(1),
+        #closedPositionsTable tbody td:nth-child(1) {
+          position: sticky;
+          left: 0;
+          z-index: 10;
+        }
+        
+        /* Symbol column (second column) - offset by approximate width of Name column */
+        #closedPositionsTable thead th:nth-child(2),
+        #closedPositionsTable tbody td:nth-child(2) {
+          position: sticky;
+          left: 100px; /* Approximate width of Name column */
+          z-index: 10;
+        }
+        
+        /* Ensure header cells have higher z-index */
+        #closedPositionsTable thead th:nth-child(1),
+        #closedPositionsTable thead th:nth-child(2) {
+          z-index: 11;
+        }
+        
+        /* Ensure total row has proper background */
+        #closedPositionsTable tbody tr.table-secondary td:nth-child(1),
+        #closedPositionsTable tbody tr.table-secondary td:nth-child(2) {
+          background-color: #e2e3e5;
+        }
+        
+        /* Handle striped rows in closed positions table */
+        #closedPositionsTable tbody tr:nth-of-type(odd) td:nth-child(1),
+        #closedPositionsTable tbody tr:nth-of-type(odd) td:nth-child(2) {
+        }
+        
+        /* Add a subtle shadow to the Symbol column to indicate sticky boundary */
+        #closedPositionsTable th:nth-child(2),
+        #closedPositionsTable td:nth-child(2) {
+          box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Ensure proper width for Name column to match the sticky offset */
+        #closedPositionsTable th:nth-child(1),
+        #closedPositionsTable td:nth-child(1) {
+          min-width: 100px;
+        }
+      </style>
       </style>
 
       <script>
