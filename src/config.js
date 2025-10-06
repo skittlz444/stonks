@@ -19,6 +19,11 @@ export async function generateConfigPage(databaseService) {
   ).bind('portfolio_name').first();
   
   const portfolioName = portfolioNameResult ? portfolioNameResult.value : 'My Portfolio';
+  
+  // Calculate total target weight for visible holdings
+  const totalTargetWeight = visibleHoldings.reduce((sum, holding) => {
+    return sum + (holding.target_weight != null ? holding.target_weight : 0);
+  }, 0);
 
   const content = `
     <div class="container mt-4">
@@ -114,6 +119,20 @@ export async function generateConfigPage(databaseService) {
             `
           }
         </div>
+        ${visibleHoldings.length > 0 ? `
+        <div class="card-footer">
+          <div class="d-flex justify-content-between align-items-center">
+            <span><strong>Total Target Weight:</strong></span>
+            <span class="badge ${
+              Math.abs(totalTargetWeight - 100) < 0.01 ? 'bg-success' : 
+              Math.abs(totalTargetWeight - 100) <= 5 ? 'bg-warning' : 
+              'bg-danger'
+            } fs-6">
+              ${totalTargetWeight.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+        ` : ''}
       </div>
 
       <!-- Hidden Holdings (Collapsed by default) -->
