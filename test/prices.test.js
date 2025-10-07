@@ -207,11 +207,13 @@ describe('Prices Page Generation', () => {
       const html = await response.text();
 
       expect(html).toContain('🔄 Refresh');
-      expect(html).toContain('⚙️ Settings');
+      expect(html).toContain('⚙️ Config'); // Changed from Settings - now in top nav
       expect(html).toContain('/stonks/ticker');
       expect(html).toContain('/stonks/charts');
       expect(html).toContain('/stonks/charts/large');
       expect(html).toContain('/stonks/config');
+      expect(html).toContain('📊 Live Prices'); // Top navigation
+      expect(html).toContain('📈 Ticker View'); // Top navigation
     });
 
     it('should use current time when cache timestamp is null', async () => {

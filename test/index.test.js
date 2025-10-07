@@ -15,6 +15,10 @@ vi.mock('../src/chartLarge.js', () => ({
   generateLargeChartPage: vi.fn().mockResolvedValue(new Response('Large Chart Page', { status: 200 }))
 }));
 
+vi.mock('../src/prices.js', () => ({
+  generatePricesPage: vi.fn().mockResolvedValue(new Response('Prices Page', { status: 200 }))
+}));
+
 vi.mock('../src/config.js', () => ({
   generateConfigPage: vi.fn().mockResolvedValue(new Response('Config Page', { status: 200 })),
   handleConfigSubmission: vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { 'Location': '/stonks/config?success=1' } }))
@@ -305,6 +309,156 @@ describe('Index Router', () => {
       const response = await workerHandler.fetch(mockRequest, mockEnv);
       
       expect(response.status).toBe(201);
+    });
+  });
+
+  describe('Static file serving', () => {
+    test('should serve PNG icons with correct content type', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/icons/icon-192.png');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('PNG content', { 
+          status: 200,
+          headers: { 'content-type': 'image/png' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should serve SVG icons with correct content type', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/icons/icon.svg');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('SVG content', { 
+          status: 200,
+          headers: { 'content-type': 'image/svg+xml' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should serve JPG/JPEG icons with correct content type', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/icons/icon.jpg');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('JPG content', { 
+          status: 200,
+          headers: { 'content-type': 'image/jpeg' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should serve ICO icons with correct content type', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/icons/favicon.ico');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('ICO content', { 
+          status: 200,
+          headers: { 'content-type': 'image/x-icon' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should handle unknown icon extensions with default content type', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/icons/icon.unknown');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('Unknown content', { 
+          status: 200,
+          headers: { 'content-type': 'application/octet-stream' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should serve service worker file', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/sw.js');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('service worker code', { 
+          status: 200,
+          headers: { 'content-type': 'application/javascript' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should serve manifest.json file', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/manifest.json');
+      mockEnv.ASSETS = {
+        fetch: vi.fn().mockResolvedValue(new Response('{"name":"Stonks"}', { 
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }))
+      };
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe('Redirects', () => {
+    test('should redirect /stonks/ to /stonks/prices', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/');
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe('http://localhost/stonks/prices');
+    });
+
+    test('should redirect /stonks to /stonks/prices', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks');
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe('http://localhost/stonks/prices');
+    });
+  });
+
+  describe('Prices page with query parameters', () => {
+    test('should handle prices page with rebalance mode', async () => {
+      const { generatePricesPage } = await import('../src/prices.js');
+      mockRequest = createMockRequest('http://localhost/stonks/prices?mode=rebalance');
+      
+      await workerHandler.fetch(mockRequest, mockEnv);
+      
+      // Should be called with rebalanceMode = true
+      expect(generatePricesPage).toHaveBeenCalledWith(
+        expect.any(DatabaseService),
+        null, // No API key provided
+        true
+      );
+    });
+
+    test('should handle prices page without rebalance mode', async () => {
+      const { generatePricesPage } = await import('../src/prices.js');
+      mockRequest = createMockRequest('http://localhost/stonks/prices');
+      
+      await workerHandler.fetch(mockRequest, mockEnv);
+      
+      // Should be called with rebalanceMode = false
+      expect(generatePricesPage).toHaveBeenCalledWith(
+        expect.any(DatabaseService),
+        null, // No API key provided
+        false
+      );
     });
   });
 });

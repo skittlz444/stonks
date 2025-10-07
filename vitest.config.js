@@ -14,7 +14,8 @@ export default defineConfig({
         '**/*.test.js',
         '**/*.config.js',
         'worker-configuration.d.ts',
-        '.wrangler/**'
+        '.wrangler/**',
+        'public/sw.js'
       ]
     },
     globals: true,

@@ -206,7 +206,7 @@ describe('Utils', () => {
       expect(html).toContain('bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js');
     });
 
-    test('should include footer navigation', async () => {
+    test('should include footer navigation by default', async () => {
       const response = createLayout('Test', '<div>content</div>');
       const html = await response.text();
       
@@ -214,6 +214,15 @@ describe('Utils', () => {
       expect(html).toContain('href="/stonks/config"');
       expect(html).toContain('href="/stonks/prices"');
       expect(html).toContain('class="btn');
+    });
+
+    test('should allow excluding footer navigation', async () => {
+      const response = createLayout('Test', '<div>content</div>', "background-color:#212529;color:#ffffff", false);
+      const html = await response.text();
+      
+      expect(html).toContain('<div>content</div>');
+      expect(html).not.toContain('href="/stonks/ticker"');
+      expect(html).not.toContain('class="container mt-4 mb-4"'); // Footer navigation container
     });
 
     test('should include PWA features (manifest, service worker, icons)', async () => {

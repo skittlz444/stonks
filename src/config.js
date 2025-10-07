@@ -26,6 +26,19 @@ export async function generateConfigPage(databaseService) {
   }, 0);
 
   const content = `
+    <!-- Top Navigation -->
+    <div class="container-fluid bg-dark border-bottom border-secondary">
+      <div class="container py-2">
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="/stonks/prices" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
+          <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
+          <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
+          <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
+          <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
+        </div>
+      </div>
+    </div>
+
     <div class="container mt-4">
       <h1 class="mb-4">Portfolio Configuration</h1>
       
@@ -433,7 +446,7 @@ export async function generateConfigPage(databaseService) {
     </script>
   `;
 
-  return createLayout('Portfolio Configuration', content);
+  return createLayout('Portfolio Configuration', content, "background-color:#212529;color:#ffffff", false);
 }
 
 /**
