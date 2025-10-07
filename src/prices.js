@@ -104,7 +104,7 @@ function calculateRebalancing(holdings, cashAmount, portfolioTotal) {
 /**
  * Generate the stock prices page with live quotes
  */
-export async function generatePricesPage(databaseService, finnhubService, rebalanceMode = false) {
+export async function generatePricesPage(databaseService, finnhubService, fxService = null, rebalanceMode = false, currency = 'USD') {
   if (!finnhubService) {
     return createLayout('Stock Prices', `
       <div class="container mt-4">
@@ -128,6 +128,46 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
   }
 
   try {
+    // Fetch exchange rates if currency is not USD and FX service is available
+    // OPTIMIZATION: Fetch rates once for all currencies
+    let fxRates = {};
+    let currencySymbol = '$';
+    let altCurrency = null; // For sub-labels
+    let altCurrencySymbol = 'S$';
+    
+    if (fxService) {
+      fxRates = await fxService.getLatestRates(['SGD', 'AUD']);
+      
+      if (currency !== 'USD') {
+        currencySymbol = fxService.getCurrencySymbol(currency);
+        altCurrency = 'USD';
+        altCurrencySymbol = 'USD $'; // Show "USD $" prefix when viewing in SGD/AUD
+      } else {
+        // When USD is selected, show SGD as alt currency in sub-labels
+        altCurrency = 'SGD';
+        altCurrencySymbol = 'S$';
+      }
+    }
+    
+    // Helper function to convert USD amounts
+    const convert = (amountUSD) => {
+      if (!fxService || currency === 'USD') return amountUSD;
+      return fxService.convertFromUSD(amountUSD, currency, fxRates);
+    };
+    
+    // Helper function to convert to alt currency for sub-labels
+    const convertToAlt = (amountUSD) => {
+      if (!fxService || !altCurrency) return 0;
+      if (currency === 'USD') {
+        return fxService.convertFromUSD(amountUSD, 'SGD', fxRates);
+      } else {
+        return amountUSD; // If viewing non-USD, show USD as-is
+      }
+    };
+    
+    // Helper function to format currency values
+    const formatCurrency = (value) => `${currencySymbol}${value.toFixed(2)}`;
+
     // Get visible portfolio holdings with calculated quantities from transactions
     const holdings = await databaseService.getVisiblePortfolioHoldings();
     
@@ -158,12 +198,14 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
     const isCached = cacheStats.size > 0;
 
     // Calculate actual cost basis and gains for each holding from transactions
+    // OPTIMIZATION: Fetch all transactions in one query instead of N queries
+    const allTransactions = await databaseService.getAllTransactionsGroupedByCode();
     let totalMarketValue = 0;
     let totalCostBasis = 0;
     
     for (const holding of holdingsWithQuotes) {
       if (!holding.error && holding.quote) {
-        const transactions = await databaseService.getTransactionsByCode(holding.code);
+        const transactions = allTransactions[holding.code] || [];
         let costBasis = 0;
         
         for (const txn of transactions) {
@@ -288,7 +330,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
           <tr data-holding="true">
             <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
             <td data-value="${stockCode}"><code>${stockCode}</code></td>
-            <td class="text-end" data-value="${quote.current}">$${quote.current.toFixed(2)}</td>
+            <td class="text-end" data-value="${quote.current}">${formatCurrency(convert(quote.current))}</td>
             <td class="text-end" data-value="${holding.quantity}">
               ${rebalanceRec.quantityChange !== 0 ? `
                 <span class="text-muted" style="text-decoration: line-through;">${holding.quantity.toFixed(0)}</span>
@@ -298,10 +340,10 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
             </td>
             <td class="text-end" data-value="${holding.marketValue}">
               ${Math.abs(rebalanceRec.valueChange) > 0.01 ? `
-                <span class="text-muted" style="text-decoration: line-through;">$${holding.marketValue.toFixed(2)}</span>
-                <strong>$${rebalanceRec.targetValue.toFixed(2)}</strong>
-                <span class="${valueChangeClass}"> (${rebalanceRec.valueChange >= 0 ? '+$' : '-$'}${Math.abs(rebalanceRec.valueChange).toFixed(2)})</span>
-              ` : `<strong>$${rebalanceRec.targetValue.toFixed(2)}</strong>`}
+                <span class="text-muted" style="text-decoration: line-through;">${formatCurrency(convert(holding.marketValue))}</span>
+                <strong>${formatCurrency(convert(rebalanceRec.targetValue))}</strong>
+                <span class="${valueChangeClass}"> (${rebalanceRec.valueChange >= 0 ? '+' : '-'}${formatCurrency(Math.abs(convert(rebalanceRec.valueChange)))})</span>
+              ` : `<strong>${formatCurrency(convert(rebalanceRec.targetValue))}</strong>`}
             </td>
             <td class="text-end" data-value="${weight}">
               ${Math.abs(rebalanceRec.newWeight - weight) > 0.01 ? `
@@ -329,15 +371,15 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
           <tr data-holding="true">
             <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
             <td data-value="${stockCode}"><code>${stockCode}</code></td>
-            <td class="text-end" data-value="${quote.current}">$${quote.current.toFixed(2)}</td>
+            <td class="text-end" data-value="${quote.current}">${formatCurrency(convert(quote.current))}</td>
             <td class="text-end ${changeClass}" data-value="${quote.change}">
-              ${changeIcon} $${Math.abs(quote.change).toFixed(2)} (${quote.changePercent.toFixed(2)}%)
+              ${changeIcon} ${formatCurrency(Math.abs(convert(quote.change)))} (${quote.changePercent.toFixed(2)}%)
             </td>
             <td class="text-end" data-value="${holding.quantity}">${holding.quantity.toFixed(0)}</td>
-            <td class="text-end" data-value="${holding.costBasis}" style="display: none;">$${holding.costBasis.toFixed(2)}</td>
-            <td class="text-end" data-value="${holding.marketValue}">$${holding.marketValue.toFixed(2)}</td>
+            <td class="text-end" data-value="${holding.costBasis}" style="display: none;">${formatCurrency(convert(holding.costBasis))}</td>
+            <td class="text-end" data-value="${holding.marketValue}">${formatCurrency(convert(holding.marketValue))}</td>
             <td class="text-end ${changeClass}" data-value="${changeValue}">
-              ${changeIcon} $${Math.abs(changeValue).toFixed(2)}
+              ${changeIcon} ${formatCurrency(Math.abs(convert(changeValue)))}
             </td>
             <td class="text-end" data-value="${weight}">${weight.toFixed(2)}%</td>
             <td class="text-end" data-value="${targetWeight != null ? targetWeight : -999}">${targetWeight != null ? targetWeight.toFixed(2) + '%' : '-'}</td>
@@ -345,7 +387,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
               ${weightDiff != null ? (weightDiff >= 0 ? '+' : '') + weightDiff.toFixed(2) + '%' : '-'}
             </td>
             <td class="text-end ${gainClass}" data-value="${holding.gain}">
-              $${holding.gain.toFixed(2)} (${holding.gainPercent.toFixed(2)}%)
+              ${formatCurrency(convert(holding.gain))} (${holding.gainPercent.toFixed(2)}%)
             </td>
           </tr>
         `;
@@ -377,10 +419,10 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
           </td>
           <td class="text-end">
             ${Math.abs(cashChange) > 0.01 ? `
-              <span class="text-muted" style="text-decoration: line-through;">$${cashAmount.toFixed(2)}</span>
-              <strong>$${newCash.toFixed(2)}</strong>
-              <span class="${cashChangeClass}"> (${cashChange >= 0 ? '+$' : '-$'}${Math.abs(cashChange).toFixed(2)})</span>
-            ` : `<strong>$${newCash.toFixed(2)}</strong>`}
+              <span class="text-muted" style="text-decoration: line-through;">${formatCurrency(convert(cashAmount))}</span>
+              <strong>${formatCurrency(convert(newCash))}</strong>
+              <span class="${cashChangeClass}"> (${cashChange >= 0 ? '+' : '-'}${formatCurrency(Math.abs(convert(cashChange)))})</span>
+            ` : `<strong>${formatCurrency(convert(newCash))}</strong>`}
           </td>
           <td class="text-end">
             ${Math.abs(newCashWeight - cashWeight) > 0.01 ? `
@@ -403,7 +445,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
           <td class="text-end">-</td>
           <td class="text-end">-</td>
           <td class="text-end" style="display: none;">-</td>
-          <td class="text-end">$${cashAmount.toFixed(2)}</td>
+          <td class="text-end">${formatCurrency(convert(cashAmount))}</td>
           <td class="text-end">-</td>
           <td class="text-end">${cashWeight.toFixed(2)}%</td>
           <td class="text-end">-</td>
@@ -412,13 +454,13 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
         </tr>
       `;
     }
-
+    
     const content = `
       <!-- Top Navigation -->
       <div class="container-fluid bg-dark border-bottom border-secondary">
         <div class="container py-2">
           <div class="d-flex flex-wrap justify-content-center gap-2">
-            <a href="/stonks/prices" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
+            <a href="/stonks/prices${currency !== 'USD' ? '?currency=' + currency : ''}" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
             <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
             <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
             <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
@@ -428,13 +470,20 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
       </div>
 
       <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
           <h1>📊 ${rebalanceMode ? 'Portfolio Rebalancing' : 'Live Stock Prices'}</h1>
-          <div>
-            <button class="btn btn-primary me-2" onclick="location.reload()">🔄 Refresh</button>
+          <div class="d-flex flex-wrap gap-2">
+            ${!rebalanceMode ? `
+              <div class="btn-group" role="group" aria-label="Currency selector">
+                <a href="/stonks/prices?currency=USD" class="btn btn-sm ${currency === 'USD' ? 'btn-primary' : 'btn-outline-primary'}">USD</a>
+                <a href="/stonks/prices?currency=SGD" class="btn btn-sm ${currency === 'SGD' ? 'btn-primary' : 'btn-outline-primary'} ${!fxService ? 'disabled' : ''}" ${!fxService ? 'title="Requires OpenExchangeRates API key"' : ''}>SGD</a>
+                <a href="/stonks/prices?currency=AUD" class="btn btn-sm ${currency === 'AUD' ? 'btn-primary' : 'btn-outline-primary'} ${!fxService ? 'disabled' : ''}" ${!fxService ? 'title="Requires OpenExchangeRates API key"' : ''}>AUD</a>
+              </div>
+            ` : ''}
+            <button class="btn btn-primary btn-sm" onclick="location.reload()">🔄 Refresh</button>
             ${rebalanceMode 
-              ? '<a href="/stonks/prices" class="btn btn-warning">← Back to Prices</a>'
-              : '<a href="/stonks/prices?mode=rebalance" class="btn btn-warning">⚖️ Rebalance</a>'
+              ? '<a href="/stonks/prices" class="btn btn-warning btn-sm">← Back to Prices</a>'
+              : `<a href="/stonks/prices?mode=rebalance" class="btn btn-warning btn-sm ${currency !== 'USD' ? 'disabled' : ''}">⚖️ Rebalance</a>`
             }
           </div>
         </div>
@@ -445,7 +494,9 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
             <div class="card bg-primary text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Portfolio Value</h6>
-                <h3 class="card-title mb-0">$${portfolioTotal.toFixed(2)}</h3>
+                <h3 class="card-title mb-0">${formatCurrency(convert(portfolioTotal))}</h3>
+                ${fxService && altCurrency ? `<small class="opacity-75">${altCurrencySymbol}${convertToAlt(portfolioTotal).toFixed(2)}</small>` : ''}
+                ${!fxService ? `<small class="opacity-50" style="font-size: 0.7rem;">Multi-currency disabled</small>` : ''}
               </div>
             </div>
           </div>
@@ -454,11 +505,13 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2 text-muted">Market Value</h6>
                 ${rebalanceMode && Math.abs(newTotalMarketValue - totalMarketValue) > 0.01 ? `
-                  <div style="text-decoration: line-through; font-size: 0.9rem; opacity: 0.6;">$${totalMarketValue.toFixed(2)}</div>
-                  <h3 class="card-title mb-0">$${newTotalMarketValue.toFixed(2)}</h3>
-                  <small class="text-muted">(${(newTotalMarketValue - totalMarketValue >= 0 ? '+$' : '-$')}${Math.abs(newTotalMarketValue - totalMarketValue).toFixed(2)})</small>
+                  <div style="text-decoration: line-through; font-size: 0.9rem; opacity: 0.6;">${formatCurrency(convert(totalMarketValue))}</div>
+                  <h3 class="card-title mb-0">${formatCurrency(convert(newTotalMarketValue))}</h3>
+                  <small class="text-muted">(${(newTotalMarketValue - totalMarketValue >= 0 ? '+' : '-')}${formatCurrency(Math.abs(convert(newTotalMarketValue - totalMarketValue)))})</small>
                 ` : `
-                  <h3 class="card-title mb-0">${rebalanceMode ? `$${newTotalMarketValue.toFixed(2)}` : `$${totalMarketValue.toFixed(2)}`}</h3>
+                  <h3 class="card-title mb-0">${rebalanceMode ? formatCurrency(convert(newTotalMarketValue)) : formatCurrency(convert(totalMarketValue))}</h3>
+                  ${fxService && altCurrency ? `<small class="text-muted">${altCurrencySymbol}${convertToAlt(rebalanceMode ? newTotalMarketValue : totalMarketValue).toFixed(2)}</small>` : ''}
+                  ${!fxService ? `<small class="text-muted" style="font-size: 0.7rem;">Multi-currency disabled</small>` : ''}
                 `}
               </div>
             </div>
@@ -468,11 +521,11 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2 text-muted">Cash</h6>
                 ${rebalanceMode && rebalancingData && Math.abs(rebalancingData.cashChange) > 0.01 ? `
-                  <div style="text-decoration: line-through; font-size: 0.9rem; opacity: 0.6;">$${cashAmount.toFixed(2)}</div>
-                  <h3 class="card-title mb-0">$${rebalancingData.newCash.toFixed(2)}</h3>
-                  <small class="text-muted">(${(rebalancingData.cashChange >= 0 ? '+$' : '-$')}${Math.abs(rebalancingData.cashChange).toFixed(2)})</small>
+                  <div style="text-decoration: line-through; font-size: 0.9rem; opacity: 0.6;">${formatCurrency(convert(cashAmount))}</div>
+                  <h3 class="card-title mb-0">${formatCurrency(convert(rebalancingData.newCash))}</h3>
+                  <small class="text-muted">(${(rebalancingData.cashChange >= 0 ? '+' : '-')}${formatCurrency(Math.abs(convert(rebalancingData.cashChange)))})</small>
                 ` : `
-                  <h3 class="card-title mb-0">${rebalanceMode && rebalancingData ? `$${rebalancingData.newCash.toFixed(2)}` : `$${cashAmount.toFixed(2)}`}</h3>
+                  <h3 class="card-title mb-0">${rebalanceMode && rebalancingData ? formatCurrency(convert(rebalancingData.newCash)) : formatCurrency(convert(cashAmount))}</h3>
                 `}
               </div>
             </div>
@@ -482,7 +535,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
             <div class="card ${totalChangeValue >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Day Change</h6>
-                <h3 class="card-title mb-0">$${totalChangeValue.toFixed(2)}</h3>
+                <h3 class="card-title mb-0">${formatCurrency(convert(totalChangeValue))}</h3>
                 <small>${totalChangePercent.toFixed(2)}%</small>
               </div>
             </div>
@@ -491,7 +544,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
             <div class="card ${totalGain >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100">
               <div class="card-body" style="min-height: 100px;">
                 <h6 class="card-subtitle mb-2">Total Gain/Loss</h6>
-                <h3 class="card-title mb-0">$${totalGain.toFixed(2)}</h3>
+                <h3 class="card-title mb-0">${formatCurrency(convert(totalGain))}</h3>
                 <small>${totalGainPercent.toFixed(2)}%</small>
               </div>
             </div>
@@ -648,7 +701,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
         </div>
 
         <!-- Closed Positions (Collapsed by default) -->
-        ${!rebalanceMode ? await generateClosedPositionsSection(databaseService) : ''}
+        ${!rebalanceMode ? await generateClosedPositionsSection(databaseService, convert, formatCurrency, closedPositions) : ''}
       </div>
 
       <style>
@@ -948,9 +1001,12 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
 
 /**
  * Generate closed positions section (collapsed by default)
+ * OPTIMIZATION: Accept pre-fetched closedPositions to avoid duplicate query
  */
-async function generateClosedPositionsSection(databaseService) {
-  const closedPositions = await databaseService.getClosedPositions();
+async function generateClosedPositionsSection(databaseService, convert, formatCurrency, closedPositions = null) {
+  if (!closedPositions) {
+    closedPositions = await databaseService.getClosedPositions();
+  }
   
   if (closedPositions.length === 0) {
     return '';
@@ -964,10 +1020,10 @@ async function generateClosedPositionsSection(databaseService) {
       <tr data-closed="true">
         <td data-value="${position.name}"><strong>${position.name}</strong></td>
         <td data-value="${stockCode}"><code>${stockCode}</code></td>
-        <td class="text-end" data-value="${position.totalCost}">$${position.totalCost.toFixed(2)}</td>
-        <td class="text-end" data-value="${position.totalRevenue}">$${position.totalRevenue.toFixed(2)}</td>
+        <td class="text-end" data-value="${position.totalCost}">${formatCurrency(convert(position.totalCost))}</td>
+        <td class="text-end" data-value="${position.totalRevenue}">${formatCurrency(convert(position.totalRevenue))}</td>
         <td class="text-end ${profitClass}" data-value="${position.profitLoss}">
-          $${position.profitLoss.toFixed(2)}
+          ${formatCurrency(convert(position.profitLoss))}
         </td>
         <td class="text-end ${profitClass}" data-value="${position.profitLossPercent}">
           ${position.profitLossPercent.toFixed(2)}%
@@ -987,10 +1043,10 @@ async function generateClosedPositionsSection(databaseService) {
   const totalRow = `
     <tr class="fw-bold">
       <td colspan="2"><strong>Total Realized Gains</strong></td>
-      <td class="text-end">$${totalClosedCost.toFixed(2)}</td>
-      <td class="text-end">$${totalClosedRevenue.toFixed(2)}</td>
+      <td class="text-end">${formatCurrency(convert(totalClosedCost))}</td>
+      <td class="text-end">${formatCurrency(convert(totalClosedRevenue))}</td>
       <td class="text-end ${totalProfitClass}">
-        $${totalClosedProfit.toFixed(2)}
+        ${formatCurrency(convert(totalClosedProfit))}
       </td>
       <td class="text-end ${totalProfitClass}">
         ${totalClosedPercent.toFixed(2)}%

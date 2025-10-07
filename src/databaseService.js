@@ -292,6 +292,31 @@ export class DatabaseService {
   }
 
   /**
+   * Get all transactions grouped by stock code (optimized for bulk fetching)
+   * @returns {Promise<Object>} Object with code as key, array of transactions as value
+   */
+  async getAllTransactionsGroupedByCode() {
+    try {
+      const result = await this.db.prepare(
+        'SELECT id, code, type, date, quantity, value, fee, created_at FROM transactions ORDER BY code, date ASC, id ASC'
+      ).all();
+      
+      const grouped = {};
+      for (const transaction of result.results || []) {
+        if (!grouped[transaction.code]) {
+          grouped[transaction.code] = [];
+        }
+        grouped[transaction.code].push(transaction);
+      }
+      
+      return grouped;
+    } catch (error) {
+      console.error('Error fetching all transactions grouped by code:', error);
+      return {};
+    }
+  }
+
+  /**
    * Delete a transaction
    */
   async deleteTransaction(id) {
