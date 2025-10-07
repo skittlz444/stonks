@@ -443,7 +443,9 @@ describe('Index Router', () => {
       expect(generatePricesPage).toHaveBeenCalledWith(
         expect.any(DatabaseService),
         null, // No API key provided
-        true
+        null, // fxService (not configured in test env)
+        true, // rebalanceMode
+        'USD' // currency
       );
     });
 
@@ -457,7 +459,9 @@ describe('Index Router', () => {
       expect(generatePricesPage).toHaveBeenCalledWith(
         expect.any(DatabaseService),
         null, // No API key provided
-        false
+        null, // fxService (not configured in test env)
+        false, // rebalanceMode
+        'USD' // currency
       );
     });
   });

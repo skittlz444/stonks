@@ -533,7 +533,7 @@ describe('Prices Page Generation', () => {
       mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
       mockFinnhubService.getCacheStats.mockReturnValue({ size: 2, symbols: ['AAPL', 'GOOGL'], cacheDurationMs: 60000 });
 
-      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, true);
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, null, true);
       const html = await response.text();
 
       expect(html).toContain('Portfolio Rebalancing');
@@ -591,7 +591,7 @@ describe('Prices Page Generation', () => {
       mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
       mockFinnhubService.getCacheStats.mockReturnValue({ size: 2, symbols: ['AAPL', 'TSLA'], cacheDurationMs: 60000 });
 
-      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, true);
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService, null, true);
       const html = await response.text();
 
       expect(html).toContain('Tesla Inc');

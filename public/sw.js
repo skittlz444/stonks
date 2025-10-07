@@ -1,6 +1,10 @@
 // Build timestamp - this should be replaced during build process
 const BUILD_TIMESTAMP = '{{BUILD_TIMESTAMP}}';
 const CACHE_NAME = `stonks-{{BUILD_TIMESTAMP}}`;
+
+// Check if we're in development mode (timestamp placeholder not replaced)
+const isDevelopment = BUILD_TIMESTAMP.includes('{{');
+
 const urlsToCache = [
   '/stonks/',
   '/stonks/prices',
@@ -13,11 +17,21 @@ const urlsToCache = [
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js'
 ];
 
+if (isDevelopment) {
+  console.log('Service Worker: Running in DEVELOPMENT mode - caching disabled');
+}
+
 // Install event - cache essential resources
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installing...', CACHE_NAME);
   // Skip waiting to activate immediately
   self.skipWaiting();
+  
+  // Skip caching in development
+  if (isDevelopment) {
+    console.log('Service Worker: Skipping cache in development mode');
+    return;
+  }
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -57,6 +71,11 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache when offline, fallback to network
 self.addEventListener('fetch', (event) => {
+  // In development mode, bypass cache entirely - always fetch from network
+  if (isDevelopment) {
+    return;
+  }
+  
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;

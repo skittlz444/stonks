@@ -5,6 +5,14 @@ import { generateConfigPage, handleConfigSubmission } from './config.js';
 import { generatePricesPage } from './prices.js';
 import { DatabaseService, MockD1Database } from './databaseService.js';
 import { createFinnhubService } from './finnhubService.js';
+import { createFxService } from './fxService.js';
+
+// Module-level cache for services to persist across requests
+// This allows the in-memory cache to work properly in Cloudflare Workers
+let cachedFinnhubService = null;
+let cachedFinnhubApiKey = null;
+let cachedFxService = null;
+let cachedFxApiKey = null;
 
 /**
  * Serve static files from ASSETS binding
@@ -84,8 +92,29 @@ async function handleRequest(request, env) {
     databaseService = new DatabaseService(new MockD1Database());
   }
   
-  // Initialize Finnhub service if API key is available
-  const finnhubService = createFinnhubService(env.FINNHUB_API_KEY);
+  // Initialize Finnhub service if API key is available (reuse cached instance)
+  if (env.FINNHUB_API_KEY) {
+    if (!cachedFinnhubService || cachedFinnhubApiKey !== env.FINNHUB_API_KEY) {
+      cachedFinnhubService = createFinnhubService(env.FINNHUB_API_KEY);
+      cachedFinnhubApiKey = env.FINNHUB_API_KEY;
+    }
+  } else {
+    cachedFinnhubService = null;
+    cachedFinnhubApiKey = null;
+  }
+  const finnhubService = cachedFinnhubService;
+  
+  // Initialize FX service if API key is available (reuse cached instance)
+  if (env.OPENEXCHANGERATES_API_KEY) {
+    if (!cachedFxService || cachedFxApiKey !== env.OPENEXCHANGERATES_API_KEY) {
+      cachedFxService = createFxService(env.OPENEXCHANGERATES_API_KEY);
+      cachedFxApiKey = env.OPENEXCHANGERATES_API_KEY;
+    }
+  } else {
+    cachedFxService = null;
+    cachedFxApiKey = null;
+  }
+  const fxService = cachedFxService;
   
   // Route to appropriate page based on URL path
   try {
@@ -129,7 +158,8 @@ async function handleRequest(request, env) {
       
       case '/stonks/prices':
         const rebalanceMode = url.searchParams.get('mode') === 'rebalance';
-        return await generatePricesPage(databaseService, finnhubService, rebalanceMode);
+        const currency = url.searchParams.get('currency') || 'USD';
+        return await generatePricesPage(databaseService, finnhubService, fxService, rebalanceMode, currency);
       
       case '/stonks/config':
         if (request.method === 'POST') {
