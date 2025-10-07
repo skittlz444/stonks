@@ -823,4 +823,87 @@ describe('Config', () => {
       expect(html).toContain('$1490.01');
     });
   });
+
+  describe('Company profile modal in config page', () => {
+    beforeEach(() => {
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'My Portfolio' })
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+    });
+
+    it('should include company profile modal in config page', async () => {
+      const mockVisibleHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50, hidden: 0 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain('id="companyProfileModal"');
+      expect(html).toContain('id="companyProfileModalLabel"');
+      expect(html).toContain('id="companyProfileWidgetContainer"');
+    });
+
+    it('should make visible holding names clickable', async () => {
+      const mockVisibleHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50, hidden: 0 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain("showCompanyProfile('NASDAQ:AAPL'");
+      expect(html).toContain('onclick="showCompanyProfile(');
+    });
+
+    it('should make hidden holding names clickable', async () => {
+      const mockHiddenHoldings = [
+        { id: 2, name: 'Tesla Inc', code: 'NASDAQ:TSLA', quantity: 5, target_weight: null, hidden: 1 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue(mockHiddenHoldings);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain("showCompanyProfile('NASDAQ:TSLA'");
+    });
+
+    it('should include showCompanyProfile function', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain('function showCompanyProfile(symbol, name)');
+      expect(html).toContain('window.showCompanyProfile = showCompanyProfile');
+    });
+
+    it('should escape single quotes in holding names', async () => {
+      const mockVisibleHoldings = [
+        { id: 1, name: "Test's Company", code: 'NASDAQ:TEST', quantity: 10, target_weight: null, hidden: 0 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain("Test\\'s Company");
+    });
+  });
 });

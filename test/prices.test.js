@@ -852,4 +852,191 @@ describe('Prices Page Generation', () => {
       expect(html).toContain('Simple Stock');
     });
   });
+
+  describe('Company profile modal', () => {
+    beforeEach(() => {
+      const mockHoldings = [
+        { id: 1, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 10, averageCost: 150.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'NASDAQ:AAPL': [
+          { type: 'buy', quantity: 10, value: 1500, fee: 10, date: '2024-01-01' }
+        ]
+      });
+
+      const enrichedHoldings = [
+        {
+          ...mockHoldings[0],
+          quote: {
+            symbol: 'AAPL',
+            current: 155.00,
+            high: 156.00,
+            low: 154.00,
+            open: 155.00,
+            previousClose: 154.50,
+            change: 0.50,
+            changePercent: 0.32,
+            timestamp: 1696598400
+          },
+          marketValue: 1550.00,
+          costBasis: 1510.00,
+          gain: 40.00,
+          gainPercent: 2.65,
+          error: null
+        }
+      ];
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue(enrichedHoldings);
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(Date.now());
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['NASDAQ:AAPL'],
+        cacheDurationMs: 60000,
+        oldestCacheTime: Date.now(),
+        newestCacheTime: Date.now()
+      });
+    });
+
+    it('should include company profile modal in the page', async () => {
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      expect(html).toContain('id="companyProfileModal"');
+      expect(html).toContain('id="companyProfileModalLabel"');
+      expect(html).toContain('id="companyProfileWidgetContainer"');
+    });
+
+    it('should make holding names clickable with showCompanyProfile function', async () => {
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      expect(html).toContain('onclick="showCompanyProfile(');
+      expect(html).toContain("showCompanyProfile('NASDAQ:AAPL'");
+      expect(html).toContain('function showCompanyProfile(symbol, name)');
+    });
+
+    it('should include window.showCompanyProfile assignment', async () => {
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      expect(html).toContain('window.showCompanyProfile = showCompanyProfile');
+    });
+
+    it('should escape single quotes in holding names', async () => {
+      const mockHoldingsWithQuote = [
+        { id: 1, code: 'NASDAQ:TEST', name: "Test's Company", quantity: 10, averageCost: 150.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldingsWithQuote);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'NASDAQ:TEST': [
+          { type: 'buy', quantity: 10, value: 1500, fee: 10, date: '2024-01-01' }
+        ]
+      });
+
+      const enrichedHoldings = [
+        {
+          ...mockHoldingsWithQuote[0],
+          quote: {
+            symbol: 'TEST',
+            current: 155.00,
+            high: 156.00,
+            low: 154.00,
+            open: 155.00,
+            previousClose: 154.50,
+            change: 0.50,
+            changePercent: 0.32,
+            timestamp: 1696598400
+          },
+          marketValue: 1550.00,
+          costBasis: 1510.00,
+          gain: 40.00,
+          gainPercent: 2.65,
+          error: null
+        }
+      ];
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue(enrichedHoldings);
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      // Should escape the single quote in the name
+      expect(html).toContain("Test\\'s Company");
+    });
+  });
+
+  describe('Closed positions with company profile', () => {
+    beforeEach(() => {
+      // Need at least one holding for the page to render properly
+      const mockHoldings = [
+        { id: 1, code: 'NASDAQ:AAPL', name: 'Apple Inc', quantity: 10, averageCost: 150.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'NASDAQ:AAPL': [
+          { type: 'buy', quantity: 10, value: 1500, fee: 10, date: '2024-01-01' }
+        ]
+      });
+
+      const enrichedHoldings = [
+        {
+          ...mockHoldings[0],
+          quote: {
+            symbol: 'AAPL',
+            current: 155.00,
+            high: 156.00,
+            low: 154.00,
+            open: 155.00,
+            previousClose: 154.50,
+            change: 0.50,
+            changePercent: 0.32,
+            timestamp: 1696598400
+          },
+          marketValue: 1550.00,
+          costBasis: 1510.00,
+          gain: 40.00,
+          gainPercent: 2.65,
+          error: null
+        }
+      ];
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue(enrichedHoldings);
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(Date.now());
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['NASDAQ:AAPL'],
+        cacheDurationMs: 60000,
+        oldestCacheTime: Date.now(),
+        newestCacheTime: Date.now()
+      });
+
+      const mockClosedPositions = [
+        {
+          code: 'NASDAQ:TSLA',
+          name: 'Tesla Inc',
+          totalCost: 1000.00,
+          totalRevenue: 1200.00,
+          profitLoss: 200.00,
+          profitLossPercent: 20.00,
+          transactions: 4
+        }
+      ];
+
+      mockDatabaseService.getClosedPositions.mockResolvedValue(mockClosedPositions);
+    });
+
+    it('should make closed position names clickable', async () => {
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      expect(html).toContain("showCompanyProfile('NASDAQ:TSLA'");
+      expect(html).toContain('Tesla Inc');
+    });
+  });
 });
