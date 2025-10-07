@@ -155,14 +155,35 @@ Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️
 
 ## Testing
 
-Comprehensive test suite with 270 tests and 91.66% code coverage:
+Comprehensive test suite with 287 tests and 91.66% code coverage:
 - 52 tests for database operations
 - 31 tests for data utilities
-- 27 tests for HTML utilities
+- 28 tests for HTML utilities
 - 26 tests for chart widgets
 - Plus integration and error handling tests
 
 See [TESTING.md](TESTING.md) for detailed testing documentation.
+
+## Progressive Web App (PWA)
+
+This application is a fully functional Progressive Web App that can be installed on mobile and desktop devices. Features include:
+- **Offline Support**: Works without internet connection using cached content
+- **Install to Home Screen**: Add to mobile home screen or desktop
+- **Automatic Updates**: Cache versioning ensures users get latest version
+- **Native Experience**: Runs in standalone mode without browser chrome
+
+**Documentation:**
+- [PWA Quick Start Guide](PWA_QUICKSTART.md) - Get started with PWA features
+- [PWA README](PWA_README.md) - Complete PWA architecture and implementation details
+- [PWA Implementation Summary](PWA_IMPLEMENTATION_SUMMARY.md) - Overview of PWA features
+
+## Additional Documentation
+
+- **[D1_SETUP.md](D1_SETUP.md)** - Database setup and migration instructions
+- **[FINNHUB_SETUP.md](FINNHUB_SETUP.md)** - API key configuration for live price data
+- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports
+- **[CACHING.md](CACHING.md)** - Caching architecture and strategy
+- **[public/icons/README.md](public/icons/README.md)** - PWA icon specifications
 
 ## Migration from Separate Workers
 

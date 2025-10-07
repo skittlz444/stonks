@@ -89,6 +89,21 @@ async function handleRequest(request, env) {
   
   // Route to appropriate page based on URL path
   try {
+    // Handle static assets (icons, images, etc.)
+    if (pathname.startsWith('/stonks/icons/')) {
+      const filename = pathname.replace('/stonks/', '');
+      const extension = filename.split('.').pop().toLowerCase();
+      const contentTypes = {
+        'png': 'image/png',
+        'svg': 'image/svg+xml',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'ico': 'image/x-icon'
+      };
+      const contentType = contentTypes[extension] || 'application/octet-stream';
+      return await serveStaticFile(env, filename, contentType);
+    }
+    
     switch (pathname) {
       case '/stonks/':
       case '/stonks':
