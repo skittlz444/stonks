@@ -308,7 +308,7 @@ describe('Utils', () => {
       
       expect(modal).toContain('id="companyProfileModal"');
       expect(modal).toContain('modal fade');
-      expect(modal).toContain('modal-dialog modal-lg');
+      expect(modal).toContain('modal-dialog modal-xl');
       expect(modal).toContain('id="companyProfileModalLabel"');
       expect(modal).toContain('id="companyProfileWidgetContainer"');
     });

@@ -150,14 +150,14 @@ export function generateCompanyProfileModal() {
   return `
     <!-- Company Profile Modal -->
     <div class="modal fade" id="companyProfileModal" tabindex="-1" aria-labelledby="companyProfileModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 95vh;">
+        <div class="modal-content" style="height: 95vh;">
           <div class="modal-header">
             <h5 class="modal-title" id="companyProfileModalLabel">Company Profile</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="modal-body">
-            <div id="companyProfileWidgetContainer"></div>
+          <div class="modal-body" style="flex: 1; overflow: hidden;">
+            <div id="companyProfileWidgetContainer" style="height: 100%;"></div>
           </div>
         </div>
       </div>
@@ -182,7 +182,7 @@ export function generateCompanyProfileScript() {
         // Create new widget container
         const container = document.createElement('div');
         container.className = 'tradingview-widget-container';
-        container.style.height = '500px';
+        container.style.height = '100%';
         
         const widgetDiv = document.createElement('div');
         widgetDiv.className = 'tradingview-widget-container__widget';
