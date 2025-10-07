@@ -20,7 +20,8 @@ describe('Prices Page Generation', () => {
       getPortfolioHoldings: vi.fn(),
       getVisiblePortfolioHoldings: vi.fn(),
       getClosedPositions: vi.fn().mockResolvedValue([]),
-      getTransactionsByCode: vi.fn().mockResolvedValue([])
+      getTransactionsByCode: vi.fn().mockResolvedValue([]),
+      getAllTransactionsGroupedByCode: vi.fn().mockResolvedValue({})
     };
 
     // Mock Finnhub service
@@ -66,18 +67,14 @@ describe('Prices Page Generation', () => {
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
       
-      // Mock transactions for cost basis calculation
-      mockDatabaseService.getTransactionsByCode.mockImplementation((code) => {
-        if (code === 'BATS:VOO') {
-          return Promise.resolve([
-            { type: 'buy', quantity: 10, value: 3800, fee: 10, date: '2024-01-01' }
-          ]);
-        } else if (code === 'NASDAQ:AAPL') {
-          return Promise.resolve([
-            { type: 'buy', quantity: 5, value: 725, fee: 5, date: '2024-01-01' }
-          ]);
-        }
-        return Promise.resolve([]);
+      // Mock transactions for cost basis calculation (grouped by code)
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'BATS:VOO': [
+          { type: 'buy', quantity: 10, value: 3800, fee: 10, date: '2024-01-01' }
+        ],
+        'NASDAQ:AAPL': [
+          { type: 'buy', quantity: 5, value: 725, fee: 5, date: '2024-01-01' }
+        ]
       });
 
       const enrichedHoldings = [
@@ -250,7 +247,7 @@ describe('Prices Page Generation', () => {
 
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
-      mockDatabaseService.getTransactionsByCode.mockResolvedValue([]);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({});
 
       const enrichedHoldings = [
         {
@@ -287,9 +284,11 @@ describe('Prices Page Generation', () => {
 
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
-      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
-        { type: 'buy', quantity: 5, value: 800, fee: 10, date: '2024-01-01' }
-      ]);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'NASDAQ:AAPL': [
+          { type: 'buy', quantity: 5, value: 800, fee: 10, date: '2024-01-01' }
+        ]
+      });
 
       const enrichedHoldings = [
         {
@@ -342,9 +341,11 @@ describe('Prices Page Generation', () => {
 
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
-      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
-        { type: 'buy', quantity: 5, value: 800, fee: 10, date: '2024-01-01' }
-      ]);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'NASDAQ:AAPL': [
+          { type: 'buy', quantity: 5, value: 800, fee: 10, date: '2024-01-01' }
+        ]
+      });
 
       const enrichedHoldings = [
         {
@@ -553,9 +554,11 @@ describe('Prices Page Generation', () => {
 
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000);
-      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
-        { type: 'buy', value: 1500, fee: 0 }
-      ]);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'AAPL': [
+          { type: 'buy', value: 1500, fee: 0 }
+        ]
+      });
 
       mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
         {
@@ -607,9 +610,11 @@ describe('Prices Page Generation', () => {
 
       mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
       mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
-      mockDatabaseService.getTransactionsByCode.mockResolvedValue([
-        { type: 'buy', value: 750, fee: 0 }
-      ]);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'AAPL': [
+          { type: 'buy', value: 750, fee: 0 }
+        ]
+      });
 
       mockFinnhubService.getPortfolioQuotes.mockResolvedValue([
         {

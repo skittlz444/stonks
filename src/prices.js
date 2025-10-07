@@ -129,21 +129,24 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
 
   try {
     // Fetch exchange rates if currency is not USD and FX service is available
+    // OPTIMIZATION: Fetch rates once for all currencies
     let fxRates = {};
     let currencySymbol = '$';
     let altCurrency = null; // For sub-labels
     let altCurrencySymbol = 'S$';
     
-    if (currency !== 'USD' && fxService) {
+    if (fxService) {
       fxRates = await fxService.getLatestRates(['SGD', 'AUD']);
-      currencySymbol = fxService.getCurrencySymbol(currency);
-      altCurrency = 'USD';
-      altCurrencySymbol = 'USD $'; // Show "USD $" prefix when viewing in SGD/AUD
-    } else if (currency === 'USD' && fxService) {
-      // When USD is selected, show SGD as alt currency in sub-labels
-      fxRates = await fxService.getLatestRates(['SGD', 'AUD']);
-      altCurrency = 'SGD';
-      altCurrencySymbol = 'S$';
+      
+      if (currency !== 'USD') {
+        currencySymbol = fxService.getCurrencySymbol(currency);
+        altCurrency = 'USD';
+        altCurrencySymbol = 'USD $'; // Show "USD $" prefix when viewing in SGD/AUD
+      } else {
+        // When USD is selected, show SGD as alt currency in sub-labels
+        altCurrency = 'SGD';
+        altCurrencySymbol = 'S$';
+      }
     }
     
     // Helper function to convert USD amounts
@@ -195,12 +198,14 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
     const isCached = cacheStats.size > 0;
 
     // Calculate actual cost basis and gains for each holding from transactions
+    // OPTIMIZATION: Fetch all transactions in one query instead of N queries
+    const allTransactions = await databaseService.getAllTransactionsGroupedByCode();
     let totalMarketValue = 0;
     let totalCostBasis = 0;
     
     for (const holding of holdingsWithQuotes) {
       if (!holding.error && holding.quote) {
-        const transactions = await databaseService.getTransactionsByCode(holding.code);
+        const transactions = allTransactions[holding.code] || [];
         let costBasis = 0;
         
         for (const txn of transactions) {
@@ -696,7 +701,7 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
         </div>
 
         <!-- Closed Positions (Collapsed by default) -->
-        ${!rebalanceMode ? await generateClosedPositionsSection(databaseService, convert, formatCurrency) : ''}
+        ${!rebalanceMode ? await generateClosedPositionsSection(databaseService, convert, formatCurrency, closedPositions) : ''}
       </div>
 
       <style>
@@ -996,9 +1001,12 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
 
 /**
  * Generate closed positions section (collapsed by default)
+ * OPTIMIZATION: Accept pre-fetched closedPositions to avoid duplicate query
  */
-async function generateClosedPositionsSection(databaseService, convert, formatCurrency) {
-  const closedPositions = await databaseService.getClosedPositions();
+async function generateClosedPositionsSection(databaseService, convert, formatCurrency, closedPositions = null) {
+  if (!closedPositions) {
+    closedPositions = await databaseService.getClosedPositions();
+  }
   
   if (closedPositions.length === 0) {
     return '';
