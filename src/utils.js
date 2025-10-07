@@ -25,9 +25,9 @@ export function generateHTMLHeader(title = "Stonks Portfolio Tracker", theme = "
     
     <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/stonks/icons/favicon.svg">
-    <link rel="icon" type="image/svg+xml" sizes="192x192" href="/stonks/icons/icon-192x192.svg">
-    <link rel="icon" type="image/svg+xml" sizes="512x512" href="/stonks/icons/icon-512x512.svg">
-    <link rel="apple-touch-icon" href="/stonks/icons/icon-192x192.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/stonks/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/stonks/icons/icon-512x512.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/stonks/icons/icon-192x192.png">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">

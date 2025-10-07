@@ -9,16 +9,24 @@ const urlsToCache = [
   '/stonks/charts',
   '/stonks/charts/large',
   '/stonks/manifest.json',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js'
 ];
 
 // Install event - cache essential resources
 self.addEventListener('install', (event) => {
+  console.log('Service Worker: Installing...', CACHE_NAME);
+  // Skip waiting to activate immediately
+  self.skipWaiting();
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
+        console.log('Service Worker: Caching files');
         return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        console.log('Service Worker: Cached all files');
       })
       .catch((error) => {
         console.error('Service Worker: Cache failed:', error);
@@ -28,15 +36,21 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activating...', CACHE_NAME);
+  // Claim all clients immediately
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(() => {
+      console.log('Service Worker: Claiming clients');
+      return self.clients.claim();
     })
   );
 });

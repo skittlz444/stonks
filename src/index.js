@@ -7,67 +7,46 @@ import { DatabaseService, MockD1Database } from './databaseService.js';
 import { createFinnhubService } from './finnhubService.js';
 
 /**
- * Serve static files - these will be bundled by Wrangler
+ * Serve static files from ASSETS binding
  */
 async function serveStaticFile(env, filename, contentType) {
   try {
-    // In production, these files will be uploaded as assets via wrangler.toml
-    // For now, we'll fetch from the origin or serve inline
-    const staticAssets = {
-      'manifest.json': JSON.stringify({
-        "name": "Stonks Portfolio Tracker",
-        "short_name": "Stonks",
-        "description": "Track your portfolio holdings, prices, and rebalancing recommendations",
-        "start_url": "/stonks",
-        "display": "standalone",
-        "background_color": "#ffffff",
-        "theme_color": "#0d6efd",
-        "orientation": "portrait-primary",
-        "scope": "/stonks",
-        "icons": [
-          {
-            "src": "/stonks/icons/icon-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "maskable any"
-          },
-          {
-            "src": "/stonks/icons/icon-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable any"
-          }
-        ],
-        "categories": ["finance", "productivity", "business"]
-      })
-    };
-    
-    // For service worker, it needs to be served from the actual file
-    // This will be handled by the assets configuration in wrangler.toml
-    if (filename === 'sw.js') {
-      // Fetch from assets if available, or return a minimal version
-      if (env.ASSETS) {
-        return env.ASSETS.fetch(new Request(`https://placeholder/sw.js`));
+    // Always try to serve from ASSETS first (production and local)
+    if (env.ASSETS) {
+      try {
+        const response = await env.ASSETS.fetch(new Request(`https://placeholder/${filename}`));
+        if (response.status === 200) {
+          return new Response(response.body, {
+            headers: {
+              'content-type': contentType,
+              'cache-control': filename === 'sw.js' ? 'no-cache' : 'public, max-age=3600',
+            },
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to fetch ${filename} from ASSETS:`, error);
       }
-      // Return a minimal service worker for development
-      return new Response('console.log("Service worker placeholder - run build to generate versioned cache");', {
-        headers: {
-          'content-type': contentType,
-          'cache-control': 'no-cache',
-        },
-      });
     }
     
-    const content = staticAssets[filename];
-    if (!content) {
-      return new Response('File not found', { status: 404 });
+    // Development fallback ONLY for service worker (manifest.json should always come from file)
+    if (filename === 'sw.js') {
+      console.warn('Service worker not found in ASSETS, using development placeholder');
+      return new Response(
+        'console.log("Service worker placeholder - run npm run build to generate versioned cache");',
+        {
+          headers: {
+            'content-type': contentType,
+            'cache-control': 'no-cache',
+          },
+        }
+      );
     }
     
-    return new Response(content, {
-      headers: {
-        'content-type': contentType,
-        'cache-control': 'public, max-age=3600',
-      },
+    // For all other files (including manifest.json), return 404 if not found
+    console.error(`File not found in ASSETS: ${filename}`);
+    return new Response(`File not found: ${filename}. Make sure wrangler.toml [assets] configuration is correct.`, { 
+      status: 404,
+      headers: { 'content-type': 'text/plain' }
     });
   } catch (error) {
     console.error('Error serving static file:', error);
@@ -110,6 +89,21 @@ async function handleRequest(request, env) {
   
   // Route to appropriate page based on URL path
   try {
+    // Handle static assets (icons, images, etc.)
+    if (pathname.startsWith('/stonks/icons/')) {
+      const filename = pathname.replace('/stonks/', '');
+      const extension = filename.split('.').pop().toLowerCase();
+      const contentTypes = {
+        'png': 'image/png',
+        'svg': 'image/svg+xml',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'ico': 'image/x-icon'
+      };
+      const contentType = contentTypes[extension] || 'application/octet-stream';
+      return await serveStaticFile(env, filename, contentType);
+    }
+    
     switch (pathname) {
       case '/stonks/':
       case '/stonks':

@@ -228,10 +228,10 @@ describe('Utils', () => {
       expect(html).toContain('serviceWorker');
       expect(html).toContain("navigator.serviceWorker.register('/stonks/sw.js')");
       
-      // Check for PWA icons
+      // Check for PWA icons (SVG favicon, PNG for mobile compatibility)
       expect(html).toContain('href="/stonks/icons/favicon.svg"');
-      expect(html).toContain('href="/stonks/icons/icon-192x192.svg"');
-      expect(html).toContain('href="/stonks/icons/icon-512x512.svg"');
+      expect(html).toContain('href="/stonks/icons/icon-192x192.png"');
+      expect(html).toContain('href="/stonks/icons/icon-512x512.png"');
       
       // Check for theme color
       expect(html).toContain('name="theme-color"');
