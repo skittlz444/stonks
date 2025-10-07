@@ -614,5 +614,213 @@ describe('Config', () => {
         );
       });
     });
+
+    describe('toggle_visibility action', () => {
+      it('should toggle holding visibility', async () => {
+        const mockFormData = new Map([
+          ['action', 'toggle_visibility'],
+          ['holding_id', '5']
+        ]);
+        mockRequest.formData.mockResolvedValue(mockFormData);
+        mockDatabaseService.toggleHoldingVisibility.mockResolvedValue();
+
+        const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
+
+        expect(mockDatabaseService.toggleHoldingVisibility).toHaveBeenCalledWith(5);
+        expect(response.status).toBe(302);
+        expect(response.headers.get('Location')).toBe('/stonks/config?success=1');
+      });
+    });
+
+    describe('transaction actions', () => {
+      it('should add a new transaction', async () => {
+        const mockFormData = new Map([
+          ['action', 'add_transaction'],
+          ['code', 'NASDAQ:AAPL'],
+          ['type', 'buy'],
+          ['date', '2025-10-07'],
+          ['quantity', '10.5'],
+          ['value', '1500.00'],
+          ['fee', '9.99']
+        ]);
+        mockRequest.formData.mockResolvedValue(mockFormData);
+        mockDatabaseService.addTransaction.mockResolvedValue();
+
+        const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
+
+        expect(mockDatabaseService.addTransaction).toHaveBeenCalledWith(
+          'NASDAQ:AAPL',
+          'buy',
+          '2025-10-07',
+          10.5,
+          1500.00,
+          9.99
+        );
+        expect(response.status).toBe(302);
+      });
+
+      it('should add transaction with zero fee when fee is not provided', async () => {
+        const mockFormData = new Map([
+          ['action', 'add_transaction'],
+          ['code', 'NASDAQ:AAPL'],
+          ['type', 'sell'],
+          ['date', '2025-10-07'],
+          ['quantity', '5'],
+          ['value', '750.00'],
+          ['fee', '']
+        ]);
+        mockRequest.formData.mockResolvedValue(mockFormData);
+        mockDatabaseService.addTransaction.mockResolvedValue();
+
+        await handleConfigSubmission(mockRequest, mockDatabaseService);
+
+        expect(mockDatabaseService.addTransaction).toHaveBeenCalledWith(
+          'NASDAQ:AAPL',
+          'sell',
+          '2025-10-07',
+          5,
+          750.00,
+          0
+        );
+      });
+
+      it('should delete a transaction', async () => {
+        const mockFormData = new Map([
+          ['action', 'delete_transaction'],
+          ['transaction_id', '42']
+        ]);
+        mockRequest.formData.mockResolvedValue(mockFormData);
+        mockDatabaseService.deleteTransaction.mockResolvedValue();
+
+        const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
+
+        expect(mockDatabaseService.deleteTransaction).toHaveBeenCalledWith(42);
+        expect(response.status).toBe(302);
+        expect(response.headers.get('Location')).toBe('/stonks/config?success=1');
+      });
+    });
+  });
+
+  describe('Page rendering with transactions and hidden holdings', () => {
+    it('should display transactions table when transactions exist', async () => {
+      const mockTransactions = [
+        { id: 1, code: 'NASDAQ:AAPL', type: 'buy', date: '2025-01-01', quantity: 10, value: 1500.00, fee: 9.99 },
+        { id: 2, code: 'BATS:VOO', type: 'sell', date: '2025-02-01', quantity: 5, value: 750.00, fee: 5.00 }
+      ];
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue(mockTransactions);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result; // createLayout mock returns string directly
+
+      expect(html).toContain('NASDAQ:AAPL');
+      expect(html).toContain('BATS:VOO');
+      expect(html).toContain('BUY');
+      expect(html).toContain('SELL');
+      expect(html).toContain('$1500.00');
+      expect(html).toContain('$750.00');
+      expect(html).toContain('$9.99');
+      expect(html).toContain('$5.00');
+    });
+
+    it('should display hidden holdings section when hidden holdings exist', async () => {
+      const mockHiddenHoldings = [
+        { id: 1, name: 'Hidden Stock', code: 'NYSE:HIDE', quantity: 5, target_weight: null, is_visible: false }
+      ];
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue(mockHiddenHoldings);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result; // createLayout mock returns string directly
+
+      expect(html).toContain('Hidden Holdings');
+      expect(html).toContain('Hidden Stock');
+      expect(html).toContain('NYSE:HIDE');
+      expect(html).toContain('Hidden from ticker/charts');
+    });
+
+    it('should not display hidden holdings section when no hidden holdings', async () => {
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result; // createLayout mock returns string directly
+
+      // Should not have the actual hidden holdings card div
+      expect(html).not.toContain('hiddenHoldingsCollapse');
+      expect(html).not.toContain('Not shown on ticker/charts');
+    });
+
+    it('should calculate transaction totals correctly for buy transactions', async () => {
+      const mockTransactions = [
+        { id: 1, code: 'NASDAQ:AAPL', type: 'buy', date: '2025-01-01', quantity: 10, value: 1500.00, fee: 9.99 }
+      ];
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue(mockTransactions);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result; // createLayout mock returns string directly
+
+      // Buy transaction: total = value + fee = 1500.00 + 9.99 = 1509.99
+      expect(html).toContain('$1509.99');
+    });
+
+    it('should calculate transaction totals correctly for sell transactions', async () => {
+      const mockTransactions = [
+        { id: 1, code: 'NASDAQ:AAPL', type: 'sell', date: '2025-01-01', quantity: 10, value: 1500.00, fee: 9.99 }
+      ];
+
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' })
+      };
+
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getTransactions.mockResolvedValue(mockTransactions);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result; // createLayout mock returns string directly
+
+      // Sell transaction: total = value - fee = 1500.00 - 9.99 = 1490.01
+      expect(html).toContain('$1490.01');
+    });
   });
 });
