@@ -5,6 +5,9 @@ const urlsToCache = [
   '/stonks/',
   '/stonks/prices',
   '/stonks/config',
+  '/stonks/ticker',
+  '/stonks/charts',
+  '/stonks/charts/large',
   '/stonks/manifest.json',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'

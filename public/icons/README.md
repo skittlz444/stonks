@@ -2,32 +2,39 @@
 
 This directory contains the icon files for the Progressive Web App:
 
-- ✅ `icon-192x192.png` - 192x192px PNG icon for mobile home screen
-- ✅ `icon-512x512.png` - 512x512px PNG icon for splash screen and app store
+- ✅ `icon-192x192.svg` - 192x192px SVG icon for mobile home screen
+- ✅ `icon-512x512.svg` - 512x512px SVG icon for splash screen and app store
+- ✅ `favicon.svg` - 32x32px SVG favicon for browser tabs
 - ✅ `screenshot-mobile.png` - Mobile screenshot (390x844px) for app listings
 
 ## Icon Design
 
 The icons feature a modern stock chart design with the following characteristics:
 
-- **Theme Color**: Bootstrap primary blue (#0d6efd)
-- **Design**: Upward trending stock chart with data points
+- **Theme Color**: Navy blue (#1E4A73)
+- **Design**: Upward trending stock chart bars with arrow
 - **Style**: Professional financial app aesthetic
-- **Format**: PNG with RGBA transparency
-- **Optimization**: Optimized for web with minimal file sizes
+- **Format**: SVG (scalable vector graphics)
+- **Optimization**: Infinite scalability with minimal file sizes
 
 ## Technical Specifications
 
-### icon-192x192.png
-- Size: 192x192 pixels
-- Mode: RGBA (with transparency)
-- File size: ~1 KB
+### favicon.svg
+- Size: 32x32 viewBox (scalable)
+- Format: SVG
+- File size: ~400 bytes
+- Purpose: Browser tab favicon
+
+### icon-192x192.svg
+- Size: 192x192 viewBox (scalable)
+- Format: SVG with rounded corners (rx="42")
+- File size: ~700 bytes
 - Purpose: Mobile home screen icon
 
-### icon-512x512.png
-- Size: 512x512 pixels
-- Mode: RGBA (with transparency)
-- File size: ~3 KB
+### icon-512x512.svg
+- Size: 512x512 viewBox (scalable)
+- Format: SVG with rounded corners (rx="112")
+- File size: ~700 bytes
 - Purpose: Splash screen and high-resolution displays
 
 ### screenshot-mobile.png
@@ -39,14 +46,16 @@ The icons feature a modern stock chart design with the following characteristics
 ## Customization
 
 To customize these icons:
-1. Edit the generation script at `/tmp/generate_icons.py`
-2. Modify colors, chart style, or design elements
-3. Re-run the script to regenerate icons
+1. Edit the SVG files directly in any text editor
+2. Modify colors (background: #1E4A73, foreground: white)
+3. Adjust chart bar positions or arrow design
 4. Ensure icons maintain appropriate contrast and visibility at small sizes
 
 ## Tools Used
 
-Icons were generated using Python with PIL/Pillow:
-- Vector-based drawing for crisp rendering
+Icons are hand-crafted SVG files:
+- SVG format for infinite scalability
+- Navy blue background (#1E4A73) with white elements
+- Simple geometric shapes for optimal rendering
 - Optimized PNG compression
 - Professional color scheme matching app theme
