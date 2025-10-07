@@ -1,0 +1,17 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with rounded corners -->
+  <rect width="192" height="192" rx="42" fill="#1E4A73"/>
+  
+  <!-- Chart bars -->
+  <rect x="66" y="112" width="16" height="32" rx="2" fill="white"/>
+  <rect x="92" y="80" width="16" height="64" rx="2" fill="white"/>
+  <rect x="118" y="96" width="16" height="48" rx="2" fill="white"/>
+  
+  <!-- Upward arrow -->
+  <path d="M100 48 L100 116 M100 48 L85 63 M100 48 L115 63" 
+        stroke="white" 
+        stroke-width="8" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
+</svg>
