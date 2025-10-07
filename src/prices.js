@@ -414,16 +414,28 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
     }
 
     const content = `
+      <!-- Top Navigation -->
+      <div class="container-fluid bg-dark border-bottom border-secondary">
+        <div class="container py-2">
+          <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a href="/stonks/prices" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
+            <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
+            <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
+            <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
+            <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
+          </div>
+        </div>
+      </div>
+
       <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h1>📊 ${rebalanceMode ? 'Portfolio Rebalancing' : 'Live Stock Prices'}</h1>
           <div>
             <button class="btn btn-primary me-2" onclick="location.reload()">🔄 Refresh</button>
             ${rebalanceMode 
-              ? '<a href="/stonks/prices" class="btn btn-warning me-2">← Back to Prices</a>'
-              : '<a href="/stonks/prices?mode=rebalance" class="btn btn-warning me-2">⚖️ Rebalance</a>'
+              ? '<a href="/stonks/prices" class="btn btn-warning">← Back to Prices</a>'
+              : '<a href="/stonks/prices?mode=rebalance" class="btn btn-warning">⚖️ Rebalance</a>'
             }
-            <a href="/stonks/config" class="btn btn-outline-secondary">⚙️ Settings</a>
           </div>
         </div>
 
@@ -919,7 +931,7 @@ export async function generatePricesPage(databaseService, finnhubService, rebala
       </script>
     `;
 
-    return createLayout('Live Stock Prices', content);
+    return createLayout('Live Stock Prices', content, "background-color:#212529;color:#ffffff", false);
   } catch (error) {
     console.error('Error generating prices page:', error);
     return createLayout('Stock Prices - Error', `

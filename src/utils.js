@@ -124,12 +124,13 @@ export function generateFooter() {
  * @param {string} title - Page title
  * @param {string} content - HTML content for the page body
  * @param {string} bodyStyles - CSS styles for the body tag
+ * @param {boolean} includeFooter - Whether to include footer navigation (default: true)
  */
-export function createLayout(title, content, bodyStyles = "background-color:#212529;color:#ffffff") {
+export function createLayout(title, content, bodyStyles = "background-color:#212529;color:#ffffff", includeFooter = true) {
   return createResponse(`${generateHTMLHeader(title, "dark")}
 <body style="${bodyStyles}">
     ${content}
-    ${generateFooter()}
+    ${includeFooter ? generateFooter() : '</body>'}
 </html>`);
 }
 

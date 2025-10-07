@@ -68,7 +68,9 @@ describe('Config', () => {
       expect(mockDatabaseService.getCashAmount).toHaveBeenCalled();
       expect(createLayout).toHaveBeenCalledWith(
         'Portfolio Configuration',
-        expect.stringContaining('Portfolio Configuration')
+        expect.stringContaining('Portfolio Configuration'),
+        expect.any(String),
+        false
       );
     });
 
@@ -89,7 +91,9 @@ describe('Config', () => {
 
       expect(createLayout).toHaveBeenCalledWith(
         'Portfolio Configuration',
-        expect.stringContaining('No visible holdings')
+        expect.stringContaining('No visible holdings'),
+        expect.any(String),
+        false
       );
     });
 
@@ -183,14 +187,20 @@ describe('Config', () => {
 
       const result = await generateConfigPage(mockDatabaseService);
 
-      // Navigation is now in the footer, not in the content
-      // Content should not contain navigation links anymore
+      // Navigation is now at the top of the page
       const layoutCall = createLayout.mock.calls[0];
       const content = layoutCall[1];
+      const includeFooter = layoutCall[3];
       
-      expect(content).not.toContain('/stonks/ticker');
-      expect(content).not.toContain('/stonks/charts');
-      expect(content).not.toContain('/stonks/charts/large');
+      // Check that top navigation is included
+      expect(content).toContain('Top Navigation');
+      expect(content).toContain('/stonks/ticker');
+      expect(content).toContain('/stonks/charts');
+      expect(content).toContain('/stonks/charts/large');
+      expect(content).toContain('/stonks/config');
+      
+      // Check that footer is disabled
+      expect(includeFooter).toBe(false);
     });
 
     it('should include add and edit modals', async () => {
