@@ -328,7 +328,7 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
         
         return `
           <tr data-holding="true">
-            <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+            <td data-value="${holding.name}"><strong><a href="#" onclick="showCompanyProfile('${holding.code}', '${holding.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${holding.name}</a></strong></td>
             <td data-value="${stockCode}"><code>${stockCode}</code></td>
             <td class="text-end" data-value="${quote.current}">${formatCurrency(convert(quote.current))}</td>
             <td class="text-end" data-value="${holding.quantity}">
@@ -369,7 +369,7 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
       } else {
         return `
           <tr data-holding="true">
-            <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+            <td data-value="${holding.name}"><strong><a href="#" onclick="showCompanyProfile('${holding.code}', '${holding.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${holding.name}</a></strong></td>
             <td data-value="${stockCode}"><code>${stockCode}</code></td>
             <td class="text-end" data-value="${quote.current}">${formatCurrency(convert(quote.current))}</td>
             <td class="text-end ${changeClass}" data-value="${quote.change}">
@@ -981,7 +981,62 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
             indicator.classList.add(currentClosedSort.direction);
           });
         });
+
+        // Function to show company profile modal
+        function showCompanyProfile(symbol, name) {
+          document.getElementById('companyProfileModalLabel').textContent = name + ' - Company Profile';
+          const widgetContainer = document.getElementById('companyProfileWidgetContainer');
+          
+          // Clear existing widget
+          widgetContainer.innerHTML = '';
+          
+          // Create new widget container
+          const container = document.createElement('div');
+          container.className = 'tradingview-widget-container';
+          container.style.height = '500px';
+          
+          const widgetDiv = document.createElement('div');
+          widgetDiv.className = 'tradingview-widget-container__widget';
+          container.appendChild(widgetDiv);
+          
+          const script = document.createElement('script');
+          script.type = 'text/javascript';
+          script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js';
+          script.async = true;
+          script.innerHTML = JSON.stringify({
+            width: '100%',
+            height: '100%',
+            isTransparent: false,
+            colorTheme: 'dark',
+            symbol: symbol,
+            locale: 'en'
+          });
+          
+          container.appendChild(script);
+          widgetContainer.appendChild(container);
+          
+          const modal = new bootstrap.Modal(document.getElementById('companyProfileModal'));
+          modal.show();
+        }
+        
+        // Make function globally available
+        window.showCompanyProfile = showCompanyProfile;
       </script>
+
+      <!-- Company Profile Modal -->
+      <div class="modal fade" id="companyProfileModal" tabindex="-1" aria-labelledby="companyProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="companyProfileModalLabel">Company Profile</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div id="companyProfileWidgetContainer"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     `;
 
     return createLayout('Live Stock Prices', content, "background-color:#212529;color:#ffffff", false);
@@ -1018,7 +1073,7 @@ async function generateClosedPositionsSection(databaseService, convert, formatCu
     
     return `
       <tr data-closed="true">
-        <td data-value="${position.name}"><strong>${position.name}</strong></td>
+        <td data-value="${position.name}"><strong><a href="#" onclick="showCompanyProfile('${position.code}', '${position.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${position.name}</a></strong></td>
         <td data-value="${stockCode}"><code>${stockCode}</code></td>
         <td class="text-end" data-value="${position.totalCost}">${formatCurrency(convert(position.totalCost))}</td>
         <td class="text-end" data-value="${position.totalRevenue}">${formatCurrency(convert(position.totalRevenue))}</td>
