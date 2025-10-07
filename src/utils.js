@@ -2,9 +2,14 @@
  * Shared utilities for generating HTML components
  */
 
-export function generateHTMLHeader() {
+/**
+ * Generate complete HTML header with PWA features
+ * @param {string} title - Page title (default: "Stonks Portfolio Tracker")
+ * @param {string} theme - Bootstrap theme attribute (default: "dark")
+ */
+export function generateHTMLHeader(title = "Stonks Portfolio Tracker", theme = "dark") {
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="${theme}">
     <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,7 +18,7 @@ export function generateHTMLHeader() {
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Stonks">
-    <title>Stonks Portfolio Tracker</title>
+    <title>${title}</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/stonks/manifest.json">
@@ -116,17 +121,12 @@ export function generateFooter() {
 
 /**
  * Create a complete HTML layout with Bootstrap and proper structure
+ * @param {string} title - Page title
+ * @param {string} content - HTML content for the page body
+ * @param {string} bodyStyles - CSS styles for the body tag
  */
 export function createLayout(title, content, bodyStyles = "background-color:#212529;color:#ffffff") {
-  return createResponse(`<!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
-</head>
+  return createResponse(`${generateHTMLHeader(title, "dark")}
 <body style="${bodyStyles}">
     ${content}
     ${generateFooter()}

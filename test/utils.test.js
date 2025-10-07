@@ -215,6 +215,28 @@ describe('Utils', () => {
       expect(html).toContain('href="/stonks/prices"');
       expect(html).toContain('class="btn');
     });
+
+    test('should include PWA features (manifest, service worker, icons)', async () => {
+      const response = createLayout('Test', '<div>content</div>');
+      const html = await response.text();
+      
+      // Check for PWA manifest
+      expect(html).toContain('rel="manifest"');
+      expect(html).toContain('href="/stonks/manifest.json"');
+      
+      // Check for service worker registration
+      expect(html).toContain('serviceWorker');
+      expect(html).toContain("navigator.serviceWorker.register('/stonks/sw.js')");
+      
+      // Check for PWA icons
+      expect(html).toContain('href="/stonks/icons/favicon.svg"');
+      expect(html).toContain('href="/stonks/icons/icon-192x192.svg"');
+      expect(html).toContain('href="/stonks/icons/icon-512x512.svg"');
+      
+      // Check for theme color
+      expect(html).toContain('name="theme-color"');
+      expect(html).toContain('#1E4A73');
+    });
   });
 
   describe('createResponse', () => {
