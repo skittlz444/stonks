@@ -34,6 +34,7 @@ export async function generateConfigPage(databaseService) {
           <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
           <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
           <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
+          <a href="/stonks/charts/advanced" class="btn btn-outline-info btn-sm">📈 Advanced Chart</a>
           <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
         </div>
       </div>

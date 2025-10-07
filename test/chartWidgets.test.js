@@ -5,7 +5,8 @@ import {
   generateMiniSymbolWidget,
   generateMarketOverviewWidget,
   generateSymbolOverviewWidget,
-  generateCompanyProfileWidget
+  generateCompanyProfileWidget,
+  generateAdvancedChartWidget
 } from '../src/chartWidgets.js';
 
 describe('ChartWidgets', () => {
@@ -267,9 +268,54 @@ describe('ChartWidgets', () => {
     });
   });
 
+  describe('generateAdvancedChartWidget', () => {
+    test('should generate advanced chart widget with watchlist', () => {
+      const watchlistSymbols = '"AMEX:VOO",\n        "NASDAQ:AAPL"';
+      
+      const result = generateAdvancedChartWidget(watchlistSymbols);
+      
+      expect(result).toContain('tradingview-widget-container');
+      expect(result).toContain('embed-widget-advanced-chart.js');
+      expect(result).toContain('"symbol": "2*aaau"');
+      expect(result).toContain('"watchlist": [');
+      expect(result).toContain(watchlistSymbols);
+    });
+
+    test('should include required configuration', () => {
+      const result = generateAdvancedChartWidget('test');
+      
+      expect(result).toContain('"timezone": "Asia/Singapore"');
+      expect(result).toContain('"withdateranges": true');
+      expect(result).toContain('"details": true');
+      expect(result).toContain('"theme": "dark"');
+    });
+
+    test('should include compare symbols', () => {
+      const result = generateAdvancedChartWidget('test');
+      
+      expect(result).toContain('"compareSymbols": [');
+      expect(result).toContain('"symbol": "SPCFD:SPX"');
+      expect(result).toContain('"symbol": "NASDAQ:NDX"');
+      expect(result).toContain('"position": "SameScale"');
+    });
+
+    test('should set portfolio as default symbol', () => {
+      const result = generateAdvancedChartWidget('test');
+      
+      expect(result).toContain('"symbol": "2*aaau"');
+    });
+
+    test('should include full-screen styling', () => {
+      const result = generateAdvancedChartWidget('test');
+      
+      expect(result).toContain('style="height:100%;width:100%"');
+      expect(result).toContain('"autosize": true');
+    });
+  });
+
   describe('Widget consistency', () => {
     test('all widgets should use dark theme', () => {
-      const widgets = [
+      const widgetsColorTheme = [
         generateTickerTapeWidget('test'),
         generateSingleQuoteWidget('test'),
         generateMiniSymbolWidget('test'),
@@ -278,9 +324,13 @@ describe('ChartWidgets', () => {
         generateCompanyProfileWidget('test')
       ];
       
-      widgets.forEach(widget => {
+      widgetsColorTheme.forEach(widget => {
         expect(widget).toContain('"colorTheme": "dark"');
       });
+
+      // Advanced chart uses "theme" instead of "colorTheme"
+      const advancedChart = generateAdvancedChartWidget('test');
+      expect(advancedChart).toContain('"theme": "dark"');
     });
 
     test('all widgets should have proper TradingView structure', () => {

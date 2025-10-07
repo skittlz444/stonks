@@ -108,7 +108,8 @@ export function generateNavigation() {
           <a href="/stonks/prices" class="btn btn-outline-success me-2 mb-2">📊 Live Prices</a>
           <a href="/stonks/ticker" class="btn btn-outline-info me-2 mb-2">📈 Ticker View</a>
           <a href="/stonks/charts" class="btn btn-outline-info me-2 mb-2">📉 Grid Charts</a>
-          <a href="/stonks/charts/large" class="btn btn-outline-info mb-2">📊 Large Charts</a>
+          <a href="/stonks/charts/large" class="btn btn-outline-info me-2 mb-2">📊 Large Charts</a>
+          <a href="/stonks/charts/advanced" class="btn btn-outline-info me-2 mb-2">📈 Advanced Chart</a>
           <a href="/stonks/config" class="btn btn-outline-light me-2 mb-2">⚙️ Config</a>
         </div>
       </div>

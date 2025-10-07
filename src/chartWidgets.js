@@ -185,3 +185,44 @@ export function generateCompanyProfileWidget(symbol) {
     </div>
     <!-- TradingView Widget END -->`;
 }
+
+/**
+ * Generate an advanced chart widget (full-featured TradingView chart)
+ */
+export function generateAdvancedChartWidget(watchlistSymbols) {
+  return `
+    <!-- TradingView Widget BEGIN -->
+    <div class="tradingview-widget-container" style="height:100%;width:100%">
+      <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+      {
+      "autosize": true,
+      "symbol": "2*aaau",
+      "interval": "D",
+      "timezone": "Asia/Singapore",
+      "theme": "dark",
+      "style": "1",
+      "locale": "en",
+      "withdateranges": true,
+      "hide_side_toolbar": false,
+      "allow_symbol_change": true,
+      "details": true,
+      "hotlist": true,
+      "calendar": false,
+      "watchlist": [${watchlistSymbols}],
+      "compareSymbols": [
+        {
+          "symbol": "SPCFD:SPX",
+          "position": "SameScale"
+        },
+        {
+          "symbol": "NASDAQ:NDX",
+          "position": "SameScale"
+        }
+      ],
+      "support_host": "https://www.tradingview.com"
+      }
+      </script>
+    </div>
+    <!-- TradingView Widget END -->`;
+}
