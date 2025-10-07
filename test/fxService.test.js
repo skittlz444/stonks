@@ -176,4 +176,48 @@ describe('FxService', () => {
       expect(rates).not.toHaveProperty('AUD');
     });
   });
+
+  describe('clearCache', () => {
+    it('should clear the cache', async () => {
+      // Mock successful API response
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ rates: { SGD: 1.35, AUD: 1.52 } })
+      });
+
+      // Fetch rates to populate cache
+      await fxService.getLatestRates(['SGD', 'AUD']);
+      
+      // Clear cache
+      fxService.clearCache();
+      
+      // Next fetch should call API again (not use cache)
+      await fxService.getLatestRates(['SGD', 'AUD']);
+      
+      expect(global.fetch).toHaveBeenCalledTimes(2); // Called twice, not once
+    });
+  });
+
+  describe('createFxService factory', () => {
+    it('should return null when no API key provided', async () => {
+      const { createFxService } = await import('../src/fxService.js');
+      const service = createFxService(null);
+      
+      expect(service).toBeNull();
+    });
+
+    it('should return null when empty API key provided', async () => {
+      const { createFxService } = await import('../src/fxService.js');
+      const service = createFxService('');
+      
+      expect(service).toBeNull();
+    });
+
+    it('should create FxService when valid API key provided', async () => {
+      const { createFxService, FxService } = await import('../src/fxService.js');
+      const service = createFxService('test-key');
+      
+      expect(service).toBeInstanceOf(FxService);
+    });
+  });
 });

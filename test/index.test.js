@@ -464,5 +464,93 @@ describe('Index Router', () => {
         'USD' // currency
       );
     });
+
+    test('should handle prices page with currency parameter', async () => {
+      const { generatePricesPage } = await import('../src/prices.js');
+      mockRequest = createMockRequest('http://localhost/stonks/prices?currency=SGD');
+      mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
+      
+      await workerHandler.fetch(mockRequest, mockEnv);
+      
+      // Should be called with currency = 'SGD'
+      expect(generatePricesPage).toHaveBeenCalledWith(
+        expect.any(DatabaseService),
+        null, // No Finnhub API key
+        expect.anything(), // fxService should be created
+        false, // rebalanceMode
+        'SGD' // currency
+      );
+    });
+  });
+
+  describe('Service initialization', () => {
+    test('should initialize Finnhub service when API key is provided', async () => {
+      mockEnv.FINNHUB_API_KEY = 'test-finnhub-key';
+      mockRequest = createMockRequest('http://localhost/stonks/prices');
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should initialize FX service when API key is provided', async () => {
+      mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
+      mockRequest = createMockRequest('http://localhost/stonks/prices');
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(200);
+    });
+
+    test('should reuse cached services when API keys unchanged', async () => {
+      mockEnv.FINNHUB_API_KEY = 'test-finnhub-key';
+      mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
+      mockRequest = createMockRequest('http://localhost/stonks/prices');
+      
+      // First request
+      await workerHandler.fetch(mockRequest, mockEnv);
+      
+      // Second request with same keys
+      const response2 = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response2.status).toBe(200);
+    });
+
+    test('should clear services when API keys are removed', async () => {
+      mockEnv.FINNHUB_API_KEY = 'test-finnhub-key';
+      mockRequest = createMockRequest('http://localhost/stonks/prices');
+      
+      // First request with API key
+      await workerHandler.fetch(mockRequest, mockEnv);
+      
+      // Second request without API key
+      delete mockEnv.FINNHUB_API_KEY;
+      const response2 = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response2.status).toBe(200);
+    });
+  });
+
+  describe('Error handling', () => {
+    test('should handle route errors gracefully', async () => {
+      const { generatePricesPage } = await import('../src/prices.js');
+      generatePricesPage.mockRejectedValueOnce(new Error('Database error'));
+      
+      mockRequest = createMockRequest('http://localhost/stonks/prices');
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(text).toBe('Internal Server Error');
+    });
+
+    test('should handle unknown routes', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/unknown');
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(404);
+    });
   });
 });

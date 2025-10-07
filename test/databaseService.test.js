@@ -560,4 +560,69 @@ describe('DatabaseService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('getAllTransactionsGroupedByCode', () => {
+    test('should group transactions by stock code', async () => {
+      const mockDb = {
+        prepare: vi.fn(() => ({
+          all: vi.fn().mockResolvedValue({
+            results: [
+              { id: 1, code: 'AAPL', type: 'buy', date: '2024-01-01', quantity: 10, value: 1500, fee: 10, created_at: '2024-01-01' },
+              { id: 2, code: 'AAPL', type: 'buy', date: '2024-02-01', quantity: 5, value: 750, fee: 5, created_at: '2024-02-01' },
+              { id: 3, code: 'TSLA', type: 'buy', date: '2024-01-15', quantity: 3, value: 600, fee: 5, created_at: '2024-01-15' }
+            ]
+          })
+        }))
+      };
+
+      const service = new DatabaseService(mockDb);
+      const grouped = await service.getAllTransactionsGroupedByCode();
+
+      expect(grouped).toHaveProperty('AAPL');
+      expect(grouped).toHaveProperty('TSLA');
+      expect(grouped.AAPL).toHaveLength(2);
+      expect(grouped.TSLA).toHaveLength(1);
+      expect(grouped.AAPL[0].quantity).toBe(10);
+      expect(grouped.AAPL[1].quantity).toBe(5);
+    });
+
+    test('should return empty object when no transactions exist', async () => {
+      const mockDb = {
+        prepare: vi.fn(() => ({
+          all: vi.fn().mockResolvedValue({ results: [] })
+        }))
+      };
+
+      const service = new DatabaseService(mockDb);
+      const grouped = await service.getAllTransactionsGroupedByCode();
+
+      expect(grouped).toEqual({});
+    });
+
+    test('should handle database errors', async () => {
+      const errorDb = {
+        prepare: vi.fn(() => {
+          throw new Error('Database error');
+        })
+      };
+
+      const service = new DatabaseService(errorDb);
+      const grouped = await service.getAllTransactionsGroupedByCode();
+
+      expect(grouped).toEqual({});
+    });
+
+    test('should handle null results from database', async () => {
+      const mockDb = {
+        prepare: vi.fn(() => ({
+          all: vi.fn().mockResolvedValue({ results: null })
+        }))
+      };
+
+      const service = new DatabaseService(mockDb);
+      const grouped = await service.getAllTransactionsGroupedByCode();
+
+      expect(grouped).toEqual({});
+    });
+  });
 });

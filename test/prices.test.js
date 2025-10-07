@@ -659,4 +659,197 @@ describe('Prices Page Generation', () => {
       expect(html).toContain('#closedPositionsTable tbody td:nth-child(2)');
     });
   });
+
+  describe('Closed Positions', () => {
+    it('should display closed positions with profit', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'BATS:VOO', name: 'Vanguard S&P 500', quantity: 10, averageCost: 380.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'BATS:VOO': [
+          { type: 'buy', quantity: 10, value: 3800, fee: 10, date: '2024-01-01' }
+        ]
+      });
+
+      const closedPositions = [
+        {
+          code: 'NASDAQ:AAPL',
+          name: 'Apple Inc',
+          totalCost: 1500,
+          totalRevenue: 1800,
+          profitLoss: 300,
+          profitLossPercent: 20,
+          transactions: 5
+        }
+      ];
+      mockDatabaseService.getClosedPositions.mockResolvedValue(closedPositions);
+
+      const enrichedHoldings = [
+        {
+          ...mockHoldings[0],
+          quote: {
+            symbol: 'VOO',
+            current: 385.20,
+            high: 386.00,
+            low: 384.00,
+            open: 385.00,
+            previousClose: 384.50,
+            change: 0.70,
+            changePercent: 0.18,
+            timestamp: 1696598400
+          },
+          marketValue: 3852.00,
+          costBasis: 3800.00,
+          gain: 52.00,
+          gainPercent: 1.37,
+          error: null
+        }
+      ];
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue(enrichedHoldings);
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['VOO'],
+        cacheDurationMs: 60000
+      });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      // Check closed positions section exists
+      expect(html).toContain('closedPositionsAccordion');
+      expect(html).toContain('Apple Inc');
+      expect(html).toContain('AAPL');
+      expect(html).toContain('$1500.00'); // Total cost (no comma)
+      expect(html).toContain('$1800.00'); // Total revenue (no comma)
+      expect(html).toContain('$300.00'); // Profit
+      expect(html).toContain('20.00%'); // Profit percentage
+      expect(html).toContain('5 txns'); // Number of transactions
+      expect(html).toContain('text-success'); // Positive profit
+      expect(html).toContain('Total Realized Gains');
+    });
+
+    it('should display closed positions with loss', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'BATS:VOO', name: 'Vanguard S&P 500', quantity: 10, averageCost: 380.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'BATS:VOO': [
+          { type: 'buy', quantity: 10, value: 3800, fee: 10, date: '2024-01-01' }
+        ]
+      });
+
+      const closedPositions = [
+        {
+          code: 'NASDAQ:TSLA',
+          name: 'Tesla Inc',
+          totalCost: 2000,
+          totalRevenue: 1500,
+          profitLoss: -500,
+          profitLossPercent: -25,
+          transactions: 3
+        }
+      ];
+      mockDatabaseService.getClosedPositions.mockResolvedValue(closedPositions);
+
+      const enrichedHoldings = [
+        {
+          ...mockHoldings[0],
+          quote: {
+            symbol: 'VOO',
+            current: 385.20,
+            previousClose: 384.50,
+            change: 0.70,
+            changePercent: 0.18,
+            timestamp: 1696598400
+          },
+          marketValue: 3852.00,
+          error: null
+        }
+      ];
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue(enrichedHoldings);
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['VOO'],
+        cacheDurationMs: 60000
+      });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      // Check closed positions with loss
+      expect(html).toContain('Tesla Inc');
+      expect(html).toContain('TSLA');
+      expect(html).toContain('$-500.00'); // Negative profit
+      expect(html).toContain('-25.00%'); // Negative percentage
+      expect(html).toContain('text-danger'); // Negative styling
+    });
+
+    it('should handle closed positions with code format extraction', async () => {
+      const mockHoldings = [
+        { id: 1, code: 'BATS:VOO', name: 'Vanguard S&P 500', quantity: 10, averageCost: 380.00, target_weight: null }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockHoldings);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000.00);
+      mockDatabaseService.getAllTransactionsGroupedByCode.mockResolvedValue({
+        'BATS:VOO': [
+          { type: 'buy', quantity: 10, value: 3800, fee: 10, date: '2024-01-01' }
+        ]
+      });
+
+      const closedPositions = [
+        {
+          code: 'SIMPLE', // No colon prefix
+          name: 'Simple Stock',
+          totalCost: 1000,
+          totalRevenue: 1200,
+          profitLoss: 200,
+          profitLossPercent: 20,
+          transactions: 2
+        }
+      ];
+      mockDatabaseService.getClosedPositions.mockResolvedValue(closedPositions);
+
+      const enrichedHoldings = [
+        {
+          ...mockHoldings[0],
+          quote: {
+            symbol: 'VOO',
+            current: 385.20,
+            previousClose: 384.50,
+            change: 0.70,
+            changePercent: 0.18,
+            timestamp: 1696598400
+          },
+          marketValue: 3852.00,
+          error: null
+        }
+      ];
+
+      mockFinnhubService.getPortfolioQuotes.mockResolvedValue(enrichedHoldings);
+      mockFinnhubService.getOldestCacheTimestamp.mockReturnValue(1696598400000);
+      mockFinnhubService.getCacheStats.mockReturnValue({
+        size: 1,
+        symbols: ['VOO'],
+        cacheDurationMs: 60000
+      });
+
+      const response = await generatePricesPage(mockDatabaseService, mockFinnhubService);
+      const html = await response.text();
+
+      // Should display code without exchange prefix
+      expect(html).toContain('SIMPLE');
+      expect(html).toContain('Simple Stock');
+    });
+  });
 });
