@@ -87,6 +87,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Skip API endpoints - they should never be cached
+  if (url.pathname.includes('/api/')) {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -106,8 +111,8 @@ self.addEventListener('fetch', (event) => {
             // Clone the response
             const responseToCache = response.clone();
             
-            // Cache static assets and API responses (but not POST/PUT/DELETE)
-            if (event.request.url.includes('/stonks/')) {
+            // Cache static assets and pages (but not API endpoints)
+            if (event.request.url.includes('/stonks/') && !event.request.url.includes('/api/')) {
               caches.open(CACHE_NAME)
                 .then((cache) => {
                   cache.put(event.request, responseToCache);
