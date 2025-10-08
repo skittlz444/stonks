@@ -6,8 +6,12 @@ import {
   generateChartGridLayout,
   generateFullHeightContainer,
   generateFooter,
+  generateNavigation,
+  generateTopNavigation,
   createLayout,
-  createResponse
+  createResponse,
+  generateCompanyProfileModal,
+  generateCompanyProfileScript
 } from '../src/utils.js';
 
 describe('Utils', () => {
@@ -297,6 +301,133 @@ describe('Utils', () => {
       expect(html).toContain('bootstrap');
       expect(html).toContain('href="/stonks/');
       expect(html).toContain('</html>');
+    });
+  });
+
+  describe('generateCompanyProfileModal', () => {
+    test('should generate Bootstrap modal HTML', () => {
+      const modal = generateCompanyProfileModal();
+      
+      expect(modal).toContain('id="companyProfileModal"');
+      expect(modal).toContain('modal fade');
+      expect(modal).toContain('modal-dialog modal-xl');
+      expect(modal).toContain('id="companyProfileModalLabel"');
+      expect(modal).toContain('id="companyProfileWidgetContainer"');
+    });
+
+    test('should include proper modal structure', () => {
+      const modal = generateCompanyProfileModal();
+      
+      expect(modal).toContain('modal-header');
+      expect(modal).toContain('modal-body');
+      expect(modal).toContain('btn-close');
+      expect(modal).toContain('Company Profile');
+    });
+
+    test('should include proper Bootstrap modal attributes', () => {
+      const modal = generateCompanyProfileModal();
+      
+      expect(modal).toContain('tabindex="-1"');
+      expect(modal).toContain('aria-labelledby="companyProfileModalLabel"');
+      expect(modal).toContain('aria-hidden="true"');
+      expect(modal).toContain('data-bs-dismiss="modal"');
+    });
+  });
+
+  describe('generateCompanyProfileScript', () => {
+    test('should generate showCompanyProfile function', () => {
+      const script = generateCompanyProfileScript();
+      
+      expect(script).toContain('<script>');
+      expect(script).toContain('function showCompanyProfile(symbol, name)');
+      expect(script).toContain('window.showCompanyProfile = showCompanyProfile');
+      expect(script).toContain('</script>');
+    });
+
+    test('should include TradingView widget loading logic', () => {
+      const script = generateCompanyProfileScript();
+      
+      expect(script).toContain('tradingview-widget-container');
+      expect(script).toContain('embed-widget-symbol-profile.js');
+      expect(script).toContain('s3.tradingview.com');
+    });
+
+    test('should configure widget with dark theme', () => {
+      const script = generateCompanyProfileScript();
+      
+      expect(script).toContain('colorTheme');
+      expect(script).toContain('dark');
+      expect(script).toContain('isTransparent: false');
+    });
+
+    test('should include modal show logic', () => {
+      const script = generateCompanyProfileScript();
+      
+      expect(script).toContain('bootstrap.Modal');
+      expect(script).toContain('modal.show()');
+      expect(script).toContain('getElementById(\'companyProfileModal\')');
+    });
+
+    test('should clear existing widget before loading new one', () => {
+      const script = generateCompanyProfileScript();
+      
+      expect(script).toContain('widgetContainer.innerHTML = \'\'');
+      expect(script).toContain('Clear existing widget');
+    });
+  });
+
+  describe('Navigation Functions', () => {
+    test('generateTopNavigation should create compact navigation bar', () => {
+      const { generateTopNavigation } = require('../src/utils.js');
+      const nav = generateTopNavigation();
+      
+      expect(nav).toContain('<!-- Top Navigation -->');
+      expect(nav).toContain('container-fluid');
+      expect(nav).toContain('border-bottom');
+      expect(nav).toContain('href="/stonks/prices"');
+      expect(nav).toContain('href="/stonks/ticker"');
+      expect(nav).toContain('href="/stonks/charts"');
+      expect(nav).toContain('href="/stonks/charts/large"');
+      expect(nav).toContain('href="/stonks/charts/advanced"');
+      expect(nav).toContain('href="/stonks/config"');
+      expect(nav).toContain('btn-sm');
+      expect(nav).toContain('📊 Live Prices');
+      expect(nav).toContain('📈 Ticker View');
+      expect(nav).toContain('📉 Grid Charts');
+      expect(nav).toContain('📊 Large Charts');
+      expect(nav).toContain('📈 Advanced Chart');
+      expect(nav).toContain('⚙️ Config');
+    });
+
+    test('generateTopNavigation should support custom prices URL', () => {
+      const { generateTopNavigation } = require('../src/utils.js');
+      const nav = generateTopNavigation('/stonks/prices?currency=SGD');
+      
+      expect(nav).toContain('href="/stonks/prices?currency=SGD"');
+      expect(nav).toContain('📊 Live Prices');
+    });
+
+    test('generateNavigation should create footer-style navigation', () => {
+      const { generateNavigation } = require('../src/utils.js');
+      const nav = generateNavigation();
+      
+      expect(nav).toContain('container mt-4 mb-4');
+      expect(nav).toContain('card bg-dark');
+      expect(nav).toContain('href="/stonks/prices"');
+      expect(nav).toContain('href="/stonks/ticker"');
+      expect(nav).toContain('href="/stonks/charts"');
+      expect(nav).toContain('href="/stonks/charts/large"');
+      expect(nav).toContain('href="/stonks/charts/advanced"');
+      expect(nav).toContain('href="/stonks/config"');
+      expect(nav).toContain('me-2 mb-2');
+      expect(nav).not.toContain('btn-sm'); // Footer uses regular buttons
+    });
+
+    test('generateNavigation should support custom prices URL', () => {
+      const { generateNavigation } = require('../src/utils.js');
+      const nav = generateNavigation('/stonks/prices?mode=rebalance');
+      
+      expect(nav).toContain('href="/stonks/prices?mode=rebalance"');
     });
   });
 });

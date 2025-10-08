@@ -1,6 +1,7 @@
 import { generateTickerPage } from './ticker.js';
 import { generateChartGridPage } from './chartGrid.js';
 import { generateLargeChartPage } from './chartLarge.js';
+import { generateAdvancedChartPage } from './chartAdvanced.js';
 import { generateConfigPage, handleConfigSubmission } from './config.js';
 import { generatePricesPage } from './prices.js';
 import { DatabaseService, MockD1Database } from './databaseService.js';
@@ -156,6 +157,9 @@ async function handleRequest(request, env) {
       case '/stonks/charts/large':
         return await generateLargeChartPage(databaseService);
       
+      case '/stonks/charts/advanced':
+        return await generateAdvancedChartPage(databaseService);
+      
       case '/stonks/prices':
         const rebalanceMode = url.searchParams.get('mode') === 'rebalance';
         const currency = url.searchParams.get('currency') || 'USD';
@@ -169,7 +173,7 @@ async function handleRequest(request, env) {
         }
       
       default:
-        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large, /stonks/prices, /stonks/config', {
+        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large, /stonks/charts/advanced, /stonks/prices, /stonks/config', {
           status: 404,
           headers: {
             'content-type': 'text/plain',

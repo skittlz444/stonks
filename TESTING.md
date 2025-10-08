@@ -31,6 +31,8 @@ The test suite covers the following modules:
    - Page structure utilities
    - Footer navigation
    - Response creation helpers
+   - Company profile modal generation
+   - Company profile script generation
 
 3. **src/dataUtils.js** - Data processing utilities
    - Stock holdings data processing
@@ -43,6 +45,7 @@ The test suite covers the following modules:
    - Chart overview widgets
    - Symbol display widgets
    - Market overview components
+   - Company profile widgets
 
 5. **src/index.js** - Main routing and integration
    - Route handling for all endpoints (/ticker, /charts, /prices, /config)
@@ -57,12 +60,14 @@ The test suite covers the following modules:
    - Sortable column generation
    - Column visibility controls
    - Closed positions display
+   - Company profile modal integration (clickable holding/position names)
    - Error handling
 
 7. **src/config.js** - Configuration page (74.9% coverage)
    - Holdings management interface
    - Transaction form handling
    - Visibility toggle functionality
+   - Company profile modal integration (clickable holding names)
    - Settings updates
 
 8. **src/finnhubService.js** - API integration (97.66% coverage)
@@ -96,25 +101,27 @@ npx vitest --coverage
 
 ## Test Statistics
 
-- **Total Tests**: 270 tests across 12 test files
-- **Passing**: 270 tests ✅ (100%)
-- **Overall Coverage**: 91.66% statements, 84.9% branches, 98.68% functions
-- **Coverage**: Comprehensive coverage of all major functionality
+- **Total Tests**: 360 tests across 14 test files
+- **Passing**: 360 tests ✅ (100%)
+- **Overall Coverage**: High coverage across all major functionality
+- **Coverage**: Comprehensive coverage of all major functionality including company profile modals
 
 ### Test Files
 
-1. `test/databaseService.test.js` - 52 tests
-2. `test/utils.test.js` - 27 tests  
+1. `test/databaseService.test.js` - 56 tests
+2. `test/utils.test.js` - 37 tests (includes 8 tests for company profile modal/script generators)
 3. `test/dataUtils.test.js` - 31 tests
-4. `test/chartWidgets.test.js` - 26 tests
-5. `test/index.test.js` - 23 tests
-6. `test/prices.test.js` - 16 tests
-7. `test/config.test.js` - 20 tests
-8. `test/ticker.test.js` - 18 tests
+4. `test/chartWidgets.test.js` - 30 tests (includes 4 tests for company profile widget)
+5. `test/index.test.js` - 41 tests
+6. `test/prices.test.js` - 27 tests (includes 6 tests for company profile modal integration)
+7. `test/config.test.js` - 40 tests (includes 5 tests for company profile modal integration)
+8. `test/ticker.test.js` - 15 tests
 9. `test/chartGrid.test.js` - 10 tests
-10. `test/chartLarge.test.js` - 10 tests
+10. `test/chartLarge.test.js` - 13 tests
 11. `test/finnhubService.test.js` - 19 tests
 12. `test/finnhubService.cache.test.js` - 17 tests
+13. `test/fxService.test.js` - 16 tests
+14. `test/cache-version.test.js` - 8 tests
 
 ## Coverage Areas
 
@@ -172,6 +179,7 @@ The test setup includes:
 - **Cache testing**: Time-based expiration tests with wait periods
 - **External dependencies**: TradingView widgets mocked
 - **Network requests**: No external network calls in tests (all mocked)
+- **Company Profile Utilities**: Modal and script generators mocked in config tests to match actual output for verification
 
 ## Error Logging
 
@@ -192,25 +200,25 @@ Potential areas for additional testing:
 ## Running Individual Test Files
 
 ```bash
-# Database service tests (52 tests)
+# Database service tests (56 tests)
 npx vitest test/databaseService.test.js
 
-# Utilities tests (27 tests)
+# Utilities tests (37 tests - includes company profile modal/script generators)
 npx vitest test/utils.test.js
 
 # Data processing tests (31 tests)
 npx vitest test/dataUtils.test.js
 
-# Widget generation tests (26 tests)
+# Widget generation tests (30 tests - includes company profile widget)
 npx vitest test/chartWidgets.test.js
 
-# Integration tests (23 tests)
+# Integration tests (41 tests)
 npx vitest test/index.test.js
 
-# Prices page tests (16 tests)
+# Prices page tests (27 tests - includes company profile modal integration)
 npx vitest test/prices.test.js
 
-# Config page tests (20 tests)
+# Config page tests (40 tests - includes company profile modal integration)
 npx vitest test/config.test.js
 
 # Finnhub service tests (19 tests)
@@ -219,13 +227,31 @@ npx vitest test/finnhubService.test.js
 # Finnhub caching tests (17 tests - includes wait times)
 npx vitest test/finnhubService.cache.test.js
 
+# FX service tests (16 tests)
+npx vitest test/fxService.test.js
+
+# Cache version tests (8 tests)
+npx vitest test/cache-version.test.js
+
 # Chart page tests
-npx vitest test/ticker.test.js
-npx vitest test/chartGrid.test.js
-npx vitest test/chartLarge.test.js
+npx vitest test/ticker.test.js       # 15 tests
+npx vitest test/chartGrid.test.js    # 10 tests
+npx vitest test/chartLarge.test.js   # 13 tests
 ```
 
 ## Key Test Features
+
+### Company Profile Modal Testing
+- Modal HTML generation with Bootstrap modal-xl class
+- Modal sizing (95vh height for mobile and desktop)
+- Script generation for showCompanyProfile function
+- TradingView widget loading and configuration
+- Clickable holding names in prices page
+- Clickable position names in closed positions
+- Clickable holding names in config page (visible and hidden)
+- Single quote escaping in company names
+- Modal structure (header, body, close button)
+- Widget container height and styling
 
 ### Transaction Testing
 - Buy/sell transaction creation and validation

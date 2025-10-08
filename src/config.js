@@ -1,4 +1,4 @@
-import { createLayout } from './utils.js';
+import { createLayout, generateCompanyProfileModal, generateCompanyProfileScript, generateTopNavigation } from './utils.js';
 
 /**
  * Generate the configuration page HTML
@@ -26,18 +26,7 @@ export async function generateConfigPage(databaseService) {
   }, 0);
 
   const content = `
-    <!-- Top Navigation -->
-    <div class="container-fluid bg-dark border-bottom border-secondary">
-      <div class="container py-2">
-        <div class="d-flex flex-wrap justify-content-center gap-2">
-          <a href="/stonks/prices" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
-          <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
-          <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
-          <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
-          <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
-        </div>
-      </div>
-    </div>
+    ${generateTopNavigation()}
 
     <div class="container mt-4">
       <h1 class="mb-4">Portfolio Configuration</h1>
@@ -96,7 +85,7 @@ export async function generateConfigPage(databaseService) {
                 <tbody>
                   ${visibleHoldings.map(holding => `
                     <tr>
-                      <td>${holding.name}</td>
+                      <td><a href="#" onclick="showCompanyProfile('${holding.code}', '${holding.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${holding.name}</a></td>
                       <td><code>${holding.code}</code></td>
                       <td>${holding.quantity.toFixed(2)} <small class="text-muted">(from txns)</small></td>
                       <td>${holding.target_weight != null ? holding.target_weight + '%' : '-'}</td>
@@ -181,7 +170,7 @@ export async function generateConfigPage(databaseService) {
                 <tbody>
                   ${hiddenHoldings.map(holding => `
                     <tr class="table-secondary">
-                      <td>${holding.name}</td>
+                      <td><a href="#" onclick="showCompanyProfile('${holding.code}', '${holding.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${holding.name}</a></td>
                       <td><code>${holding.code}</code></td>
                       <td>${holding.quantity.toFixed(2)} <small class="text-muted">(from txns)</small></td>
                       <td>${holding.target_weight != null ? holding.target_weight + '%' : '-'}</td>
@@ -444,6 +433,9 @@ export async function generateConfigPage(databaseService) {
         }
       });
     </script>
+
+    ${generateCompanyProfileScript()}
+    ${generateCompanyProfileModal()}
   `;
 
   return createLayout('Portfolio Configuration', content, "background-color:#212529;color:#ffffff", false);

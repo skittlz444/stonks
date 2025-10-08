@@ -3,11 +3,82 @@ import { generateConfigPage, handleConfigSubmission } from '../src/config.js';
 
 // Mock the dependencies
 vi.mock('../src/utils.js', () => ({
-  createLayout: vi.fn((title, content) => `<html><head><title>${title}</title></head><body>${content}</body></html>`)
+  createLayout: vi.fn((title, content) => `<html><head><title>${title}</title></head><body>${content}</body></html>`),
+  generateTopNavigation: vi.fn((pricesUrl = '/stonks/prices') => `
+    <!-- Top Navigation -->
+    <div class="container-fluid bg-dark border-bottom border-secondary">
+      <div class="container py-2">
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="${pricesUrl}" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
+          <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
+          <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
+          <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
+          <a href="/stonks/charts/advanced" class="btn btn-outline-info btn-sm">📈 Advanced Chart</a>
+          <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
+        </div>
+      </div>
+    </div>`),
+  generateCompanyProfileModal: vi.fn(() => `
+    <!-- Company Profile Modal -->
+    <div class="modal fade" id="companyProfileModal" tabindex="-1" aria-labelledby="companyProfileModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 95vh;">
+        <div class="modal-content" style="height: 95vh;">
+          <div class="modal-header">
+            <h5 class="modal-title" id="companyProfileModalLabel">Company Profile</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="flex: 1; overflow: hidden;">
+            <div id="companyProfileWidgetContainer" style="height: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>`),
+  generateCompanyProfileScript: vi.fn(() => `
+    <script>
+      // Function to show company profile modal
+      function showCompanyProfile(symbol, name) {
+        document.getElementById('companyProfileModalLabel').textContent = name + ' - Company Profile';
+        const widgetContainer = document.getElementById('companyProfileWidgetContainer');
+        
+        // Clear existing widget
+        widgetContainer.innerHTML = '';
+        
+        // Create new widget container
+        const container = document.createElement('div');
+        container.className = 'tradingview-widget-container';
+        container.style.height = '100%';
+        
+        const widgetDiv = document.createElement('div');
+        widgetDiv.className = 'tradingview-widget-container__widget';
+        container.appendChild(widgetDiv);
+        
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js';
+        script.async = true;
+        script.innerHTML = JSON.stringify({
+          width: '100%',
+          height: '100%',
+          isTransparent: false,
+          colorTheme: 'dark',
+          symbol: symbol,
+          locale: 'en'
+        });
+        
+        container.appendChild(script);
+        widgetContainer.appendChild(container);
+        
+        const modal = new bootstrap.Modal(document.getElementById('companyProfileModal'));
+        modal.show();
+      }
+      
+      // Make function globally available
+      window.showCompanyProfile = showCompanyProfile;
+    </script>`)
 }));
 
 // Import mocked modules for assertions
-import { createLayout } from '../src/utils.js';
+import { createLayout, generateTopNavigation } from '../src/utils.js';
 
 describe('Config', () => {
   let mockDatabaseService;
@@ -821,6 +892,89 @@ describe('Config', () => {
 
       // Sell transaction: total = value - fee = 1500.00 - 9.99 = 1490.01
       expect(html).toContain('$1490.01');
+    });
+  });
+
+  describe('Company profile modal in config page', () => {
+    beforeEach(() => {
+      const mockPrepareChain = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'My Portfolio' })
+      };
+      
+      mockDatabaseService.db.prepare.mockReturnValue(mockPrepareChain);
+      mockDatabaseService.getCashAmount.mockResolvedValue(1000);
+      mockDatabaseService.getTransactions.mockResolvedValue([]);
+    });
+
+    it('should include company profile modal in config page', async () => {
+      const mockVisibleHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50, hidden: 0 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain('id="companyProfileModal"');
+      expect(html).toContain('id="companyProfileModalLabel"');
+      expect(html).toContain('id="companyProfileWidgetContainer"');
+    });
+
+    it('should make visible holding names clickable', async () => {
+      const mockVisibleHoldings = [
+        { id: 1, name: 'Apple Inc.', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50, hidden: 0 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain("showCompanyProfile('NASDAQ:AAPL'");
+      expect(html).toContain('onclick="showCompanyProfile(');
+    });
+
+    it('should make hidden holding names clickable', async () => {
+      const mockHiddenHoldings = [
+        { id: 2, name: 'Tesla Inc', code: 'NASDAQ:TSLA', quantity: 5, target_weight: null, hidden: 1 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue(mockHiddenHoldings);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain("showCompanyProfile('NASDAQ:TSLA'");
+    });
+
+    it('should include showCompanyProfile function', async () => {
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue([]);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain('function showCompanyProfile(symbol, name)');
+      expect(html).toContain('window.showCompanyProfile = showCompanyProfile');
+    });
+
+    it('should escape single quotes in holding names', async () => {
+      const mockVisibleHoldings = [
+        { id: 1, name: "Test's Company", code: 'NASDAQ:TEST', quantity: 10, target_weight: null, hidden: 0 }
+      ];
+
+      mockDatabaseService.getVisiblePortfolioHoldings.mockResolvedValue(mockVisibleHoldings);
+      mockDatabaseService.getHiddenPortfolioHoldings.mockResolvedValue([]);
+
+      const result = await generateConfigPage(mockDatabaseService);
+      const html = result;
+
+      expect(html).toContain("Test\\'s Company");
     });
   });
 });
