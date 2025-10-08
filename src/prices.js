@@ -1,4 +1,4 @@
-import { createLayout } from './utils.js';
+import { createLayout, generateCompanyProfileModal, generateCompanyProfileScript } from './utils.js';
 
 /**
  * Calculate rebalancing recommendations for holdings
@@ -328,7 +328,7 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
         
         return `
           <tr data-holding="true">
-            <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+            <td data-value="${holding.name}"><strong><a href="#" onclick="showCompanyProfile('${holding.code}', '${holding.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${holding.name}</a></strong></td>
             <td data-value="${stockCode}"><code>${stockCode}</code></td>
             <td class="text-end" data-value="${quote.current}">${formatCurrency(convert(quote.current))}</td>
             <td class="text-end" data-value="${holding.quantity}">
@@ -369,7 +369,7 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
       } else {
         return `
           <tr data-holding="true">
-            <td data-value="${holding.name}"><strong>${holding.name}</strong></td>
+            <td data-value="${holding.name}"><strong><a href="#" onclick="showCompanyProfile('${holding.code}', '${holding.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${holding.name}</a></strong></td>
             <td data-value="${stockCode}"><code>${stockCode}</code></td>
             <td class="text-end" data-value="${quote.current}">${formatCurrency(convert(quote.current))}</td>
             <td class="text-end ${changeClass}" data-value="${quote.change}">
@@ -982,6 +982,9 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
           });
         });
       </script>
+
+      ${generateCompanyProfileScript()}
+      ${generateCompanyProfileModal()}
     `;
 
     return createLayout('Live Stock Prices', content, "background-color:#212529;color:#ffffff", false);
@@ -1018,7 +1021,7 @@ async function generateClosedPositionsSection(databaseService, convert, formatCu
     
     return `
       <tr data-closed="true">
-        <td data-value="${position.name}"><strong>${position.name}</strong></td>
+        <td data-value="${position.name}"><strong><a href="#" onclick="showCompanyProfile('${position.code}', '${position.name.replace(/'/g, "\\'")}'); return false;" style="color: inherit; text-decoration: none;">${position.name}</a></strong></td>
         <td data-value="${stockCode}"><code>${stockCode}</code></td>
         <td class="text-end" data-value="${position.totalCost}">${formatCurrency(convert(position.totalCost))}</td>
         <td class="text-end" data-value="${position.totalRevenue}">${formatCurrency(convert(position.totalRevenue))}</td>

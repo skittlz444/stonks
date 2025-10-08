@@ -163,3 +163,25 @@ export function generateSymbolOverviewWidget(symbolsString) {
     </div>
     <!-- TradingView Widget END -->`;
 }
+
+/**
+ * Generate a company profile widget
+ */
+export function generateCompanyProfileWidget(symbol) {
+  return `
+    <!-- TradingView Widget BEGIN -->
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js" async>
+      {
+      "width": "100%",
+      "height": "100%",
+      "isTransparent": false,
+      "colorTheme": "dark",
+      "symbol": "${symbol}",
+      "locale": "en"
+      }
+      </script>
+    </div>
+    <!-- TradingView Widget END -->`;
+}

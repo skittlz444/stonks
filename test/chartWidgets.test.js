@@ -4,7 +4,8 @@ import {
   generateSingleQuoteWidget,
   generateMiniSymbolWidget,
   generateMarketOverviewWidget,
-  generateSymbolOverviewWidget
+  generateSymbolOverviewWidget,
+  generateCompanyProfileWidget
 } from '../src/chartWidgets.js';
 
 describe('ChartWidgets', () => {
@@ -222,6 +223,50 @@ describe('ChartWidgets', () => {
     });
   });
 
+  describe('generateCompanyProfileWidget', () => {
+    test('should generate company profile widget with symbol', () => {
+      const symbol = 'NASDAQ:AAPL';
+      
+      const result = generateCompanyProfileWidget(symbol);
+      
+      expect(result).toContain('tradingview-widget-container');
+      expect(result).toContain('embed-widget-symbol-profile.js');
+      expect(result).toContain(`"symbol": "${symbol}"`);
+      expect(result).toContain('"colorTheme": "dark"');
+    });
+
+    test('should configure company profile widget properly', () => {
+      const result = generateCompanyProfileWidget('NASDAQ:MSFT');
+      
+      expect(result).toContain('"width": "100%"');
+      expect(result).toContain('"height": "100%"');
+      expect(result).toContain('"isTransparent": false');
+      expect(result).toContain('"colorTheme": "dark"');
+      expect(result).toContain('"locale": "en"');
+    });
+
+    test('should include proper TradingView widget structure', () => {
+      const result = generateCompanyProfileWidget('TEST');
+      
+      expect(result).toMatch(/<!-- TradingView Widget BEGIN -->/);
+      expect(result).toMatch(/<!-- TradingView Widget END -->/);
+      expect(result).toContain('<div class="tradingview-widget-container">');
+      expect(result).toContain('<div class="tradingview-widget-container__widget"></div>');
+      expect(result).toContain('<script type="text/javascript"');
+      expect(result).toContain('src="https://s3.tradingview.com/external-embedding/');
+      expect(result).toContain('async>');
+    });
+
+    test('should handle symbols with special characters', () => {
+      const symbol = 'NYSE:BRK.B';
+      
+      const result = generateCompanyProfileWidget(symbol);
+      
+      expect(result).toContain(`"symbol": "${symbol}"`);
+      expect(result).toContain('tradingview-widget-container');
+    });
+  });
+
   describe('Widget consistency', () => {
     test('all widgets should use dark theme', () => {
       const widgets = [
@@ -229,7 +274,8 @@ describe('ChartWidgets', () => {
         generateSingleQuoteWidget('test'),
         generateMiniSymbolWidget('test'),
         generateMarketOverviewWidget('test'),
-        generateSymbolOverviewWidget('test')
+        generateSymbolOverviewWidget('test'),
+        generateCompanyProfileWidget('test')
       ];
       
       widgets.forEach(widget => {
@@ -243,7 +289,8 @@ describe('ChartWidgets', () => {
         generateSingleQuoteWidget('test'),
         generateMiniSymbolWidget('test'),
         generateMarketOverviewWidget('test'),
-        generateSymbolOverviewWidget('test')
+        generateSymbolOverviewWidget('test'),
+        generateCompanyProfileWidget('test')
       ];
       
       widgets.forEach(widget => {
@@ -261,7 +308,8 @@ describe('ChartWidgets', () => {
         generateSingleQuoteWidget('test'),
         generateMiniSymbolWidget('test'),
         generateMarketOverviewWidget('test'),
-        generateSymbolOverviewWidget('test')
+        generateSymbolOverviewWidget('test'),
+        generateCompanyProfileWidget('test')
       ];
       
       widgets.forEach(widget => {

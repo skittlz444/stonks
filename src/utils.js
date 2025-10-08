@@ -141,3 +141,92 @@ export function createResponse(html) {
     },
   });
 }
+
+/**
+ * Generate company profile modal HTML
+ * Bootstrap modal for displaying TradingView company profile widget
+ */
+export function generateCompanyProfileModal() {
+  return `
+    <!-- Company Profile Modal -->
+    <div class="modal fade" id="companyProfileModal" tabindex="-1" aria-labelledby="companyProfileModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content company-profile-modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="companyProfileModalLabel">Company Profile</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="flex: 1; overflow: hidden;">
+            <div id="companyProfileWidgetContainer" style="height: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      .company-profile-modal-content {
+        height: 50vh !important;
+      }
+      @media (max-width: 576px) {
+        .company-profile-modal-content {
+          height: 75vh !important;
+        }
+        .modal-dialog {
+          height: 75vh !important;
+          max-width: 100vw;
+          margin: 0;
+        }
+        .modal-content {
+          height: 75vh !important;
+        }
+      }
+    </style>`;
+}
+
+/**
+ * Generate company profile script
+ * JavaScript function to show modal and load TradingView company profile widget
+ */
+export function generateCompanyProfileScript() {
+  return `
+    <script>
+      // Function to show company profile modal
+      function showCompanyProfile(symbol, name) {
+        document.getElementById('companyProfileModalLabel').textContent = name + ' - Company Profile';
+        const widgetContainer = document.getElementById('companyProfileWidgetContainer');
+        
+        // Clear existing widget
+        widgetContainer.innerHTML = '';
+        
+        // Create new widget container
+        const container = document.createElement('div');
+        container.className = 'tradingview-widget-container';
+        container.style.height = '100%';
+        
+        const widgetDiv = document.createElement('div');
+        widgetDiv.className = 'tradingview-widget-container__widget';
+        container.appendChild(widgetDiv);
+        
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js';
+        script.async = true;
+        script.innerHTML = JSON.stringify({
+          width: '100%',
+          height: '100%',
+          isTransparent: false,
+          colorTheme: 'dark',
+          symbol: symbol,
+          locale: 'en'
+        });
+        
+        container.appendChild(script);
+        widgetContainer.appendChild(container);
+        
+        const modal = new bootstrap.Modal(document.getElementById('companyProfileModal'));
+        modal.show();
+      }
+      
+      // Make function globally available
+      window.showCompanyProfile = showCompanyProfile;
+    </script>`;
+}
