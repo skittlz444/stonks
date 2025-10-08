@@ -150,8 +150,8 @@ export function generateCompanyProfileModal() {
   return `
     <!-- Company Profile Modal -->
     <div class="modal fade" id="companyProfileModal" tabindex="-1" aria-labelledby="companyProfileModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 95vh;">
-        <div class="modal-content" style="height: 95vh;">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content company-profile-modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="companyProfileModalLabel">Company Profile</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -161,7 +161,25 @@ export function generateCompanyProfileModal() {
           </div>
         </div>
       </div>
-    </div>`;
+    </div>
+    <style>
+      .company-profile-modal-content {
+        height: 50vh !important;
+      }
+      @media (max-width: 576px) {
+        .company-profile-modal-content {
+          height: 75vh !important;
+        }
+        .modal-dialog {
+          height: 75vh !important;
+          max-width: 100vw;
+          margin: 0;
+        }
+        .modal-content {
+          height: 75vh !important;
+        }
+      }
+    </style>`;
 }
 
 /**
