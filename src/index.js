@@ -200,7 +200,7 @@ async function handleRequest(request, env) {
           }), {
             headers: { 
               'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0',
+              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
               'pragma': 'no-cache',
               'expires': '0'
             }
@@ -211,7 +211,7 @@ async function handleRequest(request, env) {
             status: 500,
             headers: { 
               'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0',
+              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
               'pragma': 'no-cache',
               'expires': '0'
             }
@@ -225,7 +225,7 @@ async function handleRequest(request, env) {
               status: 503,
               headers: { 
                 'content-type': 'application/json',
-                'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0',
+                'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
                 'pragma': 'no-cache',
                 'expires': '0'
               }
@@ -340,7 +340,7 @@ async function handleRequest(request, env) {
           }), {
             headers: { 
               'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0',
+              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
               'pragma': 'no-cache',
               'expires': '0'
             }
@@ -351,7 +351,7 @@ async function handleRequest(request, env) {
             status: 500,
             headers: { 
               'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0',
+              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
               'pragma': 'no-cache',
               'expires': '0'
             }

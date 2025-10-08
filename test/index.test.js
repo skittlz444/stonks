@@ -662,7 +662,7 @@ describe('Index Router', () => {
         
         const response = await workerHandler.fetch(mockRequest, mockEnv);
         
-        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0');
+        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
         expect(response.headers.get('pragma')).toBe('no-cache');
         expect(response.headers.get('expires')).toBe('0');
       });
@@ -766,8 +766,8 @@ describe('Index Router', () => {
         });
         
         const response = await workerHandler.fetch(mockRequest, mockEnv);
-
-        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0');
+        
+        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
         expect(response.headers.get('pragma')).toBe('no-cache');
         expect(response.headers.get('expires')).toBe('0');
       });
@@ -778,7 +778,7 @@ describe('Index Router', () => {
         const response = await workerHandler.fetch(mockRequest, mockEnv);
         
         expect(response.status).toBe(503);
-        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate, s-maxage=0');
+        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
         expect(response.headers.get('pragma')).toBe('no-cache');
         expect(response.headers.get('expires')).toBe('0');
       });
