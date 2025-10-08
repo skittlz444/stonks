@@ -6,33 +6,59 @@ A unified Cloudflare Worker that serves multiple stock portfolio visualization a
 
 ```
 ├── src/
-│   ├── index.js            # Main worker with routing logic
-│   ├── ticker.js           # Ticker tape page handler
-│   ├── chartGrid.js        # Chart grid page handler
-│   ├── chartLarge.js       # Large chart page handler
-│   ├── prices.js           # Live prices page with sortable columns
-│   ├── config.js           # Portfolio configuration page
-│   ├── databaseService.js  # D1 database abstraction layer
-│   ├── finnhubService.js   # Finnhub API integration with caching
-│   ├── utils.js            # Shared HTML utilities and layout functions
-│   ├── chartWidgets.js     # TradingView widget generation functions
-│   └── dataUtils.js        # Data processing and formatting utilities
-├── migrations/             # D1 database migrations
-├── test/                   # Comprehensive test suite (270 tests)
-├── package.json            # Node.js dependencies
-└── wrangler.toml           # Cloudflare Worker configuration
+│   ├── index.js                # Main worker with routing logic and API endpoints
+│   ├── ticker.js               # Ticker tape page handler
+│   ├── chartGrid.js            # Chart grid page handler
+│   ├── chartLarge.js           # Large chart page handler
+│   ├── prices.js               # Live prices page (legacy server-side rendering)
+│   ├── pricesClientWrapper.js  # Client-side prices page wrapper
+│   ├── config.js               # Portfolio configuration page
+│   ├── configClientWrapper.js  # Client-side config page wrapper
+│   ├── databaseService.js      # D1 database abstraction layer
+│   ├── finnhubService.js       # Finnhub API integration with caching
+│   ├── fxService.js            # Currency conversion service (OpenExchangeRates)
+│   ├── utils.js                # Shared HTML utilities and layout functions
+│   ├── chartWidgets.js         # TradingView widget generation functions
+│   └── dataUtils.js            # Data processing and formatting utilities
+├── public/
+│   ├── client/
+│   │   ├── prices.js           # Client-side prices page JavaScript
+│   │   └── config.js           # Client-side config page JavaScript
+│   ├── icons/                  # PWA icons
+│   ├── manifest.json           # PWA manifest
+│   └── sw.js                   # Service Worker for PWA
+├── migrations/                 # D1 database migrations
+├── test/                       # Comprehensive test suite (437 tests)
+├── scripts/                    # Build scripts for cache versioning
+├── package.json                # Node.js dependencies
+└── wrangler.toml               # Cloudflare Worker configuration
 ```
 
 ## Routes
 
 The worker serves the following routes:
 
+### Page Routes
 - `/stonks/ticker` - Ticker tape view with individual stock quotes
 - `/stonks/charts` - Grid of mini chart widgets with market overview
 - `/stonks/charts/large` - Large interactive charts with advanced features
 - `/stonks/prices` - Live prices with sortable/filterable columns, gain/loss tracking, and closed positions
 - `/stonks/prices?mode=rebalance` - Portfolio rebalancing mode with buy/sell recommendations
+- `/stonks/prices?currency=SGD` - View prices in different currencies (USD, SGD, AUD)
 - `/stonks/config` - Portfolio configuration interface for managing holdings, transactions, and settings
+
+### API Routes (Client-Side Data)
+- `/stonks/api/prices-data` - JSON endpoint for prices page data
+- `/stonks/api/config-data` - JSON endpoint for config page data
+- `/stonks/client/prices.js` - Client-side prices page JavaScript module
+- `/stonks/client/config.js` - Client-side config page JavaScript module
+
+### Architecture
+The prices and config pages now use a **client-side rendering architecture**:
+1. Server generates skeleton HTML with loading states
+2. Client JavaScript fetches data from API endpoints
+3. Dynamic rendering happens in the browser
+4. Optimized for performance with parallel database queries and reduced payload sizes
 
 ## Setup and Deployment
 
@@ -77,6 +103,13 @@ npm run deploy
 
 ## Features
 
+### Modern Architecture ⚡
+- **Client-Side Rendering**: Prices and config pages use API-based architecture
+- **Optimized Performance**: Parallel database queries with Promise.all()
+- **Reduced Payloads**: 20-30% smaller responses by removing unnecessary fields
+- **Fast Loading**: Skeleton screens with smooth transitions
+- **Real-time Updates**: 1-minute cache for stock quotes
+
 ### Transaction-Based Portfolio Management
 - Track buy/sell transactions with cost basis and fees
 - Automatic quantity calculation from transaction history
@@ -85,9 +118,11 @@ npm run deploy
 
 ### Live Price Integration
 - Real-time stock prices via Finnhub API
-- Intelligent caching (5-minute cache for rapid updates)
+- Intelligent caching (1-minute cache for rapid updates)
 - Price change tracking and market value calculations
 - Support for multiple exchanges (NYSE, NASDAQ, AMEX, etc.)
+- Multi-currency support with OpenExchangeRates (USD, SGD, AUD)
+- Currency conversion with fallback rates
 
 ### Portfolio Visualization
 - **Ticker Tape**: Scrolling stock quotes with live prices
@@ -100,6 +135,7 @@ npm run deploy
   - Total gain/loss with percentage
   - Column visibility controls
   - Closed positions section
+  - Multi-currency view (USD, SGD, AUD)
   - **Rebalance Mode**: Calculate optimal buy/sell recommendations to reach target weights
 
 ### Portfolio Configuration
@@ -155,12 +191,14 @@ Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️
 
 ## Testing
 
-Comprehensive test suite with 287 tests and 91.66% code coverage:
-- 52 tests for database operations
-- 31 tests for data utilities
-- 28 tests for HTML utilities
-- 26 tests for chart widgets
-- Plus integration and error handling tests
+Comprehensive test suite with 437 tests and 75.84% overall coverage (95.04% for server-side code):
+- 56 tests for database operations
+- 52 tests for routing and API endpoints
+- 40 tests for config page
+- 35 tests for data utilities
+- 28 tests for prices client wrapper
+- 27 tests for prices page
+- Plus integration, caching, and error handling tests
 
 See [TESTING.md](TESTING.md) for detailed testing documentation.
 
@@ -179,10 +217,12 @@ This application is a fully functional Progressive Web App that can be installed
 
 ## Additional Documentation
 
+- **[API_ARCHITECTURE.md](API_ARCHITECTURE.md)** - Client-side rendering architecture and API endpoints
 - **[D1_SETUP.md](D1_SETUP.md)** - Database setup and migration instructions
 - **[FINNHUB_SETUP.md](FINNHUB_SETUP.md)** - API key configuration for live price data
-- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports
-- **[CACHING.md](CACHING.md)** - Caching architecture and strategy
+- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports (437 tests)
+- **[CACHING.md](CACHING.md)** - Caching architecture and strategy (Finnhub + FX)
+- **[TEST_COVERAGE_SUMMARY.md](TEST_COVERAGE_SUMMARY.md)** - Detailed test coverage report
 - **[public/icons/README.md](public/icons/README.md)** - PWA icon specifications
 
 ## Migration from Separate Workers

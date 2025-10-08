@@ -24,7 +24,8 @@ The FinnhubService implements an in-memory caching system to reduce API calls an
 - ✅ Cache management methods (clear, stats, timestamps)
 - ✅ Real-time cache timestamp display on prices page
 - ✅ Cache statistics and monitoring
-- ✅ 97.66% test coverage
+- ✅ Multi-service caching (Finnhub quotes and FX rates)
+- ✅ 97.66% test coverage for Finnhub, 96.66% for FX service
 
 ---
 
@@ -637,4 +638,49 @@ const newest = service.getNewestCacheTimestamp();
 
 ---
 
-*Last updated: October 6, 2025*
+## FX Service Caching
+
+The application also implements caching for currency exchange rates through the FX Service.
+
+### FX Cache Features
+- ✅ Separate cache for exchange rates (OpenExchangeRates API)
+- ✅ Longer cache duration (default: 1 hour for exchange rates)
+- ✅ Fallback rates when API is unavailable
+- ✅ Support for multiple currencies (USD, SGD, AUD)
+- ✅ Automatic cache invalidation on expiration
+
+### FX Cache Configuration
+
+```javascript
+// Create FX service with custom cache duration
+const fxService = createFxService(apiKey, 3600000); // 1 hour
+
+// Get rates (cached)
+const rates = await fxService.getLatestRates(['SGD', 'AUD']);
+
+// Convert currency
+const sgdAmount = fxService.convertFromUSD(100, 'SGD', rates);
+
+// Clear FX cache
+fxService.clearCache();
+```
+
+### Cache Strategy
+
+The application uses two separate caching layers:
+
+1. **Stock Quote Cache** (FinnhubService):
+   - Duration: 1 minute
+   - Purpose: Real-time price updates
+   - Scope: Individual stock symbols
+
+2. **Exchange Rate Cache** (FxService):
+   - Duration: 1 hour
+   - Purpose: Currency conversion rates
+   - Scope: Multiple currencies (USD, SGD, AUD)
+
+This dual-cache approach optimizes API usage while maintaining data freshness appropriate to each data type.
+
+---
+
+*Last updated: October 8, 2025*

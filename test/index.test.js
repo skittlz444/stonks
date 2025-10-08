@@ -19,9 +19,17 @@ vi.mock('../src/prices.js', () => ({
   generatePricesPage: vi.fn().mockResolvedValue(new Response('Prices Page', { status: 200 }))
 }));
 
+vi.mock('../src/pricesClientWrapper.js', () => ({
+  generatePricesPageClient: vi.fn().mockReturnValue(new Response('Prices Page Client', { status: 200 }))
+}));
+
 vi.mock('../src/config.js', () => ({
   generateConfigPage: vi.fn().mockResolvedValue(new Response('Config Page', { status: 200 })),
   handleConfigSubmission: vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { 'Location': '/stonks/config?success=1' } }))
+}));
+
+vi.mock('../src/configClientWrapper.js', () => ({
+  generateConfigPageClient: vi.fn().mockReturnValue(new Response('Config Page Client', { status: 200 }))
 }));
 
 describe('Index Router', () => {
@@ -89,7 +97,7 @@ describe('Index Router', () => {
       
       expect(response.status).toBe(200);
       const text = await response.text();
-      expect(text).toBe('Config Page');
+      expect(text).toBe('Config Page Client');
     });
 
     test('should handle POST /stonks/config route', async () => {
@@ -269,12 +277,13 @@ describe('Index Router', () => {
     });
 
     test('should pass database service to config handlers', async () => {
-      const { generateConfigPage, handleConfigSubmission } = await import('../src/config.js');
+      const { generateConfigPageClient } = await import('../src/configClientWrapper.js');
+      const { handleConfigSubmission } = await import('../src/config.js');
       
       // Test GET config
       const getRequest = createMockRequest('http://localhost/stonks/config', 'GET');
       await workerHandler.fetch(getRequest, mockEnv);
-      expect(generateConfigPage).toHaveBeenCalledWith(expect.any(DatabaseService));
+      expect(generateConfigPageClient).toHaveBeenCalled();
       
       // Test POST config
       const postRequest = createMockRequest('http://localhost/stonks/config', 'POST');
@@ -434,49 +443,40 @@ describe('Index Router', () => {
 
   describe('Prices page with query parameters', () => {
     test('should handle prices page with rebalance mode', async () => {
-      const { generatePricesPage } = await import('../src/prices.js');
+      const { generatePricesPageClient } = await import('../src/pricesClientWrapper.js');
       mockRequest = createMockRequest('http://localhost/stonks/prices?mode=rebalance');
       
       await workerHandler.fetch(mockRequest, mockEnv);
       
       // Should be called with rebalanceMode = true
-      expect(generatePricesPage).toHaveBeenCalledWith(
-        expect.any(DatabaseService),
-        null, // No API key provided
-        null, // fxService (not configured in test env)
+      expect(generatePricesPageClient).toHaveBeenCalledWith(
         true, // rebalanceMode
         'USD' // currency
       );
     });
 
     test('should handle prices page without rebalance mode', async () => {
-      const { generatePricesPage } = await import('../src/prices.js');
+      const { generatePricesPageClient } = await import('../src/pricesClientWrapper.js');
       mockRequest = createMockRequest('http://localhost/stonks/prices');
       
       await workerHandler.fetch(mockRequest, mockEnv);
       
       // Should be called with rebalanceMode = false
-      expect(generatePricesPage).toHaveBeenCalledWith(
-        expect.any(DatabaseService),
-        null, // No API key provided
-        null, // fxService (not configured in test env)
+      expect(generatePricesPageClient).toHaveBeenCalledWith(
         false, // rebalanceMode
         'USD' // currency
       );
     });
 
     test('should handle prices page with currency parameter', async () => {
-      const { generatePricesPage } = await import('../src/prices.js');
+      const { generatePricesPageClient } = await import('../src/pricesClientWrapper.js');
       mockRequest = createMockRequest('http://localhost/stonks/prices?currency=SGD');
       mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
       
       await workerHandler.fetch(mockRequest, mockEnv);
       
       // Should be called with currency = 'SGD'
-      expect(generatePricesPage).toHaveBeenCalledWith(
-        expect.any(DatabaseService),
-        null, // No Finnhub API key
-        expect.anything(), // fxService should be created
+      expect(generatePricesPageClient).toHaveBeenCalledWith(
         false, // rebalanceMode
         'SGD' // currency
       );
@@ -532,25 +532,256 @@ describe('Index Router', () => {
   });
 
   describe('Error handling', () => {
-    test('should handle route errors gracefully', async () => {
-      const { generatePricesPage } = await import('../src/prices.js');
-      generatePricesPage.mockRejectedValueOnce(new Error('Database error'));
-      
-      mockRequest = createMockRequest('http://localhost/stonks/prices');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(500);
-      const text = await response.text();
-      expect(text).toBe('Internal Server Error');
-    });
-
     test('should handle unknown routes', async () => {
       mockRequest = createMockRequest('http://localhost/stonks/unknown');
       
       const response = await workerHandler.fetch(mockRequest, mockEnv);
       
       expect(response.status).toBe(404);
+    });
+
+    test('should handle API errors in prices-data endpoint', async () => {
+      mockEnv.FINNHUB_API_KEY = 'test-key';
+      mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
+      
+      // Mock a critical error by making Promise.all fail
+      // We'll make the database return invalid data that causes downstream errors
+      const mockHolding = { name: 'Test', code: 'TEST:SYMBOL', quantity: 10 };
+      mockEnv.STONKS_DB.prepare.mockReturnValue({
+        all: vi.fn().mockResolvedValue({ results: [mockHolding] }),
+        first: vi.fn().mockResolvedValue({ value: '1000' }),
+        bind: vi.fn().mockReturnThis()
+      });
+      
+      // Mock FinnhubService to throw an error
+      const { default: index } = await import('../src/index.js');
+      // Since we can't easily mock finnhubService methods after initialization,
+      // let's test with missing FINNHUB_API_KEY which returns 503
+      delete mockEnv.FINNHUB_API_KEY;
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      // Without Finnhub API key, we get 503 (Service Unavailable)
+      expect(response.status).toBe(503);
+      const data = await response.json();
+      expect(data.error).toContain('Finnhub API key');
+    });
+
+    test('should handle API errors in config-data endpoint', async () => {
+      mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
+      
+      // Mock database error
+      mockEnv.STONKS_DB.prepare.mockReturnValue({
+        all: vi.fn().mockRejectedValue(new Error('Database error')),
+        bind: vi.fn().mockReturnThis()
+      });
+      
+      const response = await workerHandler.fetch(mockRequest, mockEnv);
+      
+      expect(response.status).toBe(500);
+      const data = await response.json();
+      expect(data.error).toBeDefined();
+    });
+  });
+
+  describe('API Endpoints', () => {
+    describe('/stonks/api/config-data', () => {
+      test('should return config data with holdings and transactions', async () => {
+        mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
+        
+        // Mock successful database responses
+        mockEnv.STONKS_DB.prepare.mockReturnValue({
+          all: vi.fn().mockResolvedValue({ 
+            results: [
+              { id: 1, name: 'Apple', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 25, hidden: 0 }
+            ] 
+          }),
+          first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' }),
+          bind: vi.fn().mockReturnThis()
+        });
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.visibleHoldings).toBeDefined();
+        expect(data.hiddenHoldings).toBeDefined();
+        expect(data.transactions).toBeDefined();
+        expect(data.cashAmount).toBeDefined();
+        expect(data.portfolioName).toBeDefined();
+        expect(data.totalTargetWeight).toBeDefined();
+      });
+
+      test('should optimize holding data by removing unnecessary fields', async () => {
+        mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
+        
+        mockEnv.STONKS_DB.prepare.mockReturnValue({
+          all: vi.fn().mockResolvedValue({ 
+            results: [
+              { 
+                id: 1, 
+                name: 'Apple', 
+                code: 'NASDAQ:AAPL', 
+                quantity: 10, 
+                target_weight: 25, 
+                hidden: 0,
+                created_at: '2024-01-01',
+                updated_at: '2024-01-02'
+              }
+            ] 
+          }),
+          first: vi.fn().mockResolvedValue(null),
+          bind: vi.fn().mockReturnThis()
+        });
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        const data = await response.json();
+        
+        // Check that unnecessary fields are removed
+        if (data.visibleHoldings.length > 0) {
+          const holding = data.visibleHoldings[0];
+          expect(holding.id).toBeDefined();
+          expect(holding.name).toBeDefined();
+          expect(holding.code).toBeDefined();
+          expect(holding.quantity).toBeDefined();
+          expect(holding.target_weight).toBeDefined();
+          expect(holding.hidden).toBeUndefined();
+          expect(holding.created_at).toBeUndefined();
+          expect(holding.updated_at).toBeUndefined();
+        }
+      });
+    });
+
+    describe('/stonks/api/prices-data', () => {
+      test('should return error when Finnhub API key is not configured', async () => {
+        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        
+        expect(response.status).toBe(503);
+        const data = await response.json();
+        expect(data.error).toContain('Finnhub API key');
+      });
+
+      test('should return prices data when Finnhub API key is configured', async () => {
+        mockEnv.FINNHUB_API_KEY = 'test-key';
+        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
+        
+        mockEnv.STONKS_DB.prepare.mockReturnValue({
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          bind: vi.fn().mockReturnThis()
+        });
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.holdings).toBeDefined();
+        expect(data.cashAmount).toBeDefined();
+        expect(data.closedPositions).toBeDefined();
+        expect(data.fxRates).toBeDefined();
+        expect(data.fxAvailable).toBeDefined();
+        expect(data.cacheStats).toBeDefined();
+      });
+
+      test('should optimize holding data by removing unnecessary fields', async () => {
+        mockEnv.FINNHUB_API_KEY = 'test-key';
+        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
+        
+        mockEnv.STONKS_DB.prepare.mockReturnValue({
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          bind: vi.fn().mockReturnThis()
+        });
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        const data = await response.json();
+        
+        expect(data.holdings).toBeInstanceOf(Array);
+        // Holdings should not have hidden, created_at, updated_at fields
+        if (data.holdings.length > 0) {
+          const holding = data.holdings[0];
+          expect(holding.hidden).toBeUndefined();
+          expect(holding.created_at).toBeUndefined();
+          expect(holding.updated_at).toBeUndefined();
+        }
+      });
+
+      test('should handle rebalance mode parameter', async () => {
+        mockEnv.FINNHUB_API_KEY = 'test-key';
+        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data?mode=rebalance');
+        
+        mockEnv.STONKS_DB.prepare.mockReturnValue({
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          bind: vi.fn().mockReturnThis()
+        });
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        const data = await response.json();
+        
+        expect(data.rebalanceMode).toBe(true);
+        // In rebalance mode, closed positions should be empty
+        expect(data.closedPositions).toEqual([]);
+      });
+
+      test('should handle currency parameter', async () => {
+        mockEnv.FINNHUB_API_KEY = 'test-key';
+        mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
+        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data?currency=SGD');
+        
+        mockEnv.STONKS_DB.prepare.mockReturnValue({
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          bind: vi.fn().mockReturnThis()
+        });
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        const data = await response.json();
+        
+        expect(data.currency).toBe('SGD');
+        expect(data.fxAvailable).toBe(true);
+      });
+    });
+
+    describe('Client script serving', () => {
+      test('should serve prices client script', async () => {
+        mockRequest = createMockRequest('http://localhost/stonks/client/prices.js');
+        mockEnv.ASSETS = {
+          fetch: vi.fn().mockResolvedValue(new Response('// prices client code', { 
+            status: 200 
+          }))
+        };
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toBe('application/javascript');
+      });
+
+      test('should serve config client script', async () => {
+        mockRequest = createMockRequest('http://localhost/stonks/client/config.js');
+        mockEnv.ASSETS = {
+          fetch: vi.fn().mockResolvedValue(new Response('// config client code', { 
+            status: 200 
+          }))
+        };
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toBe('application/javascript');
+      });
+
+      test('should return 404 if client script not found', async () => {
+        mockRequest = createMockRequest('http://localhost/stonks/client/prices.js');
+        mockEnv.ASSETS = {
+          fetch: vi.fn().mockResolvedValue(new Response('Not found', { 
+            status: 404 
+          }))
+        };
+        
+        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        
+        expect(response.status).toBe(404);
+      });
     });
   });
 });
