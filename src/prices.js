@@ -1,4 +1,4 @@
-import { createLayout, generateCompanyProfileModal, generateCompanyProfileScript } from './utils.js';
+import { createLayout, generateCompanyProfileModal, generateCompanyProfileScript, generateTopNavigation } from './utils.js';
 
 /**
  * Calculate rebalancing recommendations for holdings
@@ -455,19 +455,11 @@ export async function generatePricesPage(databaseService, finnhubService, fxServ
       `;
     }
     
+    // Build prices URL with currency parameter if needed
+    const pricesUrl = `/stonks/prices${currency !== 'USD' ? '?currency=' + currency : ''}`;
+    
     const content = `
-      <!-- Top Navigation -->
-      <div class="container-fluid bg-dark border-bottom border-secondary">
-        <div class="container py-2">
-          <div class="d-flex flex-wrap justify-content-center gap-2">
-            <a href="/stonks/prices${currency !== 'USD' ? '?currency=' + currency : ''}" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
-            <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
-            <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
-            <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
-            <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
-          </div>
-        </div>
-      </div>
+      ${generateTopNavigation(pricesUrl)}
 
       <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">

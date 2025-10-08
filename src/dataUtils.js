@@ -221,6 +221,19 @@ export function extractSymbol(stonkPair) {
 }
 
 /**
+ * Format structured holdings data for advanced chart watchlist
+ */
+export function formatStructuredDataForWatchlist(holdings) {
+  const symbols = [];
+  for (const holding of holdings) {
+    if (holding.symbol) {
+      symbols.push(`"${holding.symbol}"`);
+    }
+  }
+  return symbols.join(",\n        ");
+}
+
+/**
  * Smart formatter that detects data type and uses appropriate formatting
  */
 export async function getOptimizedHoldingsData(databaseService, formatType = 'ticker') {
@@ -236,6 +249,8 @@ export async function getOptimizedHoldingsData(databaseService, formatType = 'ti
             return formatStructuredDataForChartGrid(holdings);
           case 'largeChart':
             return formatStructuredDataForLargeChart(holdings);
+          case 'watchlist':
+            return formatStructuredDataForWatchlist(holdings);
           case 'raw':
             return holdings;
           default:

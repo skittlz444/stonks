@@ -8,6 +8,7 @@ import {
   formatStructuredDataForChartGrid,
   formatForLargeChart,
   formatStructuredDataForLargeChart,
+  formatStructuredDataForWatchlist,
   extractSymbol,
   getOptimizedHoldingsData
 } from '../src/dataUtils.js';
@@ -243,6 +244,38 @@ describe('DataUtils', () => {
     });
   });
 
+  describe('formatStructuredDataForWatchlist', () => {
+    test('should format structured holdings for watchlist', () => {
+      const result = formatStructuredDataForWatchlist(mockHoldings);
+      
+      expect(result).toContain('"NASDAQ:AAPL"');
+      expect(result).toContain('"NASDAQ:MSFT"');
+      expect(result).toContain('"10*NASDAQ:AAPL+5*NASDAQ:MSFT+100"');
+    });
+
+    test('should handle single holding', () => {
+      const holdings = [{ name: 'Apple', symbol: 'NASDAQ:AAPL' }];
+      
+      const result = formatStructuredDataForWatchlist(holdings);
+      
+      expect(result).toBe('"NASDAQ:AAPL"');
+    });
+
+    test('should skip holdings without symbols', () => {
+      const holdings = [
+        { name: 'Apple', symbol: 'NASDAQ:AAPL' },
+        { name: 'Invalid', symbol: '' },
+        { name: 'Microsoft', symbol: 'NASDAQ:MSFT' }
+      ];
+      
+      const result = formatStructuredDataForWatchlist(holdings);
+      
+      expect(result).toContain('"NASDAQ:AAPL"');
+      expect(result).toContain('"NASDAQ:MSFT"');
+      expect(result).not.toContain('Invalid');
+    });
+  });
+
   describe('extractSymbol', () => {
     test('should extract symbol from stonk pair', () => {
       const result = extractSymbol('"Apple Inc.","NASDAQ:AAPL"');
@@ -294,6 +327,15 @@ describe('DataUtils', () => {
       const result = await getOptimizedHoldingsData(mockDatabaseService, 'largeChart');
       
       expect(result).toContain('["Apple Inc.", "NASDAQ:AAPL|3M|USD"]');
+    });
+
+    test('should use structured data for watchlist format', async () => {
+      mockDatabaseService.getAllHoldings.mockResolvedValue(mockHoldings);
+      
+      const result = await getOptimizedHoldingsData(mockDatabaseService, 'watchlist');
+      
+      expect(result).toContain('"NASDAQ:AAPL"');
+      expect(result).toContain('"NASDAQ:MSFT"');
     });
 
     test('should return raw structured data for raw format', async () => {

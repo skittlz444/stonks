@@ -98,18 +98,45 @@ export function generateFullHeightContainer(content) {
 }
 
 /**
- * Generate standardized button-based navigation footer
+ * Generate navigation links (internal use)
+ * @param {string} pricesUrl - URL for prices page (may include query params)
  */
-export function generateNavigation() {
+function generateNavigationLinks(pricesUrl = '/stonks/prices') {
+  return `
+          <a href="${pricesUrl}" class="btn btn-outline-success me-2 mb-2">📊 Live Prices</a>
+          <a href="/stonks/ticker" class="btn btn-outline-info me-2 mb-2">📈 Ticker View</a>
+          <a href="/stonks/charts" class="btn btn-outline-info me-2 mb-2">📉 Grid Charts</a>
+          <a href="/stonks/charts/large" class="btn btn-outline-info me-2 mb-2">📊 Large Charts</a>
+          <a href="/stonks/charts/advanced" class="btn btn-outline-info me-2 mb-2">📈 Advanced Chart</a>
+          <a href="/stonks/config" class="btn btn-outline-light me-2 mb-2">⚙️ Config</a>`;
+}
+
+/**
+ * Generate top navigation bar (compact, for page headers)
+ * @param {string} pricesUrl - URL for prices page (may include query params)
+ */
+export function generateTopNavigation(pricesUrl = '/stonks/prices') {
+  return `
+    <!-- Top Navigation -->
+    <div class="container-fluid bg-dark border-bottom border-secondary">
+      <div class="container py-2">
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+${generateNavigationLinks(pricesUrl).replace(/me-2 mb-2/g, 'btn-sm')}
+        </div>
+      </div>
+    </div>`;
+}
+
+/**
+ * Generate standardized button-based navigation footer
+ * @param {string} pricesUrl - URL for prices page (may include query params)
+ */
+export function generateNavigation(pricesUrl = '/stonks/prices') {
   return `
     <div class="container mt-4 mb-4">
       <div class="card bg-dark border-secondary">
         <div class="card-body text-center">
-          <a href="/stonks/prices" class="btn btn-outline-success me-2 mb-2">📊 Live Prices</a>
-          <a href="/stonks/ticker" class="btn btn-outline-info me-2 mb-2">📈 Ticker View</a>
-          <a href="/stonks/charts" class="btn btn-outline-info me-2 mb-2">📉 Grid Charts</a>
-          <a href="/stonks/charts/large" class="btn btn-outline-info mb-2">📊 Large Charts</a>
-          <a href="/stonks/config" class="btn btn-outline-light me-2 mb-2">⚙️ Config</a>
+${generateNavigationLinks(pricesUrl)}
         </div>
       </div>
     </div>`;

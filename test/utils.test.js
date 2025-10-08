@@ -6,6 +6,8 @@ import {
   generateChartGridLayout,
   generateFullHeightContainer,
   generateFooter,
+  generateNavigation,
+  generateTopNavigation,
   createLayout,
   createResponse,
   generateCompanyProfileModal,
@@ -371,6 +373,61 @@ describe('Utils', () => {
       
       expect(script).toContain('widgetContainer.innerHTML = \'\'');
       expect(script).toContain('Clear existing widget');
+    });
+  });
+
+  describe('Navigation Functions', () => {
+    test('generateTopNavigation should create compact navigation bar', () => {
+      const { generateTopNavigation } = require('../src/utils.js');
+      const nav = generateTopNavigation();
+      
+      expect(nav).toContain('<!-- Top Navigation -->');
+      expect(nav).toContain('container-fluid');
+      expect(nav).toContain('border-bottom');
+      expect(nav).toContain('href="/stonks/prices"');
+      expect(nav).toContain('href="/stonks/ticker"');
+      expect(nav).toContain('href="/stonks/charts"');
+      expect(nav).toContain('href="/stonks/charts/large"');
+      expect(nav).toContain('href="/stonks/charts/advanced"');
+      expect(nav).toContain('href="/stonks/config"');
+      expect(nav).toContain('btn-sm');
+      expect(nav).toContain('📊 Live Prices');
+      expect(nav).toContain('📈 Ticker View');
+      expect(nav).toContain('📉 Grid Charts');
+      expect(nav).toContain('📊 Large Charts');
+      expect(nav).toContain('📈 Advanced Chart');
+      expect(nav).toContain('⚙️ Config');
+    });
+
+    test('generateTopNavigation should support custom prices URL', () => {
+      const { generateTopNavigation } = require('../src/utils.js');
+      const nav = generateTopNavigation('/stonks/prices?currency=SGD');
+      
+      expect(nav).toContain('href="/stonks/prices?currency=SGD"');
+      expect(nav).toContain('📊 Live Prices');
+    });
+
+    test('generateNavigation should create footer-style navigation', () => {
+      const { generateNavigation } = require('../src/utils.js');
+      const nav = generateNavigation();
+      
+      expect(nav).toContain('container mt-4 mb-4');
+      expect(nav).toContain('card bg-dark');
+      expect(nav).toContain('href="/stonks/prices"');
+      expect(nav).toContain('href="/stonks/ticker"');
+      expect(nav).toContain('href="/stonks/charts"');
+      expect(nav).toContain('href="/stonks/charts/large"');
+      expect(nav).toContain('href="/stonks/charts/advanced"');
+      expect(nav).toContain('href="/stonks/config"');
+      expect(nav).toContain('me-2 mb-2');
+      expect(nav).not.toContain('btn-sm'); // Footer uses regular buttons
+    });
+
+    test('generateNavigation should support custom prices URL', () => {
+      const { generateNavigation } = require('../src/utils.js');
+      const nav = generateNavigation('/stonks/prices?mode=rebalance');
+      
+      expect(nav).toContain('href="/stonks/prices?mode=rebalance"');
     });
   });
 });
