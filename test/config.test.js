@@ -4,6 +4,20 @@ import { generateConfigPage, handleConfigSubmission } from '../src/config.js';
 // Mock the dependencies
 vi.mock('../src/utils.js', () => ({
   createLayout: vi.fn((title, content) => `<html><head><title>${title}</title></head><body>${content}</body></html>`),
+  generateTopNavigation: vi.fn((pricesUrl = '/stonks/prices') => `
+    <!-- Top Navigation -->
+    <div class="container-fluid bg-dark border-bottom border-secondary">
+      <div class="container py-2">
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="${pricesUrl}" class="btn btn-outline-success btn-sm">📊 Live Prices</a>
+          <a href="/stonks/ticker" class="btn btn-outline-info btn-sm">📈 Ticker View</a>
+          <a href="/stonks/charts" class="btn btn-outline-info btn-sm">📉 Grid Charts</a>
+          <a href="/stonks/charts/large" class="btn btn-outline-info btn-sm">📊 Large Charts</a>
+          <a href="/stonks/charts/advanced" class="btn btn-outline-info btn-sm">📈 Advanced Chart</a>
+          <a href="/stonks/config" class="btn btn-outline-light btn-sm">⚙️ Config</a>
+        </div>
+      </div>
+    </div>`),
   generateCompanyProfileModal: vi.fn(() => `
     <!-- Company Profile Modal -->
     <div class="modal fade" id="companyProfileModal" tabindex="-1" aria-labelledby="companyProfileModalLabel" aria-hidden="true">
@@ -64,7 +78,7 @@ vi.mock('../src/utils.js', () => ({
 }));
 
 // Import mocked modules for assertions
-import { createLayout } from '../src/utils.js';
+import { createLayout, generateTopNavigation } from '../src/utils.js';
 
 describe('Config', () => {
   let mockDatabaseService;

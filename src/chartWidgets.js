@@ -197,22 +197,22 @@ export function generateAdvancedChartWidget(watchlistSymbols) {
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
       {
       "autosize": true,
-      "symbol": "2*aaau",
+      "symbol": "${watchlistSymbols.split(',')[0].replace(/"/g, '')}",
       "interval": "D",
       "timezone": "Asia/Singapore",
       "theme": "dark",
       "style": "1",
       "locale": "en",
       "withdateranges": true,
-      "hide_side_toolbar": false,
+      "hide_side_toolbar": true,
       "allow_symbol_change": true,
       "details": true,
-      "hotlist": true,
+      "hotlist": false,
       "calendar": false,
       "watchlist": [${watchlistSymbols}],
       "compareSymbols": [
         {
-          "symbol": "SPCFD:SPX",
+          "symbol": "ICMARKETS:US500",
           "position": "SameScale"
         },
         {

@@ -28,7 +28,8 @@ describe('Advanced Chart Page', () => {
       const response = await generateAdvancedChartPage(databaseService);
       const html = await response.text();
 
-      expect(html).toContain('"symbol": "2*aaau"');
+      // Should use the first symbol from the portfolio watchlist (2*BATS:VOO)
+      expect(html).toContain('"symbol": "2*BATS:VOO');
     });
 
     test('should include watchlist with portfolio holdings', async () => {
@@ -45,7 +46,8 @@ describe('Advanced Chart Page', () => {
       const html = await response.text();
 
       expect(html).toContain('"compareSymbols": [');
-      expect(html).toContain('"symbol": "SPCFD:SPX"');
+      // Updated to use ICMARKETS:US500 instead of SPCFD:SPX
+      expect(html).toContain('"symbol": "ICMARKETS:US500"');
       expect(html).toContain('"symbol": "NASDAQ:NDX"');
       expect(html).toContain('"position": "SameScale"');
     });

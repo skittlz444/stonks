@@ -276,7 +276,8 @@ describe('ChartWidgets', () => {
       
       expect(result).toContain('tradingview-widget-container');
       expect(result).toContain('embed-widget-advanced-chart.js');
-      expect(result).toContain('"symbol": "2*aaau"');
+      // Should extract first symbol from watchlist (AMEX:VOO)
+      expect(result).toContain('"symbol": "AMEX:VOO"');
       expect(result).toContain('"watchlist": [');
       expect(result).toContain(watchlistSymbols);
     });
@@ -294,15 +295,18 @@ describe('ChartWidgets', () => {
       const result = generateAdvancedChartWidget('test');
       
       expect(result).toContain('"compareSymbols": [');
-      expect(result).toContain('"symbol": "SPCFD:SPX"');
+      // Updated to use ICMARKETS:US500 instead of SPCFD:SPX
+      expect(result).toContain('"symbol": "ICMARKETS:US500"');
       expect(result).toContain('"symbol": "NASDAQ:NDX"');
       expect(result).toContain('"position": "SameScale"');
     });
 
     test('should set portfolio as default symbol', () => {
-      const result = generateAdvancedChartWidget('test');
+      const watchlistSymbols = '"test"';
+      const result = generateAdvancedChartWidget(watchlistSymbols);
       
-      expect(result).toContain('"symbol": "2*aaau"');
+      // Should extract first symbol from watchlist, removing quotes
+      expect(result).toContain('"symbol": "test"');
     });
 
     test('should include full-screen styling', () => {
