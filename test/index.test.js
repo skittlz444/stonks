@@ -650,22 +650,6 @@ describe('Index Router', () => {
           expect(holding.updated_at).toBeUndefined();
         }
       });
-
-      test('should include no-cache headers in config-data response', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [] }),
-          first: vi.fn().mockResolvedValue(null),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
-        expect(response.headers.get('pragma')).toBe('no-cache');
-        expect(response.headers.get('expires')).toBe('0');
-      });
     });
 
     describe('/stonks/api/prices-data', () => {
@@ -754,33 +738,6 @@ describe('Index Router', () => {
         
         expect(data.currency).toBe('SGD');
         expect(data.fxAvailable).toBe(true);
-      });
-
-      test('should include no-cache headers in prices-data response', async () => {
-        mockEnv.FINNHUB_API_KEY = 'test-key';
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [] }),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
-        expect(response.headers.get('pragma')).toBe('no-cache');
-        expect(response.headers.get('expires')).toBe('0');
-      });
-
-      test('should include no-cache headers in error responses', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.status).toBe(503);
-        expect(response.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
-        expect(response.headers.get('pragma')).toBe('no-cache');
-        expect(response.headers.get('expires')).toBe('0');
       });
     });
 

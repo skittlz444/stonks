@@ -198,23 +198,13 @@ async function handleRequest(request, env) {
             portfolioName,
             totalTargetWeight
           }), {
-            headers: { 
-              'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-              'pragma': 'no-cache',
-              'expires': '0'
-            }
+            headers: { 'content-type': 'application/json' }
           });
         } catch (error) {
           console.error('Error in /api/config-data:', error);
           return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
-            headers: { 
-              'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-              'pragma': 'no-cache',
-              'expires': '0'
-            }
+            headers: { 'content-type': 'application/json' }
           });
         }
       
@@ -223,12 +213,7 @@ async function handleRequest(request, env) {
           if (!finnhubService) {
             return new Response(JSON.stringify({ error: 'Finnhub API key not configured' }), {
               status: 503,
-              headers: { 
-                'content-type': 'application/json',
-                'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-                'pragma': 'no-cache',
-                'expires': '0'
-              }
+              headers: { 'content-type': 'application/json' }
             });
           }
           
@@ -338,23 +323,13 @@ async function handleRequest(request, env) {
             rebalanceMode,
             currency
           }), {
-            headers: { 
-              'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-              'pragma': 'no-cache',
-              'expires': '0'
-            }
+            headers: { 'content-type': 'application/json' }
           });
         } catch (error) {
           console.error('Error in /api/prices-data:', error);
           return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
-            headers: { 
-              'content-type': 'application/json',
-              'cache-control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-              'pragma': 'no-cache',
-              'expires': '0'
-            }
+            headers: { 'content-type': 'application/json' }
           });
         }
       
