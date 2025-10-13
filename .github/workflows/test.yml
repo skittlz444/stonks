@@ -26,20 +26,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Build React components
+        run: npm run build:client
+        
       - name: Run tests
         run: npm run test:coverage
         env:
             FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
 
       - name: Archive coverage artifacts
-        if: matrix.node-version == '20.x'
+        if: matrix.node-version == 22
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
           
       - name: Comment PR with coverage
-        if: github.event_name == 'pull_request' && matrix.node-version == '20.x'
+        if: github.event_name == 'pull_request' && matrix.node-version == 22
         uses: actions/github-script@v6
         with:
           script: |
@@ -61,7 +64,7 @@ jobs:
                 const icon = total.statements.pct >= 95 ? '🏆' : total.statements.pct >= 80 ? '⚠️' : '❌';
                 
                 const coverageComment = `## 📊 Test Coverage Report\n\n${table}\n\n` +
-                  `**Total Tests Passed:** All 187 tests ✅\n\n` +
+                  `**Total Tests Passed:** All tests ✅\n\n` +
                   `${icon} **Overall Coverage: ${total.statements.pct}%**\n\n` +
                   `View detailed coverage report in the artifacts section.`;
                 
