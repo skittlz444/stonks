@@ -14,6 +14,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         prices: path.resolve(__dirname, 'src/client/pages/prices/index.tsx'),
+        config: path.resolve(__dirname, 'src/client/pages/config/index.tsx'),
       },
       output: {
         entryFileNames: '[name].js',

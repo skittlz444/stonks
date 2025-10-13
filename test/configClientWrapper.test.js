@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { generateConfigPageClient } from '../src/configClientWrapper.js';
 
-describe('Config Client Wrapper', () => {
+describe('Config Client Wrapper (React)', () => {
   describe('generateConfigPageClient', () => {
     test('should return a Response object', () => {
       const response = generateConfigPageClient();
@@ -32,96 +32,45 @@ describe('Config Client Wrapper', () => {
       const html = await response.text();
       
       expect(html).toContain('<title>');
-      expect(html).toContain('Config');
+      expect(html).toContain('Portfolio Configuration');
     });
 
-    test('should include loading spinner', async () => {
+    test('should include React root element', async () => {
       const response = generateConfigPageClient();
       const html = await response.text();
       
-      expect(html).toContain('id="loading-state"');
-      expect(html).toContain('Loading');
+      expect(html).toContain('id="root"');
     });
 
-    test('should include error container', async () => {
+    test('should load React config bundle', async () => {
       const response = generateConfigPageClient();
       const html = await response.text();
       
-      expect(html).toContain('id="error-state"');
-      expect(html).toContain('id="error-message"');
+      expect(html).toContain('src="/stonks/dist/config.js"');
+      expect(html).toContain('<script type="module"');
     });
 
-    test('should include main content container', async () => {
+    test('should include company profile modal', async () => {
       const response = generateConfigPageClient();
       const html = await response.text();
       
-      expect(html).toContain('id="main-content"');
+      expect(html).toContain('showCompanyProfile');
+      expect(html).toContain('companyProfileModal');
     });
 
-    test('should load client-side JavaScript module', async () => {
+    test('should include Bootstrap CSS and JS', async () => {
       const response = generateConfigPageClient();
       const html = await response.text();
       
-      expect(html).toContain('<script type="module">');
-      expect(html).toContain('/stonks/client/config.js');
+      expect(html).toContain('bootstrap');
     });
 
-    test('should include navigation links', async () => {
+    test('should have dark theme styling', async () => {
       const response = generateConfigPageClient();
       const html = await response.text();
       
-      expect(html).toContain('/stonks/prices');
-      expect(html).toContain('/stonks/ticker');
-      expect(html).toContain('/stonks/config');
-    });
-
-    test('should include CSS styles', async () => {
-      const response = generateConfigPageClient();
-      const html = await response.text();
-      
-      expect(html).toContain('<style>');
-      expect(html).toContain('</style>');
-    });
-
-    test('should include viewport meta tag', async () => {
-      const response = generateConfigPageClient();
-      const html = await response.text();
-      
-      expect(html).toContain('<meta name="viewport"');
-    });
-
-    test('should include charset meta tag', async () => {
-      const response = generateConfigPageClient();
-      const html = await response.text();
-      
-      expect(html).toContain('charset="UTF-8"');
-    });
-
-    test('should include containers for dynamic content', async () => {
-      const response = generateConfigPageClient();
-      const html = await response.text();
-      
-      expect(html).toContain('id="portfolio_name"');
-      expect(html).toContain('id="visible-holdings-body"');
-      expect(html).toContain('id="transactions-body"');
-    });
-
-    test('should include modal forms', async () => {
-      const response = generateConfigPageClient();
-      const html = await response.text();
-      
-      expect(html).toContain('id="addHoldingModal"');
-      expect(html).toContain('id="editHoldingModal"');
-      expect(html).toContain('id="addTransactionModal"');
-    });
-
-    test('should include form inputs', async () => {
-      const response = generateConfigPageClient();
-      const html = await response.text();
-      
-      expect(html).toContain('id="cash_amount"');
-      expect(html).toContain('id="add_name"');
-      expect(html).toContain('id="add_code"');
+      expect(html).toContain('background-color:#212529');
+      expect(html).toContain('color:#ffffff');
     });
   });
 });
