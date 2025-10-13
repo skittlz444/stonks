@@ -14,6 +14,7 @@ export interface Quote {
   previous_close: number;
   change: number;
   percent_change: number;
+  changePercent: number;  // Alias for percent_change
   high: number;
   low: number;
   open: number;
@@ -23,9 +24,10 @@ export interface Quote {
 export interface HoldingWithQuote extends Holding {
   quote?: Quote;
   error?: string;
-  currentValue?: number;
-  gainLoss?: number;
-  gainLossPercent?: number;
+  marketValue: number;
+  costBasis: number;
+  gain: number;
+  gainPercent: number;
 }
 
 export interface Transaction {
@@ -41,15 +43,18 @@ export interface Transaction {
 }
 
 export interface ClosedPosition {
-  holding_name: string;
-  holding_code: string;
-  total_quantity: number;
-  total_cost: number;
-  total_proceeds: number;
-  realized_gain_loss: number;
-  realized_gain_loss_percent: number;
-  first_transaction_date: string;
-  last_transaction_date: string;
+  name: string;
+  code: string;
+  totalCost: number;
+  totalRevenue: number;
+  profitLoss: number;
+  profitLossPercent: number;
+  transactions: number;
+}
+
+export interface CacheStats {
+  size: number;
+  oldestTimestamp?: number;
 }
 
 export interface PricesData {
@@ -61,6 +66,9 @@ export interface PricesData {
   totalGainLossPercent: number;
   currency: string;
   portfolioName: string;
+  fxAvailable?: boolean;
+  fxRate?: number;
+  cacheStats?: CacheStats;
 }
 
 export interface ConfigData {
