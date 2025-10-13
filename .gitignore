@@ -36,3 +36,10 @@ coverage/
 icons_preview.png
 coverage/coverage-final.json
 coverage/index.html
+
+# Ignore build output
+public/dist/
+dist/
+
+# Ignore TypeScript build info
+*.tsbuildinfo
