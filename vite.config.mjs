@@ -15,6 +15,10 @@ export default defineConfig({
       input: {
         prices: path.resolve(__dirname, 'src/client/pages/prices/index.tsx'),
         config: path.resolve(__dirname, 'src/client/pages/config/index.tsx'),
+        ticker: path.resolve(__dirname, 'src/client/pages/ticker/index.tsx'),
+        chartGrid: path.resolve(__dirname, 'src/client/pages/chartGrid/index.tsx'),
+        chartLarge: path.resolve(__dirname, 'src/client/pages/chartLarge/index.tsx'),
+        chartAdvanced: path.resolve(__dirname, 'src/client/pages/chartAdvanced/index.tsx'),
       },
       output: {
         entryFileNames: '[name].js',

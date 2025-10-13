@@ -1,19 +1,13 @@
-import { generatePageLayout, generateFullHeightContainer, createResponse } from './utils.js';
-import { generateSymbolOverviewWidget } from './chartWidgets.js';
-import { getVisibleStockHoldings, formatStructuredDataForLargeChart } from './dataUtils.js';
+import { createLayout } from './utils.js';
 
 /**
- * Generate the large chart page (originally chart-large.js)
+ * Generate the large chart page with React
  */
 export async function generateLargeChartPage(databaseService) {
-  const holdings = await getVisibleStockHoldings(databaseService);
-  const chartSymbols = formatStructuredDataForLargeChart(holdings);
+  const content = `
+    <div id="root"></div>
+    <script type="module" src="/stonks/dist/chartLarge.js"></script>
+  `;
 
-  // Generate symbol overview widget
-  const symbolOverview = generateSymbolOverviewWidget(chartSymbols);
-  
-  // Wrap in full height container
-  const content = generateFullHeightContainer(symbolOverview);
-  
-  return createResponse(generatePageLayout(content, "background-color:#212529;height:100vh"));
+  return createLayout('Large Chart', content, "background-color:#212529;height:100vh", false);
 }

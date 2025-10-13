@@ -1,25 +1,13 @@
-import { generatePageLayout, generateGridContainer, createResponse } from './utils.js';
-import { generateTickerTapeWidget, generateSingleQuoteWidget } from './chartWidgets.js';
-import { getVisibleStockHoldings, formatStructuredDataForTickerTape } from './dataUtils.js';
+import { createLayout } from './utils.js';
 
 /**
- * Generate the ticker tape page (originally ticker.js)
+ * Generate the ticker tape page with React
  */
 export async function generateTickerPage(databaseService) {
-  const holdings = await getVisibleStockHoldings(databaseService);
-  const tickerSymbols = formatStructuredDataForTickerTape(holdings);
+  const content = `
+    <div id="root"></div>
+    <script type="module" src="/stonks/dist/ticker.js"></script>
+  `;
 
-  // Generate ticker tape widget
-  const tickerTape = generateTickerTapeWidget(tickerSymbols);
-  
-  // Generate individual quote widgets
-  let quoteWidgets = "";
-  for (const holding of holdings) {
-    quoteWidgets += generateSingleQuoteWidget(`"${holding.symbol}"`);
-  }
-  
-  // Combine all content
-  const content = tickerTape + generateGridContainer(quoteWidgets);
-  
-  return createResponse(generatePageLayout(content));
+  return createLayout('Ticker Tape', content, "background-color:#212529", false);
 }
