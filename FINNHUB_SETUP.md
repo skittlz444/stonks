@@ -59,31 +59,45 @@ To reduce API calls and avoid rate limits, quotes are automatically cached for *
 - Cache is automatically invalidated after 1 minute
 - You can manually clear the cache if needed
 
-### Prices Page (`/stonks/prices`)
+### React Prices Page (`/stonks/prices`)
 
-The prices page displays:
+Built with **React and TypeScript**, the prices page displays:
 
-- **Portfolio Summary Cards:**
+- **Portfolio Summary Cards** (`SummaryCards.tsx`):
   - Total Portfolio Value (stocks + cash)
   - Market Value (stocks only)
   - Cash Amount
   - Total Gain/Loss with percentage
+  - Cache timestamp
 
-- **Holdings Table:**
-  - Stock name and symbol
+- **Holdings Table** (`HoldingsTable.tsx`):
+  - Stock name and symbol (clickable for company profile)
   - Quantity held
-  - Current price
-  - Day change (with ▲/▼ indicators)
-  - Total market value
-  - Total gain/loss
+  - Current price with day change (▲/▼ indicators)
+  - Market value and cost basis
+  - Total gain/loss with percentage
+  - Target weight allocation
+  - Sortable columns
+  - Column visibility controls
 
-- **Features:**
-  - Real-time refresh button
-  - Color-coded gains (green) and losses (red)
+- **Additional Features:**
+  - Currency selector (USD, SGD, AUD)
+  - Rebalancing mode with buy/sell recommendations
+  - Closed positions table with profit/loss
+  - Real-time loading states
+  - Error handling with retry
   - Responsive design
-  - Auto-refresh on page load
 
 ## How It Works
+
+### Architecture Flow
+
+1. **React Component** requests data via `usePricesData` hook
+2. **API Endpoint** (`/api/prices-data`) processes the request
+3. **FinnhubService** fetches or returns cached quotes
+4. **Database** provides holdings and transaction data
+5. **API Response** returns enriched data with quotes
+6. **React Components** render the data with full interactivity
 
 ### Symbol Extraction
 
@@ -93,23 +107,25 @@ The system automatically extracts stock symbols from your portfolio holdings:
 - **Extracted:** `VOO` (symbol for Finnhub API)
 - **Works with:** `NASDAQ:AAPL`, `NYSE:JPM`, etc.
 
-### API Response
+### API Response Structure
 
-Finnhub returns the following data:
-- `c` - Current price
-- `h` - High price of the day
-- `l` - Low price of the day
-- `o` - Open price of the day
-- `pc` - Previous close price
-- `t` - Timestamp
+Finnhub returns quote data that is transformed to:
+- `current` - Current price
+- `change` - Price change from previous close
+- `changePercent` - Percentage change
+- `previous_close` - Previous closing price
+- `high`, `low`, `open` - Daily price range
+- `timestamp` - When the quote was fetched
 
 ### Calculated Metrics
 
-The service calculates:
+The server-side service calculates:
 - **Change:** Current price - Previous close
 - **Change %:** (Change / Previous close) × 100
 - **Market Value:** Quantity × Current price
-- **Gain/Loss:** Quantity × (Current price - Average cost)
+- **Cost Basis:** Calculated from transaction history
+- **Gain/Loss:** Market Value - Cost Basis
+- **Gain/Loss %:** (Gain/Loss / Cost Basis) × 100
 
 ## Usage Examples
 
@@ -125,15 +141,33 @@ console.log(`AAPL: $${quote.current}`);
 const finnhubService = createFinnhubService(apiKey, 300000);
 ```
 
-### Getting Portfolio Quotes
+### Getting Portfolio Quotes (Server-Side)
 
 ```javascript
-const holdings = await databaseService.getCurrentHoldings();
+// In Cloudflare Worker API endpoint
+const holdings = await databaseService.getHoldings();
 const enrichedHoldings = await finnhubService.getPortfolioQuotes(holdings);
 
+// Enriched with real-time quotes
 enrichedHoldings.forEach(holding => {
-  console.log(`${holding.name}: $${holding.marketValue}`);
+  console.log(`${holding.name}: $${holding.quote.current}`);
 });
+```
+
+### React Component Usage
+
+```typescript
+// In React component
+import { usePricesData } from '@/hooks/usePricesData';
+
+function PricesPage() {
+  const { data, loading, error } = usePricesData('USD', 'normal');
+  
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  
+  return <HoldingsTable holdings={data.holdings} />;
+}
 ```
 
 ### Cache Management
@@ -158,43 +192,77 @@ finnhubService.clearCache();
 - 30 API calls/second
 
 **With Caching:**
-- The prices page makes one API call per holding on first load
-- Subsequent refreshes within 1 minute use cached data (0 API calls)
-- After 1 minute, the cache expires and new API calls are made
-- Example: 10 stock portfolio = 10 API calls initially, then 0 for the next minute
+- The API endpoint makes one Finnhub call per holding on first request
+- React components fetch from the API endpoint (not directly from Finnhub)
+- Subsequent requests within 1 minute use server-side cached data (0 Finnhub calls)
+- After 1 minute, the cache expires and new Finnhub calls are made
+- Example: 10 stock portfolio = 10 Finnhub calls initially, then 0 for the next minute
+- Multiple users benefit from shared server-side cache
 
 ## Error Handling
 
-The system gracefully handles:
-- Missing API key (shows warning message)
-- API failures (displays error per stock)
-- Network issues (caught and displayed)
-- Invalid symbols (error message in table)
+The React application gracefully handles errors at multiple levels:
+
+**Server-Side (FinnhubService):**
+- Missing API key → Returns 503 Service Unavailable
+- API failures → Catches errors and returns error objects per stock
+- Network issues → Logged and returned in response
+- Invalid symbols → Error message included in holding data
+
+**Client-Side (React Components):**
+- Loading states → `<LoadingSpinner />` during data fetch
+- Error states → `<ErrorMessage />` with retry option
+- Per-holding errors → Displayed inline in table
+- Network failures → User-friendly error messages
 
 ## Testing
 
-Access the prices page at:
-- **Local:** `http://localhost:8787/stonks/prices`
+### Development
+Access the React prices page at:
+- **Local Dev Server:** `http://localhost:8787/stonks/prices`
+- **React Dev Server:** `http://localhost:5173/stonks/prices` (with hot reload)
 - **Production:** `https://your-domain.com/stonks/prices`
+
+### API Endpoints
+Test the API directly:
+- **Prices Data:** `http://localhost:8787/stonks/api/prices-data`
+- **With Currency:** `http://localhost:8787/stonks/api/prices-data?currency=SGD`
+- **Rebalance Mode:** `http://localhost:8787/stonks/api/prices-data?mode=rebalance`
+
+### Test Coverage
+The Finnhub integration has comprehensive test coverage:
+- **finnhubService.test.js:** 19 tests (97.76% coverage)
+- **finnhubService.cache.test.js:** 17 tests (cache functionality)
+- **React Component Tests:** 62 tests for HoldingsTable, 12 for SummaryCards
+
+Run tests with:
+```bash
+npm test
+npm run test:coverage
+```
 
 ## Navigation
 
 The prices page is accessible from:
-- Configuration page (📊 Live Prices button)
-- Direct URL: `/stonks/prices`
+- **Navigation Bar:** Available on all pages
+- **Config Page:** Portfolio management interface
+- **Direct URL:** `/stonks/prices`
 
-And includes links to:
-- Ticker View
-- Grid Charts
-- Large Charts
-- Configuration
+The page includes navigation to:
+- Ticker View (`/stonks/ticker`)
+- Grid Charts (`/stonks/charts`)
+- Large Charts (`/stonks/charts/large`)
+- Advanced Charts (`/stonks/charts/advanced`)
+- Configuration (`/stonks/config`)
 
 ## Security Notes
 
 - ✅ `.env` file is in `.gitignore` (never committed)
 - ✅ API key stored as Cloudflare secret in production
 - ✅ No client-side exposure of API key
-- ✅ Server-side API calls only
+- ✅ All Finnhub API calls made server-side (Cloudflare Worker)
+- ✅ React components receive only processed data (no API key)
+- ✅ API endpoints are public but don't expose sensitive data
 
 ## Troubleshooting
 
@@ -208,11 +276,11 @@ And includes links to:
 
 ### Prices not updating
 
-**Solution:** Prices are cached for 1 minute. If you need fresh data immediately, wait 1 minute or clear the cache programmatically.
+**Solution:** Prices are cached server-side for 1 minute to reduce API calls. The React component will show the cached timestamp. Wait 1 minute for the cache to expire naturally, or refresh the page after the cache period.
 
 ### Slow loading on first request
 
-**Solution:** This is normal for larger portfolios due to sequential API calls. Subsequent requests within 1 minute will be instant (cached).
+**Solution:** This is normal for larger portfolios due to sequential Finnhub API calls. The React component displays a loading spinner during this time. Subsequent requests within 1 minute will be instant (served from cache).
 
 ## Future Enhancements
 

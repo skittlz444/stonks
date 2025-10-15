@@ -15,7 +15,7 @@ The test suite covers the following modules with comprehensive integration and u
 
 ### ✅ Core Modules Tested
 
-1. **src/databaseService.js** - Database abstraction layer (94.69% coverage)
+1. **src/databaseService.js** - Database abstraction layer (89.56% coverage)
    - DatabaseService class with D1 integration
    - MockD1Database for local development
    - MockPreparedStatement with full SQL simulation
@@ -26,82 +26,46 @@ The test suite covers the following modules with comprehensive integration and u
    - Portfolio settings management
    - Error handling and fallback mechanisms
 
-2. **src/utils.js** - HTML generation utilities
-   - Bootstrap layout generation
-   - Page structure utilities
-   - Footer navigation
-   - Response creation helpers
-   - Company profile modal generation
-   - Company profile script generation
+2. **src/client/** - React/TypeScript Client Application (91.89-100% coverage)
+   - **Components**: Comprehensive UI component testing
+     - HoldingsTable with sorting, filtering, rebalancing calculations
+     - ClosedPositionsTable with profit/loss display
+     - Navigation components for prices and common pages
+     - PricesControls for currency and view mode selection
+     - ColumnControls for dynamic column visibility
+     - SummaryCards for portfolio metrics display
+     - Common components (LoadingSpinner, ErrorMessage, CompanyProfileModal)
+   - **Utilities**: Formatting functions, rebalancing algorithms
+   - **Hooks**: Custom React hooks for data fetching and state management
+   - **Context**: ConfigContext for global configuration state
 
-3. **src/dataUtils.js** - Data processing utilities
+3. **src/dataUtils.js** - Data processing utilities (92.44% coverage)
    - Stock holdings data processing
    - TradingView widget data formatting
-   - Legacy format compatibility
    - Structured data optimization
 
-4. **src/chartWidgets.js** - TradingView widget generators
-   - Ticker tape widgets
-   - Chart overview widgets
-   - Symbol display widgets
-   - Market overview components
-   - Company profile widgets
-
-5. **src/index.js** - Main routing and API integration (80.89% coverage)
+4. **src/index.js** - Cloudflare Worker entry point (75.24% coverage)
    - Route handling for all page endpoints (/ticker, /charts, /prices, /config)
    - API endpoints (/api/prices-data, /api/config-data)
-   - Client script serving (/client/prices.js, /client/config.js)
+   - Client script serving (React bundles)
    - Database service initialization
    - Finnhub service integration
    - FX service integration for currency conversion
-   - Parallel database query optimization (Promise.all)
-   - Payload optimization (removing unnecessary fields)
    - Error handling and fallback
    - Request/response processing
 
-6. **src/pricesClientWrapper.js** - Client-side prices page wrapper (100% coverage)
-   - Skeleton HTML generation with loading states
-   - Parameter passing (rebalance mode, currency)
-   - Currency selector UI
-   - Navigation structure
-   - Module script loading
-   - Error state handling
-
-7. **src/configClientWrapper.js** - Client-side config page wrapper (100% coverage)
-   - Skeleton HTML generation with loading states
-   - Form containers (add/edit holdings, transactions)
-   - Modal structure
-   - Navigation elements
-   - Dynamic content containers
-
-8. **src/prices.js** - Live prices page (96.87% coverage - legacy server-side rendering)
-   - Real-time price fetching with Finnhub
-   - Portfolio metrics calculation
-   - Sortable column generation
-   - Column visibility controls
-   - Closed positions display
-   - Company profile modal integration (clickable holding/position names)
-   - Error handling
-
-9. **src/config.js** - Configuration page (100% coverage)
-   - Holdings management interface
-   - Transaction form handling
-   - Visibility toggle functionality
-   - Company profile modal integration (clickable holding names)
-   - Settings updates
-
-10. **src/finnhubService.js** - API integration (97.66% coverage)
+5. **src/finnhubService.js** - API integration (97.76% coverage)
     - Quote fetching with caching
     - Rate limit handling
     - Cache expiration logic (1-minute default)
     - Error handling
 
-11. **src/fxService.js** - Currency conversion service (96.66% coverage)
-    - OpenExchangeRates API integration
-    - Multi-currency support (USD, SGD, AUD)
-    - Caching for exchange rates
-    - Fallback rates when API unavailable
-    - Currency conversion utilities
+6. **src/fxService.js** - Currency conversion service (96.66% coverage)
+   - OpenExchangeRates API integration
+   - Multi-currency support (USD, SGD, AUD)
+   - Caching for exchange rates
+   - Fallback rates when API unavailable
+   - Currency conversion utilities
 
 ## Running Tests
 
@@ -128,51 +92,65 @@ npx vitest --coverage
 
 ## Test Statistics
 
-- **Total Tests**: 437 tests across 17 test files
-- **Passing**: 437 tests ✅ (100%)
-- **Overall Coverage**: 75.84% (95.04% for src/ files)
+- **Total Tests**: 456 tests across 25 test files
+- **Passing**: 456 tests ✅ (100%)
+- **Overall Coverage**: 88.49% (statements)
 - **Coverage Details**: 
-  - Server-side code: 95.04% ✅
-  - Client-side browser JavaScript: 0% (requires browser environment)
+  - Server-side code: 88.64% (src/ directory)
+  - Client-side React/TypeScript code: 91.89-100% (src/client/ directory)
+  - Branch Coverage: 81.65%
+  - Function Coverage: 88.52%
 
 ### Test Files
 
-1. `test/index.test.js` - 52 tests (includes API endpoint tests)
-2. `test/databaseService.test.js` - 56 tests
-3. `test/utils.test.js` - 41 tests (includes 8 tests for company profile modal/script generators)
-4. `test/config.test.js` - 40 tests (includes 5 tests for company profile modal integration)
-5. `test/chartWidgets.test.js` - 35 tests (includes 4 tests for company profile widget)
-6. `test/dataUtils.test.js` - 35 tests
-7. `test/pricesClientWrapper.test.js` - 28 tests (NEW: client wrapper tests)
-8. `test/prices.test.js` - 27 tests (includes 6 tests for company profile modal integration)
-9. `test/finnhubService.test.js` - 19 tests
-10. `test/finnhubService.cache.test.js` - 17 tests
-11. `test/fxService.test.js` - 16 tests
-12. `test/configClientWrapper.test.js` - 15 tests (NEW: client wrapper tests)
-13. `test/ticker.test.js` - 15 tests
-14. `test/chartLarge.test.js` - 13 tests
-15. `test/chartGrid.test.js` - 10 tests
-16. `test/chartAdvanced.test.js` - 10 tests
-17. `test/cache-version.test.js` - 8 tests
+#### Server-Side Tests (JavaScript)
+1. `test/index.test.js` - 35 tests (Cloudflare Worker entry point)
+2. `test/databaseService.test.js` - 56 tests (Database operations)
+3. `test/dataUtils.test.js` - 35 tests (Data processing)
+4. `test/finnhubService.test.js` - 19 tests (Stock price API)
+5. `test/finnhubService.cache.test.js` - 17 tests (Price caching)
+6. `test/fxService.test.js` - 16 tests (Currency conversion)
+7. `test/api.test.js` - 16 tests (API endpoints)
+8. `test/cache-version.test.js` - 8 tests (PWA cache versioning)
+
+#### Client-Side Tests (React/TypeScript)
+9. `test/client/main.test.tsx` - 5 tests
+10. `test/client/context/ConfigContext.test.tsx` - 9 tests
+11. `test/client/utils/formatting.test.ts` - 32 tests
+12. `test/client/utils/rebalancing.test.ts` - 10 tests
+13. `test/client/hooks/useConfigData.test.ts` - 9 tests
+14. `test/client/hooks/useHoldings.test.tsx` - 6 tests
+15. `test/client/hooks/usePricesData.test.ts` - 8 tests
+16. `test/client/components/common/CompanyProfileModal.test.tsx` - 26 tests
+17. `test/client/components/common/ErrorMessage.test.tsx` - 5 tests
+18. `test/client/components/common/LoadingSpinner.test.tsx` - 4 tests
+19. `test/client/components/common/Navigation.test.tsx` - 14 tests
+20. `test/client/components/prices/ClosedPositionsTable.test.tsx` - 18 tests
+21. `test/client/components/prices/ColumnControls.test.tsx` - 9 tests
+22. `test/client/components/prices/HoldingsTable.test.tsx` - 62 tests
+23. `test/client/components/prices/Navigation.test.tsx` - 10 tests
+24. `test/client/components/prices/PricesControls.test.tsx` - 15 tests
+25. `test/client/components/prices/SummaryCards.test.tsx` - 12 tests
 
 ## Coverage Areas
 
-### ✅ Fully Covered (100% coverage)
-
-- **Client Wrappers**: pricesClientWrapper.js, configClientWrapper.js - Skeleton HTML generation
-- **Chart Generation**: chartGrid.js, chartLarge.js, ticker.js, chartAdvanced.js
-- **Widget Generation**: chartWidgets.js - All TradingView widget types
-- **Utilities**: utils.js - HTML generation, Bootstrap integration
-- **Configuration**: config.js - Portfolio settings and transaction management
-
 ### ✅ High Coverage (90%+)
 
-- **Database Operations**: All CRUD operations, transactions, visibility controls (94.69%)
-- **Data Processing**: Stock data formatting, TradingView integration, visible holdings filtering (94.6%)
-- **Finnhub Integration**: Quote fetching, caching, rate limiting (97.66%)
+- **Client Components**: React components with comprehensive UI testing (91.89-100%)
+  - HoldingsTable: 91.72% (62 tests covering sorting, filtering, rebalancing, visibility)
+  - ClosedPositionsTable: 82.38% (18 tests)
+  - Navigation components: 90-100%
+  - Common components: 100% (LoadingSpinner, ErrorMessage, CompanyProfileModal)
+  - PricesControls: 100% (15 tests)
+  - ColumnControls: 100% (9 tests)
+  - SummaryCards: 99.36% (12 tests)
+- **Client Utilities**: Formatting and rebalancing logic (97-100%)
+- **Client Hooks**: Custom React hooks for data fetching (100%)
+- **Client Context**: ConfigContext provider (100%)
+- **Database Operations**: All CRUD operations, transactions, visibility controls (89.56%)
+- **Data Processing**: Stock data formatting, TradingView integration (92.44%)
+- **Finnhub Integration**: Quote fetching, caching, rate limiting (97.76%)
 - **FX Service**: Currency conversion, rate caching, fallback rates (96.66%)
-- **Prices Page**: Real-time pricing, sorting, column controls (96.87%)
-- **Routing**: All route handling, API endpoints, service initialization (80.89%)
 
 ### ✅ Edge Cases Covered
 
@@ -194,15 +172,14 @@ npx vitest --coverage
 
 - End-to-end route testing (pages and APIs)
 - API endpoint data integrity
-- Client-side wrapper generation
+- React component interactions
 - Database service integration
 - Finnhub service integration
 - FX service integration with multi-currency support
-- Page generation workflow (both server-side and client-side)
 - Configuration management
 - Transaction tracking
 - Visibility toggle functionality
-- Client script serving
+- Client-side data fetching
 
 ## Test Configuration
 
@@ -217,12 +194,12 @@ The test setup includes:
 
 - **MockD1Database**: Full SQLite database simulation with transaction support
 - **MockPreparedStatement**: Complete SQL query handling (SELECT, INSERT, UPDATE, DELETE)
-- **Page generators**: Mocked for integration testing  
 - **Finnhub API**: Mocked with configurable responses and error scenarios
+- **OpenExchangeRates API**: Mocked with currency conversion scenarios
 - **Cache testing**: Time-based expiration tests with wait periods
 - **External dependencies**: TradingView widgets mocked
 - **Network requests**: No external network calls in tests (all mocked)
-- **Company Profile Utilities**: Modal and script generators mocked in config tests to match actual output for verification
+- **React Testing Library**: Component rendering with user event simulation
 
 ## Error Logging
 
@@ -242,86 +219,131 @@ Potential areas for additional testing:
 
 ## Running Individual Test Files
 
+### Server-Side Tests
 ```bash
-# Integration and API tests (52 tests - includes API endpoint tests)
+# Cloudflare Worker entry point (35 tests)
 npx vitest test/index.test.js
 
 # Database service tests (56 tests)
 npx vitest test/databaseService.test.js
 
-# Utilities tests (41 tests - includes company profile modal/script generators)
-npx vitest test/utils.test.js
-
-# Config page tests (40 tests - includes company profile modal integration)
-npx vitest test/config.test.js
-
 # Data processing tests (35 tests)
 npx vitest test/dataUtils.test.js
-
-# Widget generation tests (35 tests - includes company profile widget)
-npx vitest test/chartWidgets.test.js
-
-# Prices client wrapper tests (28 tests - NEW)
-npx vitest test/pricesClientWrapper.test.js
-
-# Prices page tests (27 tests - includes company profile modal integration)
-npx vitest test/prices.test.js
 
 # Finnhub service tests (19 tests)
 npx vitest test/finnhubService.test.js
 
-# Finnhub caching tests (17 tests - includes wait times)
+# Finnhub caching tests (17 tests)
 npx vitest test/finnhubService.cache.test.js
 
 # FX service tests (16 tests)
 npx vitest test/fxService.test.js
 
-# Config client wrapper tests (15 tests - NEW)
-npx vitest test/configClientWrapper.test.js
-
-# Chart page tests
-npx vitest test/ticker.test.js        # 15 tests
-npx vitest test/chartLarge.test.js    # 13 tests
-npx vitest test/chartGrid.test.js     # 10 tests
-npx vitest test/chartAdvanced.test.js # 10 tests
+# API endpoint tests (16 tests)
+npx vitest test/api.test.js
 
 # Cache version tests (8 tests)
 npx vitest test/cache-version.test.js
 ```
 
+### Client-Side Tests (React/TypeScript)
+```bash
+# Main entry point (5 tests)
+npx vitest test/client/main.test.tsx
+
+# Context tests (9 tests)
+npx vitest test/client/context/ConfigContext.test.tsx
+
+# Utility tests
+npx vitest test/client/utils/formatting.test.ts    # 32 tests
+npx vitest test/client/utils/rebalancing.test.ts   # 10 tests
+
+# Hook tests
+npx vitest test/client/hooks/useConfigData.test.ts  # 9 tests
+npx vitest test/client/hooks/useHoldings.test.tsx   # 6 tests
+npx vitest test/client/hooks/usePricesData.test.ts  # 8 tests
+
+# Common component tests
+npx vitest test/client/components/common/CompanyProfileModal.test.tsx  # 26 tests
+npx vitest test/client/components/common/ErrorMessage.test.tsx         # 5 tests
+npx vitest test/client/components/common/LoadingSpinner.test.tsx       # 4 tests
+npx vitest test/client/components/common/Navigation.test.tsx           # 14 tests
+
+# Prices component tests
+npx vitest test/client/components/prices/ClosedPositionsTable.test.tsx  # 18 tests
+npx vitest test/client/components/prices/ColumnControls.test.tsx        # 9 tests
+npx vitest test/client/components/prices/HoldingsTable.test.tsx         # 62 tests (most comprehensive)
+npx vitest test/client/components/prices/Navigation.test.tsx            # 10 tests
+npx vitest test/client/components/prices/PricesControls.test.tsx        # 15 tests
+npx vitest test/client/components/prices/SummaryCards.test.tsx          # 12 tests
+```
+
 ## Key Test Features
 
-### API Endpoint Testing (NEW)
+### React Component Testing (NEW)
+- **HoldingsTable** (62 tests - most comprehensive):
+  - Sorting by all columns (name, code, quantity, current price, market value, etc.)
+  - Column visibility toggles
+  - Rebalancing calculations and display
+  - Target weight editing
+  - Visibility toggle with confirmation
+  - Action buttons (edit, hide, show, add transaction)
+  - Currency-aware display
+  - Performance metrics (cost basis, gain/loss)
+  - Loading and error states
+  
+- **PricesControls** (15 tests):
+  - Currency selection (USD, SGD, AUD)
+  - View mode switching (normal, rebalance)
+  - Closed positions toggle
+  - Column controls integration
+  
+- **ClosedPositionsTable** (18 tests):
+  - Profit/loss calculations
+  - Transaction count display
+  - Sorting by multiple columns
+  - Percentage formatting
+  - Empty state handling
+  
+- **SummaryCards** (12 tests):
+  - Total value calculations
+  - Gain/loss metrics
+  - Currency-aware formatting
+  - Percentage display
+  
+- **Common Components**:
+  - CompanyProfileModal with TradingView widget integration (26 tests)
+  - ErrorMessage display (5 tests)
+  - LoadingSpinner states (4 tests)
+  - Navigation components (14 tests)
+
+### React Hook Testing
+- **useHoldings**: Holdings data fetching and state management (6 tests)
+- **usePricesData**: Prices page data with currency support (8 tests)
+- **useConfigData**: Configuration data fetching (9 tests)
+- Custom hook error handling and loading states
+
+### Utility Function Testing
+- **Formatting utilities** (32 tests):
+  - Currency formatting (USD, SGD, AUD)
+  - Number formatting with locale support
+  - Percentage formatting
+  - Value abbreviation (K, M, B)
+  
+- **Rebalancing algorithms** (10 tests):
+  - Target weight calculations
+  - Portfolio rebalancing recommendations
+  - Cash allocation suggestions
+  - Edge case handling
+
+### API Endpoint Testing
 - `/stonks/api/prices-data` endpoint validation
 - `/stonks/api/config-data` endpoint validation
 - JSON response structure verification
 - Query parameter handling (currency, rebalance mode)
 - Error responses (503 for missing API keys, 500 for errors)
-- Payload optimization verification (removing unnecessary fields)
+- Payload optimization verification
 - Parallel database query validation
-- Client script serving (/client/prices.js, /client/config.js)
-
-### Client-Side Wrapper Testing (NEW)
-- Skeleton HTML generation with loading states
-- Parameter passing to client scripts
-- Currency selector UI generation
-- Navigation structure verification
-- Module script loading
-- Error state containers
-- Dynamic content placeholders
-- Modal and form containers
-
-### Company Profile Modal Testing
-- Modal HTML generation with Bootstrap modal-xl class
-- Modal sizing (95vh height for mobile and desktop)
-- Script generation for showCompanyProfile function
-- TradingView widget loading and configuration
-- Clickable holding names in prices page
-- Clickable position names in closed positions
-- Clickable holding names in config page (visible and hidden)
-- Single quote escaping in company names
-- Modal structure (header, body, close button)
-- Widget container height and styling
 
 ### Transaction Testing
 - Buy/sell transaction creation and validation
@@ -349,27 +371,46 @@ npx vitest test/cache-version.test.js
 
 ## Architecture Testing
 
-### Client-Side Rendering
-The application now uses a hybrid architecture for the prices and config pages:
+### React/TypeScript Migration
+The application has been migrated from vanilla JavaScript to React with TypeScript:
 
-1. **Server-Side** (tested at 95%+ coverage):
-   - API endpoints that return JSON data
-   - Client wrappers that generate skeleton HTML
-   - Optimized database queries with Promise.all()
-   - Payload reduction by removing unnecessary fields
+1. **Server-Side** (Cloudflare Worker - 75-97% coverage):
+   - API endpoints returning JSON data
+   - Database service layer
+   - External API integrations (Finnhub, OpenExchangeRates)
+   - Cloudflare Worker routing and middleware
 
-2. **Client-Side** (0% coverage - browser environment required):
-   - `public/client/prices.js` - Dynamic page rendering
-   - `public/client/config.js` - Dynamic page rendering
-   - These are tested indirectly through API endpoint tests
+2. **Client-Side React Application** (91.89-100% coverage):
+   - **Components**: Full React component suite with comprehensive testing
+   - **Hooks**: Custom hooks for data fetching and state management
+   - **Context**: Global configuration state management
+   - **Utilities**: Type-safe formatting and calculation functions
+   - **TypeScript**: Full type coverage with strict mode enabled
 
-### Performance Optimizations Validated
+### Testing Strategy
+- **Unit Tests**: Individual component and utility function testing
+- **Integration Tests**: Component interaction and data flow testing
+- **Hook Tests**: Custom hook behavior and state management
+- **User Interaction Tests**: Click, input, and form submission handling
+- **Error Handling**: Loading states, error states, and fallback UI
 
-1. **Parallel Database Calls**: Tests verify Promise.all() usage
-2. **Payload Reduction**: Tests check removed fields:
-   - Holdings: removed `hidden`, `created_at`, `updated_at`
-   - Quotes: removed `symbol`, `high`, `low`, `open`, `previousClose`, `timestamp`
-3. **Lazy Loading**: Tests verify closed positions only fetched when needed
-4. **Currency Conversion**: Tests verify FX service integration and fallback
+### Technology Stack Testing
 
-The test suite provides confidence in the reliability and maintainability of the Stonks Portfolio application, with comprehensive coverage of all features including transaction tracking, visibility controls, real-time pricing, API-based architecture, and multi-currency support.
+The test suite validates the following technologies:
+- **React 18**: Component lifecycle, hooks, context API
+- **TypeScript**: Type safety, interfaces, enums
+- **Vite**: Build system and module resolution
+- **Vitest**: Test runner with React Testing Library
+- **Cloudflare Workers**: Edge computing runtime
+- **D1 Database**: Serverless SQL database
+
+The test suite provides confidence in the reliability and maintainability of the Stonks Portfolio application, with comprehensive coverage of all features including:
+- ✅ React component rendering and interactions
+- ✅ TypeScript type safety and interfaces
+- ✅ Custom hooks and state management
+- ✅ Currency conversion and formatting
+- ✅ Rebalancing calculations
+- ✅ Transaction tracking and closed positions
+- ✅ API endpoints and data fetching
+- ✅ Error handling and loading states
+- ✅ Multi-currency support (USD, SGD, AUD)

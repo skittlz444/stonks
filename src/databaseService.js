@@ -357,28 +357,33 @@ export class DatabaseService {
 
   /**
    * Get all portfolio holdings with calculated quantities from transactions
+   * OPTIMIZED: Uses SQL JOIN to calculate quantities in a single query instead of N+1 queries
    */
   async getPortfolioHoldings() {
     try {
-      // Get all holdings
-      const holdingsResult = await this.db.prepare(
-        'SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings ORDER BY id'
-      ).all();
+      const result = await this.db.prepare(`
+        SELECT 
+          h.id, 
+          h.name, 
+          h.code, 
+          h.target_weight, 
+          h.hidden,
+          h.created_at,
+          h.updated_at,
+          COALESCE(SUM(
+            CASE 
+              WHEN t.type = 'buy' THEN t.quantity 
+              WHEN t.type = 'sell' THEN -t.quantity 
+              ELSE 0 
+            END
+          ), 0) as quantity
+        FROM portfolio_holdings h
+        LEFT JOIN transactions t ON h.code = t.code
+        GROUP BY h.id, h.name, h.code, h.target_weight, h.hidden, h.created_at, h.updated_at
+        ORDER BY h.id
+      `).all();
       
-      const holdings = holdingsResult.results || [];
-      
-      // Calculate quantity for each holding
-      const holdingsWithQuantity = await Promise.all(
-        holdings.map(async (holding) => {
-          const quantity = await this.calculateCurrentQuantity(holding.code);
-          return {
-            ...holding,
-            quantity
-          };
-        })
-      );
-      
-      return holdingsWithQuantity;
+      return result.results || [];
     } catch (error) {
       console.error('Error fetching portfolio holdings:', error);
       return [];
@@ -387,27 +392,34 @@ export class DatabaseService {
 
   /**
    * Get visible portfolio holdings (hidden = 0) with quantities
+   * OPTIMIZED: Uses SQL JOIN to calculate quantities in a single query instead of N+1 queries
    */
   async getVisiblePortfolioHoldings() {
     try {
-      const holdingsResult = await this.db.prepare(
-        'SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 0 ORDER BY id'
-      ).all();
+      const result = await this.db.prepare(`
+        SELECT 
+          h.id, 
+          h.name, 
+          h.code, 
+          h.target_weight, 
+          h.hidden,
+          h.created_at,
+          h.updated_at,
+          COALESCE(SUM(
+            CASE 
+              WHEN t.type = 'buy' THEN t.quantity 
+              WHEN t.type = 'sell' THEN -t.quantity 
+              ELSE 0 
+            END
+          ), 0) as quantity
+        FROM portfolio_holdings h
+        LEFT JOIN transactions t ON h.code = t.code
+        WHERE h.hidden = 0
+        GROUP BY h.id, h.name, h.code, h.target_weight, h.hidden, h.created_at, h.updated_at
+        ORDER BY h.id
+      `).all();
       
-      const holdings = holdingsResult.results || [];
-      
-      // Calculate quantity for each holding
-      const holdingsWithQuantity = await Promise.all(
-        holdings.map(async (holding) => {
-          const quantity = await this.calculateCurrentQuantity(holding.code);
-          return {
-            ...holding,
-            quantity
-          };
-        })
-      );
-      
-      return holdingsWithQuantity;
+      return result.results || [];
     } catch (error) {
       console.error('Error fetching visible portfolio holdings:', error);
       return [];
@@ -416,27 +428,34 @@ export class DatabaseService {
 
   /**
    * Get hidden portfolio holdings (hidden = 1) with quantities
+   * OPTIMIZED: Uses SQL JOIN to calculate quantities in a single query instead of N+1 queries
    */
   async getHiddenPortfolioHoldings() {
     try {
-      const holdingsResult = await this.db.prepare(
-        'SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 1 ORDER BY id'
-      ).all();
+      const result = await this.db.prepare(`
+        SELECT 
+          h.id, 
+          h.name, 
+          h.code, 
+          h.target_weight, 
+          h.hidden,
+          h.created_at,
+          h.updated_at,
+          COALESCE(SUM(
+            CASE 
+              WHEN t.type = 'buy' THEN t.quantity 
+              WHEN t.type = 'sell' THEN -t.quantity 
+              ELSE 0 
+            END
+          ), 0) as quantity
+        FROM portfolio_holdings h
+        LEFT JOIN transactions t ON h.code = t.code
+        WHERE h.hidden = 1
+        GROUP BY h.id, h.name, h.code, h.target_weight, h.hidden, h.created_at, h.updated_at
+        ORDER BY h.id
+      `).all();
       
-      const holdings = holdingsResult.results || [];
-      
-      // Calculate quantity for each holding
-      const holdingsWithQuantity = await Promise.all(
-        holdings.map(async (holding) => {
-          const quantity = await this.calculateCurrentQuantity(holding.code);
-          return {
-            ...holding,
-            quantity
-          };
-        })
-      );
-      
-      return holdingsWithQuantity;
+      return result.results || [];
     } catch (error) {
       console.error('Error fetching hidden portfolio holdings:', error);
       return [];
@@ -461,62 +480,49 @@ export class DatabaseService {
 
   /**
    * Get closed positions (stocks that were fully sold)
+   * OPTIMIZED: Uses single SQL query with aggregation instead of N+1 queries
    */
   async getClosedPositions() {
     try {
-      // Get all unique codes from transactions
-      const codesResult = await this.db.prepare(
-        'SELECT DISTINCT code FROM transactions ORDER BY code'
-      ).all();
+      // Single query to get all closed positions with aggregated calculations
+      const result = await this.db.prepare(`
+        WITH position_summary AS (
+          SELECT 
+            t.code,
+            SUM(CASE WHEN t.type = 'buy' THEN t.quantity WHEN t.type = 'sell' THEN -t.quantity ELSE 0 END) as current_quantity,
+            SUM(CASE WHEN t.type = 'buy' THEN t.value ELSE 0 END) as total_buy_cost,
+            SUM(CASE WHEN t.type = 'buy' THEN t.fee ELSE 0 END) as total_buy_fees,
+            SUM(CASE WHEN t.type = 'sell' THEN t.value ELSE 0 END) as total_sell_revenue,
+            SUM(CASE WHEN t.type = 'sell' THEN t.fee ELSE 0 END) as total_sell_fees,
+            COUNT(*) as transaction_count
+          FROM transactions t
+          GROUP BY t.code
+          HAVING current_quantity = 0
+        ),
+        holding_names AS (
+          SELECT code, name
+          FROM portfolio_holdings
+          GROUP BY code
+          HAVING MIN(id)
+        )
+        SELECT 
+          ps.code,
+          COALESCE(hn.name, ps.code) as name,
+          ps.total_buy_cost + ps.total_buy_fees as totalCost,
+          ps.total_sell_revenue - ps.total_sell_fees as totalRevenue,
+          (ps.total_sell_revenue - ps.total_sell_fees) - (ps.total_buy_cost + ps.total_buy_fees) as profitLoss,
+          CASE 
+            WHEN (ps.total_buy_cost + ps.total_buy_fees) > 0 
+            THEN (((ps.total_sell_revenue - ps.total_sell_fees) - (ps.total_buy_cost + ps.total_buy_fees)) / (ps.total_buy_cost + ps.total_buy_fees)) * 100 
+            ELSE 0 
+          END as profitLossPercent,
+          ps.transaction_count as transactions
+        FROM position_summary ps
+        LEFT JOIN holding_names hn ON ps.code = hn.code
+        ORDER BY ps.code
+      `).all();
       
-      const codes = codesResult.results || [];
-      const closedPositions = [];
-      
-      for (const { code } of codes) {
-        const transactions = await this.getTransactionsByCode(code);
-        const currentQuantity = await this.calculateCurrentQuantity(code);
-        
-        // Check if position is closed (quantity is 0 and there are transactions)
-        if (currentQuantity === 0 && transactions.length > 0) {
-          // Calculate total buy cost and total sell revenue
-          let totalBuyCost = 0;
-          let totalBuyFees = 0;
-          let totalSellRevenue = 0;
-          let totalSellFees = 0;
-          
-          for (const transaction of transactions) {
-            if (transaction.type === 'buy') {
-              totalBuyCost += parseFloat(transaction.value);
-              totalBuyFees += parseFloat(transaction.fee);
-            } else if (transaction.type === 'sell') {
-              totalSellRevenue += parseFloat(transaction.value);
-              totalSellFees += parseFloat(transaction.fee);
-            }
-          }
-          
-          const totalCost = totalBuyCost + totalBuyFees;
-          const totalRevenue = totalSellRevenue - totalSellFees;
-          const profitLoss = totalRevenue - totalCost;
-          const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
-          
-          // Try to get name from portfolio_holdings
-          const holdingResult = await this.db.prepare(
-            'SELECT name FROM portfolio_holdings WHERE code = ?'
-          ).bind(code).first();
-          
-          closedPositions.push({
-            code,
-            name: holdingResult?.name || code,
-            totalCost,
-            totalRevenue,
-            profitLoss,
-            profitLossPercent,
-            transactions: transactions.length
-          });
-        }
-      }
-      
-      return closedPositions;
+      return result.results || [];
     } catch (error) {
       console.error('Error fetching closed positions:', error);
       return [];
@@ -588,6 +594,40 @@ class MockPreparedStatement {
   }
 
   async all() {
+    // Portfolio holdings queries with JOIN (optimized queries with quantity calculation)
+    if (this.query.includes('LEFT JOIN transactions t ON h.code = t.code') && 
+        this.query.includes('GROUP BY h.id')) {
+      // This is one of the optimized JOIN queries
+      let holdings = this.mockDb.portfolioHoldings;
+      
+      // Check if filtering for visible holdings only
+      if (this.query.includes('WHERE h.hidden = 0')) {
+        holdings = holdings.filter(h => h.hidden === 0);
+      }
+      // Check if filtering for hidden holdings only
+      else if (this.query.includes('WHERE h.hidden = 1')) {
+        holdings = holdings.filter(h => h.hidden === 1);
+      }
+      
+      // Calculate quantities from transactions for each holding
+      const holdingsWithQuantity = holdings.map(holding => {
+        const transactions = this.mockDb.transactions.filter(t => t.code === holding.code);
+        const quantity = transactions.reduce((sum, t) => {
+          return sum + (t.type === 'buy' ? t.quantity : -t.quantity);
+        }, 0);
+        
+        return {
+          ...holding,
+          quantity
+        };
+      });
+      
+      return {
+        results: holdingsWithQuantity,
+        success: true
+      };
+    }
+    
     // Portfolio holdings queries (new structure with hidden column)
     if (this.query.includes('SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings')) {
       // Check if filtering for visible holdings only
@@ -642,6 +682,65 @@ class MockPreparedStatement {
       };
     }
 
+    // Closed positions CTE query
+    if (this.query.includes('WITH position_summary AS') && this.query.includes('holding_names AS')) {
+      // Group transactions by code and calculate aggregates
+      const positionsByCode = {};
+      
+      this.mockDb.transactions.forEach(t => {
+        if (!positionsByCode[t.code]) {
+          positionsByCode[t.code] = {
+            code: t.code,
+            currentQuantity: 0,
+            totalBuyCost: 0,
+            totalBuyFees: 0,
+            totalSellRevenue: 0,
+            totalSellFees: 0,
+            transactionCount: 0
+          };
+        }
+        
+        const pos = positionsByCode[t.code];
+        pos.transactionCount++;
+        
+        if (t.type === 'buy') {
+          pos.currentQuantity += t.quantity;
+          pos.totalBuyCost += t.value;
+          pos.totalBuyFees += t.fee;
+        } else if (t.type === 'sell') {
+          pos.currentQuantity -= t.quantity;
+          pos.totalSellRevenue += t.value;
+          pos.totalSellFees += t.fee;
+        }
+      });
+      
+      // Filter for closed positions only (currentQuantity = 0)
+      const closedPositions = Object.values(positionsByCode)
+        .filter(pos => pos.currentQuantity === 0)
+        .map(pos => {
+          const holding = this.mockDb.portfolioHoldings.find(h => h.code === pos.code);
+          const totalCost = pos.totalBuyCost + pos.totalBuyFees;
+          const totalRevenue = pos.totalSellRevenue - pos.totalSellFees;
+          const profitLoss = totalRevenue - totalCost;
+          const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+          
+          return {
+            code: pos.code,
+            name: holding ? holding.name : pos.code,
+            totalCost,
+            totalRevenue,
+            profitLoss,
+            profitLossPercent,
+            transactions: pos.transactionCount
+          };
+        });
+      
+      return {
+        results: closedPositions,
+        success: true
+      };
+    }
+    
     // Distinct codes from transactions
     if (this.query.includes('SELECT DISTINCT code FROM transactions')) {
       const uniqueCodes = [...new Set(this.mockDb.transactions.map(t => t.code))];

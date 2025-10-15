@@ -6,30 +6,30 @@ A unified Cloudflare Worker that serves multiple stock portfolio visualization a
 
 ```
 ├── src/
-│   ├── index.js                # Main worker with routing logic and API endpoints
-│   ├── ticker.js               # Ticker tape page handler
-│   ├── chartGrid.js            # Chart grid page handler
-│   ├── chartLarge.js           # Large chart page handler
-│   ├── prices.js               # Live prices page (legacy server-side rendering)
-│   ├── pricesClientWrapper.js  # Client-side prices page wrapper
-│   ├── config.js               # Portfolio configuration page
-│   ├── configClientWrapper.js  # Client-side config page wrapper
+│   ├── index.js                # Cloudflare Worker entry point with routing
 │   ├── databaseService.js      # D1 database abstraction layer
 │   ├── finnhubService.js       # Finnhub API integration with caching
 │   ├── fxService.js            # Currency conversion service (OpenExchangeRates)
-│   ├── utils.js                # Shared HTML utilities and layout functions
-│   ├── chartWidgets.js         # TradingView widget generation functions
-│   └── dataUtils.js            # Data processing and formatting utilities
+│   ├── dataUtils.js            # Data processing and formatting utilities
+│   └── client/                 # React/TypeScript client-side code
+│       ├── components/         # React components (common, prices, charts)
+│       ├── hooks/              # Custom React hooks for data fetching
+│       ├── pages/              # Page components (6 pages)
+│       ├── utils/              # Utilities (formatting, rebalancing)
+│       └── types/              # TypeScript type definitions
 ├── public/
-│   ├── client/
-│   │   ├── prices.js           # Client-side prices page JavaScript
-│   │   └── config.js           # Client-side config page JavaScript
+│   ├── dist/                   # Built React bundles (6 pages)
 │   ├── icons/                  # PWA icons
 │   ├── manifest.json           # PWA manifest
 │   └── sw.js                   # Service Worker for PWA
 ├── migrations/                 # D1 database migrations
-├── test/                       # Comprehensive test suite (437 tests)
+├── test/                       # Comprehensive test suite (456 tests)
+│   ├── client/                 # React component tests (TypeScript)
+│   └── *.test.js               # Server-side tests
 ├── scripts/                    # Build scripts for cache versioning
+├── tsconfig.json               # TypeScript configuration
+├── vite.config.mjs             # Vite build configuration
+├── vitest.config.ts            # Test configuration
 ├── package.json                # Node.js dependencies
 └── wrangler.toml               # Cloudflare Worker configuration
 ```
@@ -50,15 +50,20 @@ The worker serves the following routes:
 ### API Routes (Client-Side Data)
 - `/stonks/api/prices-data` - JSON endpoint for prices page data
 - `/stonks/api/config-data` - JSON endpoint for config page data
-- `/stonks/client/prices.js` - Client-side prices page JavaScript module
-- `/stonks/client/config.js` - Client-side config page JavaScript module
+- `/stonks/dist/prices.js` - Prices page React bundle
+- `/stonks/dist/config.js` - Config page React bundle
+- `/stonks/dist/ticker.js` - Ticker page React bundle
+- `/stonks/dist/chartGrid.js` - Chart grid page React bundle
+- `/stonks/dist/chartLarge.js` - Large chart page React bundle
+- `/stonks/dist/chartAdvanced.js` - Advanced chart page React bundle
 
 ### Architecture
-The prices and config pages now use a **client-side rendering architecture**:
-1. Server generates skeleton HTML with loading states
-2. Client JavaScript fetches data from API endpoints
-3. Dynamic rendering happens in the browser
-4. Optimized for performance with parallel database queries and reduced payload sizes
+The application uses a **modern React/TypeScript architecture**:
+1. **Cloudflare Worker**: Serves minimal HTML shell and handles API endpoints
+2. **React Bundles**: Built with Vite and loaded on-demand (code splitting)
+3. **Client-Side Rendering**: React components fetch data from API endpoints
+4. **TypeScript**: Full type safety across client and test code
+5. **Performance**: Optimized with parallel database queries and intelligent caching
 
 ## Setup and Deployment
 
@@ -90,8 +95,20 @@ The prices and config pages now use a **client-side rendering architecture**:
 # Install dependencies
 npm install
 
-# Start development server
+# Build React components
+npm run build:client
+
+# Start development server (Cloudflare Worker)
 npm run dev
+
+# Or run React dev server (hot reload)
+npm run dev:client
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
 ```
 
 ### Deployment
@@ -104,10 +121,15 @@ npm run deploy
 ## Features
 
 ### Modern Architecture ⚡
-- **Client-Side Rendering**: Prices and config pages use API-based architecture
+- **React/TypeScript Stack**: All 6 pages built with React 19 and TypeScript 5.9
+- **Type Safety**: Full TypeScript coverage catching errors at compile time
+- **Component-Based**: Reusable React components with clear boundaries
+- **Client-Side Rendering**: Pages use React + API-based architecture
 - **Optimized Performance**: Parallel database queries with Promise.all()
-- **Reduced Payloads**: 20-30% smaller responses by removing unnecessary fields
-- **Fast Loading**: Skeleton screens with smooth transitions
+- **Code Splitting**: Automatic shared chunk extraction for optimal loading
+- **Small Bundles**: ~71 kB gzipped total for all 6 pages
+- **Fast Builds**: ~1 second builds with Vite
+- **Fast Loading**: React with loading states and error handling
 - **Real-time Updates**: 1-minute cache for stock quotes
 
 ### Transaction-Based Portfolio Management
@@ -191,45 +213,79 @@ Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️
 
 ## Testing
 
-Comprehensive test suite with 437 tests and 75.84% overall coverage (95.04% for server-side code):
-- 56 tests for database operations
-- 52 tests for routing and API endpoints
-- 40 tests for config page
-- 35 tests for data utilities
-- 28 tests for prices client wrapper
-- 27 tests for prices page
-- Plus integration, caching, and error handling tests
+Comprehensive test suite with **456 tests** achieving **88.49% code coverage**:
 
-See [TESTING.md](TESTING.md) for detailed testing documentation.
+**Test Coverage**:
+- **Server-Side** (88.64%): Database, API endpoints, routing, external services
+- **React Components** (91.89-100%): All UI components with user interactions
+- **Utilities** (98.13%): Formatting and rebalancing algorithms
+- **Hooks & Context** (100%): Custom React hooks and state management
+
+**Key Test Suites**:
+- 62 tests for HoldingsTable (sorting, filtering, rebalancing)
+- 56 tests for database operations (CRUD, transactions)
+- 35 tests for Cloudflare Worker (routing, API endpoints)
+- 32 tests for formatting utilities (currency, percentages)
+- 26 tests for CompanyProfileModal (TradingView integration)
+- 18 tests for ClosedPositionsTable (profit/loss calculations)
+
+**Technology**:
+- Vitest with React Testing Library
+- jsdom for browser simulation
+- v8 for coverage analysis
+
+See [TESTING.md](TESTING.md) for detailed documentation.
 
 ## Progressive Web App (PWA)
 
-This application is a fully functional Progressive Web App that can be installed on mobile and desktop devices. Features include:
+This application is a fully functional Progressive Web App that can be installed on mobile and desktop devices.
+
+### Features
 - **Offline Support**: Works without internet connection using cached content
 - **Install to Home Screen**: Add to mobile home screen or desktop
 - **Automatic Updates**: Cache versioning ensures users get latest version
 - **Native Experience**: Runs in standalone mode without browser chrome
 
+### Development & Deployment
+
+```bash
+# Start dev server (resets service worker cache)
+npm run dev
+
+# Deploy with versioned cache
+npm run deploy
+```
+
+### Installing the PWA
+
+**Desktop (Chrome/Edge)**:
+1. Open the app in browser
+2. Look for install button in address bar (⊕)
+3. Click "Install Stonks"
+4. App opens in standalone window
+
+**Mobile**:
+1. Open app in mobile browser
+2. Tap menu (⋮) or share button
+3. Select "Add to Home Screen"
+4. Tap the new home screen icon
+
+### Testing Offline Mode
+1. Install the app
+2. Open DevTools > Application > Service Workers
+3. Check "Offline" checkbox
+4. Navigate around - app still works!
+
 **Documentation:**
-- [PWA Quick Start Guide](PWA_QUICKSTART.md) - Get started with PWA features
 - [PWA README](PWA_README.md) - Complete PWA architecture and implementation details
-- [PWA Implementation Summary](PWA_IMPLEMENTATION_SUMMARY.md) - Overview of PWA features
+- [public/icons/README.md](public/icons/README.md) - PWA icon specifications
 
 ## Additional Documentation
 
 - **[API_ARCHITECTURE.md](API_ARCHITECTURE.md)** - Client-side rendering architecture and API endpoints
 - **[D1_SETUP.md](D1_SETUP.md)** - Database setup and migration instructions
 - **[FINNHUB_SETUP.md](FINNHUB_SETUP.md)** - API key configuration for live price data
-- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports (437 tests)
+- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports (456 tests, 88.49% coverage)
 - **[CACHING.md](CACHING.md)** - Caching architecture and strategy (Finnhub + FX)
-- **[TEST_COVERAGE_SUMMARY.md](TEST_COVERAGE_SUMMARY.md)** - Detailed test coverage report
+- **[PWA_README.md](PWA_README.md)** - Progressive Web App architecture and implementation
 - **[public/icons/README.md](public/icons/README.md)** - PWA icon specifications
-
-## Migration from Separate Workers
-
-This project consolidates three separate Cloudflare Workers:
-- `ticker.js` → `/stonks/ticker`
-- `chart-grid.js` → `/stonks/charts`  
-- `chart-large.js` → `/stonks/charts/large`
-
-All original functionality is preserved, with significant enhancements including transaction tracking, real-time pricing, and portfolio management features.

@@ -63,6 +63,24 @@ Initial transactions are created with current quantities (value and fee set to 0
 
 For local development, the application uses a MockD1Database that simulates the D1 database with the same data structure. No additional setup is required for local testing.
 
+## Architecture Integration
+
+The D1 database integrates with the React application through the Cloudflare Worker:
+
+1. **Cloudflare Worker** (`src/index.js`) initializes DatabaseService
+2. **API Endpoints** (`/api/prices-data`, `/api/config-data`) query the database
+3. **React Components** fetch data from API endpoints and render the UI
+4. **User Actions** (add/edit/delete) trigger API calls that modify the database
+
+**Data Flow:**
+```
+React Component → API Endpoint → DatabaseService → D1 Database
+                                      ↓
+                                 Returns JSON
+                                      ↓
+React Component ← Parse & Display ← API Response
+```
+
 ## Database Operations
 
 The `DatabaseService` class provides comprehensive methods for portfolio management:
@@ -90,8 +108,8 @@ The `DatabaseService` class provides comprehensive methods for portfolio managem
 - `getPortfolioName()` - Get portfolio display name
 - `updatePortfolioName(name)` - Update portfolio name
 
-### Legacy Compatibility
-- `getCurrentHoldings()` - Get holdings in KV-compatible format for backward compatibility
+### Data Format Compatibility
+- `getCurrentHoldings()` - Get holdings in simplified format for TradingView widgets and chart pages
 
 ## Migrations
 
