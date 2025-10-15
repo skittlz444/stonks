@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCurrency, getCurrencySymbol } from '../../utils/formatting';
+import { formatCurrencyWithCode, getCurrencySymbol } from '../../utils/formatting';
 import { RebalanceData } from '../../types';
 
 interface SummaryCardsProps {
@@ -18,6 +18,7 @@ interface SummaryCardsProps {
   convert: (amount: number) => number;
   convertToAlt?: (amount: number) => number;
   currency: string;
+  isRefreshing?: boolean;
 }
 
 export const SummaryCards: React.FC<SummaryCardsProps> = ({
@@ -36,7 +37,17 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
   convert,
   convertToAlt,
   currency,
+  isRefreshing = false,
 }) => {
+  // Blur style for values during refresh
+  const valueStyle = {
+    filter: isRefreshing ? 'blur(3px)' : 'none',
+    transition: 'filter 0.2s ease-in-out',
+  };
+  // Helper function to format currency - only show USD code when NOT viewing USD prices
+  const formatCurrency = (amount: number, decimals: number = 2) => {
+    return formatCurrencyWithCode(amount, decimals, currency, currency !== 'USD');
+  };
   const newTotalMarketValue = rebalanceMode && rebalancingData
     ? rebalancingData.recommendations.reduce((sum, rec) => sum + rec.targetValue, 0)
     : totalMarketValue;
@@ -50,7 +61,9 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
       }, 0)
     : 0;
 
-  const altCurrencySymbol = altCurrency ? getCurrencySymbol(altCurrency) : '';
+  // When viewing non-USD currency, alt shows USD with "USD $" prefix
+  // When viewing USD, alt shows SGD with "S$" prefix
+  const altCurrencySymbol = altCurrency === 'USD' ? 'USD $' : getCurrencySymbol(altCurrency || '');
 
   return (
     <div className="row g-3 mb-4" id="summary-cards">
@@ -59,10 +72,10 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
         <div className="card bg-primary text-white h-100">
           <div className="card-body" style={{ minHeight: '100px' }}>
             <h6 className="card-subtitle mb-2">Portfolio Value</h6>
-            <h3 className="card-title mb-0">{formatCurrency(convert(portfolioTotal))}</h3>
+            <h3 className="card-title mb-0" style={valueStyle}>{formatCurrency(convert(portfolioTotal))}</h3>
             {fxAvailable && altCurrency && convertToAlt && (
-              <small className="opacity-75">
-                {altCurrencySymbol}{formatCurrency(convertToAlt(portfolioTotal))}
+              <small className="opacity-75" style={valueStyle}>
+                {altCurrencySymbol}{convertToAlt(portfolioTotal).toFixed(2)}
               </small>
             )}
             {!fxAvailable && (
@@ -80,7 +93,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           <div className="card-body" style={{ minHeight: '100px' }}>
             <h6 className="card-subtitle mb-2 text-muted">Market Value</h6>
             {rebalanceMode && Math.abs(newTotalMarketValue - totalMarketValue) > 0.01 ? (
-              <>
+              <div style={valueStyle}>
                 <div style={{ textDecoration: 'line-through', fontSize: '0.9rem', opacity: 0.6 }}>
                   {formatCurrency(convert(totalMarketValue))}
                 </div>
@@ -89,16 +102,16 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
                   ({newTotalMarketValue - totalMarketValue >= 0 ? '+' : '-'}
                   {formatCurrency(Math.abs(convert(newTotalMarketValue - totalMarketValue)))})
                 </small>
-              </>
+              </div>
             ) : (
-              <>
+              <div style={valueStyle}>
                 <h3 className="card-title mb-0">
                   {formatCurrency(convert(rebalanceMode ? newTotalMarketValue : totalMarketValue))}
                 </h3>
                 {fxAvailable && altCurrency && convertToAlt && (
                   <small className="text-muted">
                     {altCurrencySymbol}
-                    {formatCurrency(convertToAlt(rebalanceMode ? newTotalMarketValue : totalMarketValue))}
+                    {convertToAlt(rebalanceMode ? newTotalMarketValue : totalMarketValue).toFixed(2)}
                   </small>
                 )}
                 {!fxAvailable && (
@@ -106,7 +119,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
                     Multi-currency disabled
                   </small>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -118,7 +131,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           <div className="card-body" style={{ minHeight: '100px' }}>
             <h6 className="card-subtitle mb-2 text-muted">Cash</h6>
             {rebalanceMode && rebalancingData && Math.abs(rebalancingData.cashChange) > 0.01 ? (
-              <>
+              <div style={valueStyle}>
                 <div style={{ textDecoration: 'line-through', fontSize: '0.9rem', opacity: 0.6 }}>
                   {formatCurrency(convert(cashAmount))}
                 </div>
@@ -127,9 +140,9 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
                   ({rebalancingData.cashChange >= 0 ? '+' : '-'}
                   {formatCurrency(Math.abs(convert(rebalancingData.cashChange)))})
                 </small>
-              </>
+              </div>
             ) : (
-              <h3 className="card-title mb-0">
+              <h3 className="card-title mb-0" style={valueStyle}>
                 {formatCurrency(convert(rebalanceMode && rebalancingData ? rebalancingData.newCash : cashAmount))}
               </h3>
             )}
@@ -143,8 +156,10 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           <div className={`card ${totalChangeValue >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100`}>
             <div className="card-body" style={{ minHeight: '100px' }}>
               <h6 className="card-subtitle mb-2">Day Change</h6>
-              <h3 className="card-title mb-0">{formatCurrency(convert(totalChangeValue))}</h3>
-              <small>{totalChangePercent.toFixed(2)}%</small>
+              <div style={valueStyle}>
+                <h3 className="card-title mb-0">{formatCurrency(convert(totalChangeValue))}</h3>
+                <small>{totalChangePercent.toFixed(2)}%</small>
+              </div>
             </div>
           </div>
         </div>
@@ -156,38 +171,42 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           <div className={`card ${totalGain >= 0 ? 'bg-success' : 'bg-danger'} text-white h-100`}>
             <div className="card-body" style={{ minHeight: '100px' }}>
               <h6 className="card-subtitle mb-2">Total Gain/Loss</h6>
-              <h3 className="card-title mb-0">{formatCurrency(convert(totalGain))}</h3>
-              <small>{totalGainPercent.toFixed(2)}%</small>
+              <div style={valueStyle}>
+                <h3 className="card-title mb-0">{formatCurrency(convert(totalGain))}</h3>
+                <small>{totalGainPercent.toFixed(2)}%</small>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Weight Deviation Card (only in normal mode) */}
-      {!rebalanceMode && (
-        <div className="col-6 col-md-2">
-          <div className="card bg-warning text-dark h-100">
-            <div className="card-body" style={{ minHeight: '100px' }}>
-              <h6 className="card-subtitle mb-2">Weight Deviation</h6>
-              <h3 className="card-title mb-0">{totalWeightDeviation.toFixed(1)}%</h3>
-              <small>From targets</small>
-            </div>
+      {/* Weight Deviation Card */}
+      <div className="col-6 col-md-2">
+        <div className={`card ${(rebalanceMode ? newTotalWeightDeviation : totalWeightDeviation) > 10 ? 'bg-warning' : 'bg-info'} text-white h-100`}>
+          <div className="card-body" style={{ minHeight: '100px' }}>
+            <h6 className="card-subtitle mb-2">Weight Dev.</h6>
+            {rebalanceMode && Math.abs(newTotalWeightDeviation - totalWeightDeviation) > 0.01 ? (
+              <div style={valueStyle}>
+                <div style={{ textDecoration: 'line-through', fontSize: '0.9rem', opacity: 0.6 }}>
+                  {totalWeightDeviation.toFixed(2)}%
+                </div>
+                <h3 className="card-title mb-0">{newTotalWeightDeviation.toFixed(2)}%</h3>
+                <small>
+                  ({(newTotalWeightDeviation - totalWeightDeviation >= 0 ? '+' : '')}
+                  {(newTotalWeightDeviation - totalWeightDeviation).toFixed(2)}%)
+                </small>
+              </div>
+            ) : (
+              <div style={valueStyle}>
+                <h3 className="card-title mb-0">
+                  {rebalanceMode ? newTotalWeightDeviation.toFixed(2) : totalWeightDeviation.toFixed(2)}%
+                </h3>
+                <small>Abs. differences</small>
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* Rebalance Weight Deviation Card (only in rebalance mode) */}
-      {rebalanceMode && rebalancingData && (
-        <div className="col-6 col-md-2">
-          <div className="card bg-warning text-dark h-100">
-            <div className="card-body" style={{ minHeight: '100px' }}>
-              <h6 className="card-subtitle mb-2">New Weight Deviation</h6>
-              <h3 className="card-title mb-0">{newTotalWeightDeviation.toFixed(1)}%</h3>
-              <small>After rebalancing</small>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

@@ -1,20 +1,30 @@
 import React, { useState, useMemo } from 'react';
 import { ClosedPosition, SortDirection } from '../../types';
-import { formatCurrency } from '../../utils/formatting';
+import { formatCurrencyWithCode } from '../../utils/formatting';
 
 interface ClosedPositionsTableProps {
   closedPositions: ClosedPosition[];
   convert: (amount: number) => number;
   currency: string;
+  isRefreshing?: boolean;
 }
 
 export const ClosedPositionsTable: React.FC<ClosedPositionsTableProps> = ({
   closedPositions,
   convert,
   currency,
+  isRefreshing = false,
 }) => {
   const [sortColumn, setSortColumn] = useState<number>(-1);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  
+  // Helper function to format currency - only show USD code when NOT viewing USD prices
+  const formatCurrency = (amount: number, decimals: number = 2) => {
+    return formatCurrencyWithCode(amount, decimals, currency, currency !== 'USD');
+  };
+
+  // Style for blurring values during refresh
+  const valueBlurClass = isRefreshing ? 'value-blur' : '';
 
   const handleSort = (column: number) => {
     if (sortColumn === column) {
@@ -85,14 +95,15 @@ export const ClosedPositionsTable: React.FC<ClosedPositionsTableProps> = ({
     }
   };
 
-  const renderSortableHeader = (label: string, column: number, className = '') => (
+  const renderSortableHeader = (label: string, column: number, dataType: string, className = '') => (
     <th
       className={`sortable-closed ${className} ${sortColumn === column ? 'active' : ''}`}
+      data-column={column}
+      data-type={dataType}
       onClick={() => handleSort(column)}
       style={{ cursor: 'pointer', userSelect: 'none' }}
     >
-      {label}{' '}
-      <span className={`sort-indicator ${sortColumn === column ? sortDirection : ''}`}></span>
+      {label} <span className={`sort-indicator ${sortColumn === column ? sortDirection : ''}`}></span>
     </th>
   );
 
@@ -129,16 +140,16 @@ export const ClosedPositionsTable: React.FC<ClosedPositionsTableProps> = ({
               <table id="closedPositionsTable" className="table table-striped mb-0">
                 <thead>
                   <tr>
-                    {renderSortableHeader('Name', 0)}
-                    {renderSortableHeader('Symbol', 1)}
-                    {renderSortableHeader('Total Cost', 2, 'text-end')}
-                    {renderSortableHeader('Total Revenue', 3, 'text-end')}
-                    {renderSortableHeader('Profit/Loss $', 4, 'text-end')}
-                    {renderSortableHeader('Profit/Loss %', 5, 'text-end')}
-                    {renderSortableHeader('Transactions', 6, 'text-end')}
+                    {renderSortableHeader('Name', 0, 'text')}
+                    {renderSortableHeader('Symbol', 1, 'text')}
+                    {renderSortableHeader('Total Cost', 2, 'number', 'text-end')}
+                    {renderSortableHeader('Total Revenue', 3, 'number', 'text-end')}
+                    {renderSortableHeader('Profit/Loss $', 4, 'number', 'text-end')}
+                    {renderSortableHeader('Profit/Loss %', 5, 'number', 'text-end')}
+                    {renderSortableHeader('Transactions', 6, 'number', 'text-end')}
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className={valueBlurClass}>
                   {sortedPositions.map((position, idx) => {
                     const profitClass = position.profitLoss >= 0 ? 'text-success' : 'text-danger';
                     const stockCode = position.code.includes(':') 
@@ -147,7 +158,7 @@ export const ClosedPositionsTable: React.FC<ClosedPositionsTableProps> = ({
 
                     return (
                       <tr key={idx} data-closed="true">
-                        <td>
+                        <td data-value={position.name}>
                           <strong>
                             <a
                               href="#"
@@ -161,16 +172,16 @@ export const ClosedPositionsTable: React.FC<ClosedPositionsTableProps> = ({
                             </a>
                           </strong>
                         </td>
-                        <td><code>{stockCode}</code></td>
-                        <td className="text-end">{formatCurrency(convert(position.totalCost))}</td>
-                        <td className="text-end">{formatCurrency(convert(position.totalRevenue))}</td>
-                        <td className={`text-end ${profitClass}`}>
+                        <td data-value={stockCode}><code>{stockCode}</code></td>
+                        <td className="text-end" data-value={position.totalCost}>{formatCurrency(convert(position.totalCost))}</td>
+                        <td className="text-end" data-value={position.totalRevenue}>{formatCurrency(convert(position.totalRevenue))}</td>
+                        <td className={`text-end ${profitClass}`} data-value={position.profitLoss}>
                           {formatCurrency(convert(position.profitLoss))}
                         </td>
-                        <td className={`text-end ${profitClass}`}>
+                        <td className={`text-end ${profitClass}`} data-value={position.profitLossPercent}>
                           {position.profitLossPercent.toFixed(2)}%
                         </td>
-                        <td className="text-end">
+                        <td className="text-end" data-value={position.transactions}>
                           <small className="text-muted">{position.transactions} txns</small>
                         </td>
                       </tr>

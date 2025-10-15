@@ -71,7 +71,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Navigation Links */}
           <a href="/stonks/ticker" className="btn btn-sm btn-outline-light me-2">Ticker</a>
-          <a href="/stonks/charts" className="btn btn-sm btn-outline-light me-2">Charts</a>
+          <a href="/stonks/charts" className="btn btn-sm btn-outline-light me-2">Grid</a>
+          <a href="/stonks/charts/large" className="btn btn-sm btn-outline-light me-2">Large</a>
+          <a href="/stonks/charts/advanced" className="btn btn-sm btn-outline-light me-2">Advanced</a>
           <a href="/stonks/config" className="btn btn-sm btn-outline-light">Config</a>
         </div>
       </div>

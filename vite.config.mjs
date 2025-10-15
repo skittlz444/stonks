@@ -12,18 +12,11 @@ export default defineConfig({
     outDir: 'public/dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: {
-        prices: path.resolve(__dirname, 'src/client/pages/prices/index.tsx'),
-        config: path.resolve(__dirname, 'src/client/pages/config/index.tsx'),
-        ticker: path.resolve(__dirname, 'src/client/pages/ticker/index.tsx'),
-        chartGrid: path.resolve(__dirname, 'src/client/pages/chartGrid/index.tsx'),
-        chartLarge: path.resolve(__dirname, 'src/client/pages/chartLarge/index.tsx'),
-        chartAdvanced: path.resolve(__dirname, 'src/client/pages/chartAdvanced/index.tsx'),
-      },
       output: {
-        entryFileNames: '[name].js',
-        chunkFileNames: 'chunks/[name].js',
-        assetFileNames: '[name].[ext]'
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        format: 'es'
       }
     }
   },
@@ -31,5 +24,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src/client')
     }
-  }
+  },
+  base: '/stonks/'
 });

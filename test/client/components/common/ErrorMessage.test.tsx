@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ErrorMessage } from '@/components/common/ErrorMessage';
+import { ErrorMessage } from '../../../../src/client/components/common/ErrorMessage';
 
 describe('ErrorMessage', () => {
   test('should render error message', () => {

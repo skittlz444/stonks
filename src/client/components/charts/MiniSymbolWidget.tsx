@@ -23,7 +23,6 @@ export const MiniSymbolWidget: React.FC<MiniSymbolWidgetProps> = ({ symbol }) =>
       <TradingViewWidget
         script="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js"
         config={config}
-        style={{ height: '25vh' }}
       />
     </div>
   );

@@ -1,31 +1,77 @@
 import { describe, test, expect } from 'vitest';
-import { formatCurrency, formatPercent, formatNumber, getCurrencySymbol } from '@/utils/formatting';
+import { formatCurrency, formatCurrencyWithCode, formatPercent, formatNumber, getCurrencySymbol } from '../../../src/client/utils/formatting';
 
 describe('formatting utilities', () => {
   describe('formatCurrency', () => {
     test('should format positive numbers with 2 decimals by default', () => {
-      expect(formatCurrency(1234.56)).toBe('1234.56');
+      expect(formatCurrency(1234.56)).toBe('$1234.56');
     });
 
     test('should format negative numbers', () => {
-      expect(formatCurrency(-1234.56)).toBe('-1234.56');
+      expect(formatCurrency(-1234.56)).toBe('$-1234.56');
     });
 
     test('should format zero', () => {
-      expect(formatCurrency(0)).toBe('0.00');
+      expect(formatCurrency(0)).toBe('$0.00');
     });
 
     test('should respect custom decimal places', () => {
-      expect(formatCurrency(1234.567, 3)).toBe('1234.567');
-      expect(formatCurrency(1234.5, 0)).toBe('1235');
+      expect(formatCurrency(1234.567, 3)).toBe('$1234.567');
+      expect(formatCurrency(1234.5, 0)).toBe('$1235');
     });
 
     test('should handle very large numbers', () => {
-      expect(formatCurrency(1234567.89)).toBe('1234567.89');
+      expect(formatCurrency(1234567.89)).toBe('$1234567.89');
     });
 
     test('should handle very small numbers', () => {
-      expect(formatCurrency(0.01)).toBe('0.01');
+      expect(formatCurrency(0.01)).toBe('$0.01');
+    });
+
+    test('should format SGD currency', () => {
+      expect(formatCurrency(1234.56, 2, 'SGD')).toBe('S$1234.56');
+    });
+
+    test('should format USD currency explicitly', () => {
+      expect(formatCurrency(1234.56, 2, 'USD')).toBe('$1234.56');
+    });
+
+    test('should format AUD currency', () => {
+      expect(formatCurrency(1234.56, 2, 'AUD')).toBe('A$1234.56');
+    });
+
+    test('should default to $ for unknown currencies', () => {
+      expect(formatCurrency(1234.56, 2, 'EUR')).toBe('$1234.56');
+    });
+  });
+
+  describe('formatCurrencyWithCode', () => {
+    test('should format SGD with S$ prefix', () => {
+      expect(formatCurrencyWithCode(1234.56, 2, 'SGD')).toBe('S$1234.56');
+    });
+
+    test('should format USD with code when showCode is true', () => {
+      expect(formatCurrencyWithCode(1234.56, 2, 'USD', true)).toBe('USD $1234.56');
+    });
+
+    test('should format USD without code when showCode is false', () => {
+      expect(formatCurrencyWithCode(1234.56, 2, 'USD', false)).toBe('$1234.56');
+    });
+
+    test('should format AUD with A$ prefix', () => {
+      expect(formatCurrencyWithCode(1234.56, 2, 'AUD')).toBe('A$1234.56');
+    });
+
+    test('should default to $ for unknown currencies', () => {
+      expect(formatCurrencyWithCode(1234.56, 2, 'EUR')).toBe('$1234.56');
+    });
+
+    test('should respect custom decimal places', () => {
+      expect(formatCurrencyWithCode(1234.567, 3, 'USD', true)).toBe('USD $1234.567');
+    });
+
+    test('should use default parameters', () => {
+      expect(formatCurrencyWithCode(1234.56)).toBe('USD $1234.56');
     });
   });
 

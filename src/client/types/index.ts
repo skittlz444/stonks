@@ -68,6 +68,7 @@ export interface PricesData {
   portfolioName: string;
   fxAvailable?: boolean;
   fxRate?: number;
+  sgdRate?: number;
   cacheStats?: CacheStats;
 }
 

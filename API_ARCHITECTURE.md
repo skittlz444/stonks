@@ -2,33 +2,36 @@
 
 ## Overview
 
-The Stonks Portfolio application uses a **hybrid rendering architecture** combining server-side and client-side rendering for optimal performance and user experience.
+The Stonks Portfolio application uses a **modern React/TypeScript architecture** with client-side rendering for all pages, backed by JSON API endpoints served from a Cloudflare Worker.
 
 ## Architecture Pattern
 
-### Traditional Pages (Server-Side Rendering)
-- `/stonks/ticker` - Full server-side rendering
-- `/stonks/charts` - Full server-side rendering
-- `/stonks/charts/large` - Full server-side rendering
+All six pages use **React with TypeScript** for client-side rendering:
+- `/stonks/ticker` - React + TradingView ticker tape
+- `/stonks/charts` - React + TradingView chart grid
+- `/stonks/charts/large` - React + TradingView large charts
+- `/stonks/charts/advanced` - React + TradingView advanced charts
+- `/stonks/prices` - React + API data (holdings, quotes, transactions)
+- `/stonks/config` - React + API data (portfolio management)
 
-### Modern Pages (Client-Side Rendering)
-- `/stonks/prices` - API-based client-side rendering
-- `/stonks/config` - API-based client-side rendering
-
-## Client-Side Rendering Flow
+## React Application Flow
 
 ```
-User Request → Server
+User Request → Cloudflare Worker
               ↓
-         Skeleton HTML (with loading state)
+         Minimal HTML Shell (<div id="root">)
               ↓
          Client Browser
               ↓
-         Load JavaScript Module
+         Load React Bundle (Vite build)
               ↓
-         Fetch Data from API
+         React App Initializes
               ↓
-         Render Content Dynamically
+         Fetch Data from API Endpoints
+              ↓
+         React Components Render with Data
+              ↓
+         User Interactions Update State
 ```
 
 ## API Endpoints
@@ -76,9 +79,10 @@ User Request → Server
 
 **Optimizations**:
 - Parallel database queries using `Promise.all()`
-- Removed unnecessary fields: `hidden`, `created_at`, `updated_at` from holdings
-- Removed excess quote fields: `symbol`, `high`, `low`, `open`, `previousClose`, `timestamp`
-- Lazy loading of closed positions (only when not in rebalance mode)
+- Minimal payload with only required fields
+- Closed positions fetched separately (not in rebalance mode)
+- FX rates cached for 1 hour
+- Stock quotes cached for 1 minute
 
 ### 2. Config Data API
 
@@ -106,81 +110,37 @@ User Request → Server
 
 **Optimizations**:
 - Parallel database queries using `Promise.all()`
-- Removed unnecessary fields from holdings
-- Consolidated all data in single response
+- Minimal payload with only required fields
+- All data in single response
+- Transaction calculations server-side
 
-## Client-Side JavaScript Modules
+## React Application Structure
 
-### 1. Prices Client Module
+### Component Architecture
 
-**File**: `public/client/prices.js`
+**Pages** (`src/client/pages/`):
+- `PricesPage.tsx` - Portfolio prices and rebalancing
+- `ConfigPage.tsx` - Portfolio configuration
+- `TickerPage.tsx` - Ticker tape view
+- `ChartGridPage.tsx` - Chart grid view
+- `ChartLargePage.tsx` - Large charts view
+- `ChartAdvancedPage.tsx` - Advanced charts view
 
-**Exported Function**: `initializePricesPage(rebalanceMode, currency)`
+**Components** (`src/client/components/`):
+- **Common**: Navigation, LoadingSpinner, ErrorMessage, CompanyProfileModal
+- **Prices**: HoldingsTable, ClosedPositionsTable, PricesControls, SummaryCards, ColumnControls
 
-**Features**:
-- Fetches data from `/stonks/api/prices-data`
-- Dynamically renders holdings table
-- Implements sorting and filtering
-- Handles column visibility controls
-- Displays closed positions
-- Shows loading and error states
-- Integrates TradingView widgets
+**Hooks** (`src/client/hooks/`):
+- `usePricesData.ts` - Fetches data from `/api/prices-data`
+- `useConfigData.ts` - Fetches data from `/api/config-data`
+- `useHoldings.ts` - Manages holdings state
 
-**Key Functions**:
-- `initializePricesPage()` - Entry point
-- `renderPricesPage()` - Main rendering logic
-- `renderHoldingsTable()` - Table generation
-- `calculateRebalancing()` - Rebalancing calculations
-- `sortTable()` - Client-side sorting
+**Utilities** (`src/client/utils/`):
+- `formatting.ts` - Currency, number, percentage formatting
+- `rebalancing.ts` - Portfolio rebalancing calculations
 
-### 2. Config Client Module
-
-**File**: `public/client/config.js`
-
-**Exported Function**: `initializeConfigPage()`
-
-**Features**:
-- Fetches data from `/stonks/api/config-data`
-- Dynamically renders holdings and transactions
-- Handles form submissions
-- Manages visibility toggles
-- Shows loading and error states
-
-**Key Functions**:
-- `initializeConfigPage()` - Entry point
-- `renderConfigPage()` - Main rendering logic
-- `renderHoldings()` - Holdings table generation
-- `renderTransactions()` - Transaction list generation
-- `handleFormSubmit()` - Form submission handling
-
-## Wrapper Components
-
-### 1. Prices Client Wrapper
-
-**File**: `src/pricesClientWrapper.js`
-
-**Function**: `generatePricesPageClient(rebalanceMode, currency)`
-
-**Purpose**: Generates skeleton HTML with:
-- Loading spinner
-- Error state container
-- Empty content containers
-- Navigation structure
-- Currency selector
-- Script module loader
-
-### 2. Config Client Wrapper
-
-**File**: `src/configClientWrapper.js`
-
-**Function**: `generateConfigPageClient()`
-
-**Purpose**: Generates skeleton HTML with:
-- Loading spinner
-- Error state container
-- Form containers
-- Modal structures
-- Script module loader
+**Types** (`src/client/types/`):
+- `index.ts` - TypeScript interfaces (Holding, Quote, Transaction, etc.)
 
 ## Performance Benefits
 
@@ -204,34 +164,9 @@ const [holdings, transactions, cash] = await Promise.all([
 // Total time: ~100ms (3x faster)
 ```
 
-### 2. Payload Reduction
+### 2. Optimized Payloads
 
-**Before**:
-```json
-{
-  "id": 1,
-  "name": "Apple Inc",
-  "code": "AAPL",
-  "quantity": 10,
-  "target_weight": 25,
-  "hidden": 0,
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-02T00:00:00Z",
-  "quote": {
-    "symbol": "AAPL",
-    "current": 150.50,
-    "change": 2.15,
-    "changePercent": 1.45,
-    "high": 152.00,
-    "low": 148.00,
-    "open": 149.00,
-    "previousClose": 148.35,
-    "timestamp": 1696598400000
-  }
-}
-```
-
-**After** (20-30% smaller):
+**API Response** (minimal fields only):
 ```json
 {
   "name": "Apple Inc",
@@ -250,11 +185,19 @@ const [holdings, transactions, cash] = await Promise.all([
 }
 ```
 
-### 3. Lazy Loading
+**Benefits**:
+- Smaller payload size (20-30% reduction)
+- Faster network transfer
+- Reduced parsing time
+- Only essential data for UI
 
-- Closed positions only fetched when needed (not in rebalance mode)
-- FX rates only fetched when non-USD currency requested
-- Charts loaded on-demand via TradingView widgets
+### 3. Code Splitting & Lazy Loading
+
+- **Vite Build**: Automatic code splitting for shared dependencies
+- **Bundle Sizes**: ~71 kB gzipped total for all 6 pages
+- **Shared Chunks**: React, common components extracted automatically
+- **On-Demand Loading**: TradingView widgets loaded when visible
+- **Conditional Fetching**: Closed positions only in normal mode (not rebalance)
 
 ## Error Handling
 
@@ -290,87 +233,126 @@ Status: `500 Internal Server Error`
 
 ## Testing
 
-### API Endpoint Tests
+### API Endpoint Tests (35 tests)
 - JSON response structure validation
-- Query parameter handling
-- Error scenarios (missing keys, database failures)
-- Payload optimization verification
+- Query parameter handling (currency, mode)
+- Error scenarios (missing API keys, database failures)
 - Parallel query validation
+- Response format consistency
 
-### Client Wrapper Tests
-- HTML structure generation
-- Parameter passing
-- Loading state containers
-- Error state containers
-- Navigation elements
-- Module script loading
+### React Component Tests (239 tests)
+- **HoldingsTable**: 62 tests (sorting, filtering, rebalancing)
+- **ClosedPositionsTable**: 18 tests (profit/loss calculations)
+- **PricesControls**: 15 tests (currency, mode switching)
+- **Common Components**: 49 tests (navigation, modals, loading states)
+- **Utility Functions**: 42 tests (formatting, rebalancing algorithms)
+- **Custom Hooks**: 23 tests (data fetching, state management)
 
 **Test Coverage**:
-- API endpoints: Comprehensive (52 tests in index.test.js)
-- Client wrappers: 100% (43 tests total)
-- Client JavaScript: 0% (browser environment required)
+- Server-side: 88.64% (Cloudflare Worker, APIs, services)
+- React Components: 91.89-100% (UI components, hooks, utilities)
+- Overall: 88.49% (456 tests passing)
 
-## Migration Notes
+## Implementation Pattern
 
-### From Server-Side to Client-Side
+### React/TypeScript Architecture
 
-**Old Pattern** (prices.js):
+**Cloudflare Worker** (index.js):
 ```javascript
-export async function generatePricesPage(db, finnhub, fx, rebalanceMode, currency) {
-  const holdings = await db.getHoldings();
-  const quotes = await finnhub.getQuotes(holdings);
-  // ... render HTML with data
-  return new Response(html);
-}
-```
+// Serve minimal HTML shell
+case '/stonks/prices':
+  return new Response(`
+    <!DOCTYPE html>
+    <html>
+      <head>...</head>
+      <body>
+        <div id="root"></div>
+        <script type="module" src="/stonks/dist/prices.js"></script>
+      </body>
+    </html>
+  `);
 
-**New Pattern**:
-
-**Server** (pricesClientWrapper.js):
-```javascript
-export function generatePricesPageClient(rebalanceMode, currency) {
-  // Return skeleton HTML with loading state
-  // Pass parameters to client JavaScript
-  return new Response(skeletonHTML);
-}
-```
-
-**API** (index.js):
-```javascript
+// Serve API data
 case '/stonks/api/prices-data':
-  const [holdings, transactions, cash] = await Promise.all([...]);
-  return new Response(JSON.stringify({ holdings, ... }));
+  const [holdings, transactions, cash] = await Promise.all([
+    db.getHoldings(),
+    db.getTransactions(),
+    db.getCashAmount()
+  ]);
+  const quotes = await finnhub.getQuotes(holdings);
+  return Response.json({ holdings, quotes, cash, ... });
 ```
 
-**Client** (public/client/prices.js):
-```javascript
-export async function initializePricesPage(rebalanceMode, currency) {
-  const response = await fetch('/stonks/api/prices-data?...');
-  const data = await response.json();
-  renderPricesPage(data);
+**React Page Component** (PricesPage.tsx):
+```typescript
+export function PricesPage() {
+  const { data, loading, error } = usePricesData(currency, mode);
+  
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  
+  return (
+    <>
+      <Navigation />
+      <PricesControls {...} />
+      <HoldingsTable holdings={data.holdings} {...} />
+      {!rebalanceMode && <ClosedPositionsTable {...} />}
+    </>
+  );
+}
+```
+
+**Custom Hook** (usePricesData.ts):
+```typescript
+export function usePricesData(currency: string, mode: string) {
+  const [data, setData] = useState<PricesData | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    fetch(`/stonks/api/prices-data?currency=${currency}&mode=${mode}`)
+      .then(res => res.json())
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, [currency, mode]);
+  
+  return { data, loading, error };
 }
 ```
 
 ## Best Practices
 
-1. **Keep wrappers minimal** - Only structure, no data processing
-2. **Optimize API payloads** - Remove unnecessary fields
-3. **Use parallel queries** - Leverage Promise.all() for independent operations
-4. **Handle errors gracefully** - Show user-friendly error messages
-5. **Implement loading states** - Provide feedback during data fetching
-6. **Cache appropriately** - Use 1-minute cache for quotes, 1-hour for FX rates
-7. **Test thoroughly** - Ensure API contracts match client expectations
+1. **Type Safety** - Use TypeScript interfaces for all data structures
+2. **Optimize API Payloads** - Return only required fields in API responses
+3. **Parallel Queries** - Use Promise.all() for independent database operations
+4. **Error Handling** - Show user-friendly error messages with recovery options
+5. **Loading States** - Display loading spinners during data fetching
+6. **Caching Strategy** - 1-minute cache for quotes, 1-hour for FX rates
+7. **Component Reusability** - Extract common UI patterns into shared components
+8. **Custom Hooks** - Encapsulate data fetching logic in reusable hooks
+9. **Code Splitting** - Let Vite automatically split bundles for optimal loading
+10. **Test Coverage** - Maintain high test coverage (>85%) for reliability
+
+## Technology Stack
+
+- **Frontend**: React 19 with TypeScript 5.9
+- **Build Tool**: Vite 6.0 (fast builds, code splitting)
+- **Testing**: Vitest 2.1 with React Testing Library
+- **Backend**: Cloudflare Workers (edge computing)
+- **Database**: Cloudflare D1 (serverless SQLite)
+- **APIs**: Finnhub (stock prices), OpenExchangeRates (currency)
+- **Charts**: TradingView widgets
 
 ## Future Enhancements
 
 Potential improvements:
-- WebSocket support for real-time updates
-- Request batching for multiple API calls
-- Response compression (gzip)
-- Client-side data caching (IndexedDB)
-- Incremental rendering for large datasets
-- Server-Sent Events (SSE) for live price updates
+- **Real-time Updates**: WebSocket or Server-Sent Events for live prices
+- **Offline Support**: Enhanced PWA with IndexedDB caching
+- **Mobile App**: React Native version with shared code
+- **Advanced Analytics**: Portfolio performance charts and metrics
+- **Multi-Portfolio**: Support for multiple portfolio views
+- **Watchlists**: Track stocks without ownership
+- **Notifications**: Price alerts and rebalancing reminders
 
 ---
 
-*Last updated: October 8, 2025*
+*Last updated: October 15, 2025*

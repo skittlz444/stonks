@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Navigation } from '@/components/prices/Navigation';
+import { Navigation } from '../../../../src/client/components/prices/Navigation';
 
 describe('Navigation', () => {
   const defaultProps = {
@@ -46,7 +46,9 @@ describe('Navigation', () => {
   test('should render navigation links', () => {
     render(<Navigation {...defaultProps} />);
     expect(screen.getByText('Ticker')).toBeInTheDocument();
-    expect(screen.getByText('Charts')).toBeInTheDocument();
+    expect(screen.getByText('Grid')).toBeInTheDocument();
+    expect(screen.getByText('Large')).toBeInTheDocument();
+    expect(screen.getByText('Advanced')).toBeInTheDocument();
     expect(screen.getByText('Config')).toBeInTheDocument();
   });
 

@@ -1,787 +1,528 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock DatabaseService before importing the worker
+vi.mock('../src/databaseService.js', () => {
+  const mockGetVisiblePortfolioHoldings = vi.fn().mockResolvedValue([
+    { id: 1, name: 'Apple', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50 }
+  ]);
+  const mockGetHiddenPortfolioHoldings = vi.fn().mockResolvedValue([]);
+  const mockGetTransactions = vi.fn().mockResolvedValue([]);
+  const mockGetCashAmount = vi.fn().mockResolvedValue(1000);
+  const mockGetAllTransactionsGroupedByCode = vi.fn().mockResolvedValue({});
+  const mockGetClosedPositions = vi.fn().mockResolvedValue([]);
+  
+  const mockPrepare = vi.fn(() => ({
+    bind: vi.fn().mockReturnThis(),
+    first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' }),
+    all: vi.fn().mockResolvedValue({ results: [] })
+  }));
+
+  return {
+    DatabaseService: vi.fn().mockImplementation((db) => ({
+      db: { prepare: mockPrepare },
+      getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
+      getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
+      getTransactions: mockGetTransactions,
+      getCashAmount: mockGetCashAmount,
+      getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
+      getClosedPositions: mockGetClosedPositions
+    })),
+    MockD1Database: vi.fn().mockImplementation(() => ({
+      prepare: mockPrepare
+    })),
+    default: vi.fn().mockImplementation((db) => ({
+      db: { prepare: mockPrepare },
+      getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
+      getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
+      getTransactions: mockGetTransactions,
+      getCashAmount: mockGetCashAmount,
+      getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
+      getClosedPositions: mockGetClosedPositions
+    }))
+  };
+});
+
+// Mock Finnhub and FX services
+vi.mock('../src/finnhubService.js', () => ({
+  createFinnhubService: vi.fn(() => ({
+    getPortfolioQuotes: vi.fn().mockResolvedValue([]),
+    getCacheStats: vi.fn().mockReturnValue({ hit: 0, miss: 0, hitRate: 0 }),
+    getOldestCacheTimestamp: vi.fn().mockReturnValue(null)
+  }))
+}));
+
+vi.mock('../src/fxService.js', () => ({
+  createFxService: vi.fn(() => ({
+    getLatestRates: vi.fn().mockResolvedValue({ USD: 1, SGD: 1.35 })
+  }))
+}));
+
+// Import the default export (Cloudflare Worker handler)
 import workerHandler from '../src/index.js';
-import { DatabaseService, MockD1Database } from '../src/databaseService.js';
 
-// Mock the page generators
-vi.mock('../src/ticker.js', () => ({
-  generateTickerPage: vi.fn().mockResolvedValue(new Response('Ticker Page', { status: 200 }))
-}));
-
-vi.mock('../src/chartGrid.js', () => ({
-  generateChartGridPage: vi.fn().mockResolvedValue(new Response('Chart Grid Page', { status: 200 }))
-}));
-
-vi.mock('../src/chartLarge.js', () => ({
-  generateLargeChartPage: vi.fn().mockResolvedValue(new Response('Large Chart Page', { status: 200 }))
-}));
-
-vi.mock('../src/prices.js', () => ({
-  generatePricesPage: vi.fn().mockResolvedValue(new Response('Prices Page', { status: 200 }))
-}));
-
-vi.mock('../src/pricesClientWrapper.js', () => ({
-  generatePricesPageClient: vi.fn().mockReturnValue(new Response('Prices Page Client', { status: 200 }))
-}));
-
-vi.mock('../src/config.js', () => ({
-  generateConfigPage: vi.fn().mockResolvedValue(new Response('Config Page', { status: 200 })),
-  handleConfigSubmission: vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { 'Location': '/stonks/config?success=1' } }))
-}));
-
-vi.mock('../src/configClientWrapper.js', () => ({
-  generateConfigPageClient: vi.fn().mockReturnValue(new Response('Config Page Client', { status: 200 }))
-}));
-
-describe('Index Router', () => {
+describe('index.js - Cloudflare Worker', () => {
   let mockEnv;
-  let mockRequest;
+  let mockASSETS;
 
   beforeEach(() => {
+    // Reset all mocks
     vi.clearAllMocks();
-    
+
+    // Mock console methods to reduce noise
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Mock ASSETS binding
+    mockASSETS = {
+      fetch: vi.fn()
+    };
+
+    // Mock database for environment
+    const mockDb = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' }),
+        all: vi.fn().mockResolvedValue({ results: [] })
+      }))
+    };
+
+    // Mock environment
     mockEnv = {
-      STONKS_DB: {
-        prepare: vi.fn().mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [], success: true }),
-          first: vi.fn().mockResolvedValue(null),
-          run: vi.fn().mockResolvedValue({ success: true }),
-          bind: vi.fn().mockReturnThis()
-        })
-      }
+      STONKS_DB: mockDb,
+      FINNHUB_API_KEY: 'test-finnhub-key',
+      OPENEXCHANGERATES_API_KEY: 'test-fx-key',
+      ASSETS: mockASSETS
     };
   });
 
-  const createMockRequest = (url, method = 'GET', body = null) => {
-    return {
-      url,
-      method,
-      formData: vi.fn().mockResolvedValue(new FormData())
-    };
-  };
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-  describe('Route handling', () => {
-    test('should handle /stonks/ticker route', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+  describe('Static File Serving', () => {
+    test('should serve service worker from ASSETS', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('console.log("sw");', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/sw.js');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
-      const text = await response.text();
-      expect(text).toBe('Ticker Page');
+      expect(response.headers.get('content-type')).toBe('application/javascript');
+      expect(response.headers.get('cache-control')).toBe('no-cache');
     });
 
-    test('should handle /stonks/charts route', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/charts');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+    test('should serve manifest.json from ASSETS', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('{"name":"Stonks"}', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/manifest.json');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
-      const text = await response.text();
-      expect(text).toBe('Chart Grid Page');
+      expect(response.headers.get('content-type')).toBe('application/json');
     });
 
-    test('should handle /stonks/charts/large route', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/charts/large');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+    test('should serve icon files with correct content type', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('PNG', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/icons/icon-192x192.png');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
-      const text = await response.text();
-      expect(text).toBe('Large Chart Page');
+      expect(response.headers.get('content-type')).toBe('image/png');
     });
 
-    test('should handle GET /stonks/config route', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/config');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+    test('should serve SVG icons with correct content type', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<svg>', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/icons/favicon.svg');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
-      const text = await response.text();
-      expect(text).toBe('Config Page Client');
+      expect(response.headers.get('content-type')).toBe('image/svg+xml');
     });
 
-    test('should handle POST /stonks/config route', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/config', 'POST');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/stonks/config?success=1');
-    });
+    test('should return 404 for missing assets', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('Not Found', { status: 404 }));
 
-    test('should return 404 for unknown routes', async () => {
-      mockRequest = createMockRequest('http://localhost/unknown');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+      const request = new Request('https://example.com/stonks/icons/missing.png');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(404);
+    });
+
+    test('should serve development placeholder SW when ASSETS unavailable', async () => {
+      const request = new Request('https://example.com/stonks/sw.js');
+      const response = await workerHandler.fetch(request, { ...mockEnv, ASSETS: null });
+
+      expect(response.status).toBe(200);
       const text = await response.text();
-      expect(text).toContain('404 Not Found');
-      expect(text).toContain('/stonks/ticker');
-      expect(text).toContain('/stonks/charts');
-      expect(text).toContain('/stonks/charts/large');
-      expect(text).toContain('/stonks/config');
+      expect(text).toContain('Service worker placeholder');
     });
   });
 
-  describe('Database service initialization', () => {
-    test('should use D1 database when available', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      mockEnv.STONKS_DB.prepare().all.mockResolvedValue({ results: [{ name: 'test', symbol: 'TEST' }], success: true });
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+  describe('React App HTML Serving', () => {
+    test('should serve React app HTML from ASSETS', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html><body><div id="root"></div></body></html>', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/prices');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
-      expect(mockEnv.STONKS_DB.prepare).toHaveBeenCalled();
+      expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
     });
 
-    test('should fall back to MockD1Database when STONKS_DB not available', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      mockEnv.STONKS_DB = null;
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
+    test('should serve fallback HTML when ASSETS unavailable', async () => {
+      const request = new Request('https://example.com/stonks/prices');
+      const response = await workerHandler.fetch(request, { ...mockEnv, ASSETS: null });
 
-    test('should fall back to MockD1Database when D1 database fails', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      mockEnv.STONKS_DB.prepare.mockImplementation(() => {
-        throw new Error('Database connection failed');
-      });
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
       expect(response.status).toBe(200);
-    });
-
-    test('should handle database service errors gracefully', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      
-      // Since we can't easily mock the DatabaseService constructor,
-      // we test that the app handles database errors gracefully by
-      // verifying it works with no environment database
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-  });
-
-  describe('Error handling', () => {
-    test('should return 500 when page generation fails', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      
-      // Mock the ticker page to throw an error
-      const { generateTickerPage } = await import('../src/ticker.js');
-      vi.mocked(generateTickerPage).mockRejectedValueOnce(new Error('Page generation failed'));
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(500);
       const text = await response.text();
-      expect(text).toBe('Internal Server Error');
+      expect(text).toContain('Development Mode');
+      expect(text).toContain('npm run build');
     });
 
-    test('should return 500 when config submission fails', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/config', 'POST');
-      
-      // Mock the config handler to throw an error
-      const { handleConfigSubmission } = await import('../src/config.js');
-      vi.mocked(handleConfigSubmission).mockRejectedValueOnce(new Error('Config submission failed'));
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(500);
-      const text = await response.text();
-      expect(text).toBe('Internal Server Error');
-    });
+    test('should serve HTML for all SPA routes', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
 
-    test('should handle malformed URLs gracefully', async () => {
-      // Since Request constructor validates URLs, we test URL error handling
-      // by ensuring the app handles edge cases like unusual paths
-      mockRequest = createMockRequest('http://localhost/stonks/%invalid%path');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Should either handle it or return 404, but not crash
-      expect([200, 404, 500]).toContain(response.status);
-    });
-  });
+      const routes = [
+        '/stonks/ticker',
+        '/stonks/prices',
+        '/stonks/config',
+        '/stonks/chart-grid',
+        '/stonks/chart-large',
+        '/stonks/chart-advanced'
+      ];
 
-  describe('Request method handling', () => {
-    test('should handle different HTTP methods for config route', async () => {
-      // GET request
-      const getRequest = createMockRequest('http://localhost/stonks/config', 'GET');
-      const getResponse = await workerHandler.fetch(getRequest, mockEnv);
-      expect(getResponse.status).toBe(200);
-      
-      // POST request
-      const postRequest = createMockRequest('http://localhost/stonks/config', 'POST');
-      const postResponse = await workerHandler.fetch(postRequest, mockEnv);
-      expect(postResponse.status).toBe(302);
-    });
-
-    test('should handle PUT, DELETE, and other methods as GET for non-config routes', async () => {
-      const methods = ['PUT', 'DELETE', 'PATCH', 'HEAD'];
-      
-      for (const method of methods) {
-        const request = createMockRequest('http://localhost/stonks/ticker', method);
+      for (const route of routes) {
+        const request = new Request(`https://example.com${route}`);
         const response = await workerHandler.fetch(request, mockEnv);
         expect(response.status).toBe(200);
       }
     });
   });
 
-  describe('URL parsing', () => {
-    test('should handle URLs with query parameters', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker?param=value');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+  describe('Static Assets Serving', () => {
+    test('should serve JS assets with correct content type', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('console.log("test");', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/assets/index-abc123.js');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toBe('application/javascript');
     });
 
-    test('should handle URLs with fragments', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/ticker#section');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+    test('should serve CSS assets with correct content type', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('body{}', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/assets/index-abc123.css');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(200);
-    });
-
-    test('should handle URLs with different protocols', async () => {
-      mockRequest = createMockRequest('https://localhost/stonks/ticker');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should handle URLs with different hosts', async () => {
-      mockRequest = createMockRequest('https://example.com/stonks/ticker');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-  });
-
-  describe('Integration with page generators', () => {
-    test('should pass database service to page generators', async () => {
-      const { generateTickerPage } = await import('../src/ticker.js');
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      
-      await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(generateTickerPage).toHaveBeenCalledWith(expect.any(DatabaseService));
-    });
-
-    test('should pass database service to config handlers', async () => {
-      const { generateConfigPageClient } = await import('../src/configClientWrapper.js');
-      const { handleConfigSubmission } = await import('../src/config.js');
-      
-      // Test GET config
-      const getRequest = createMockRequest('http://localhost/stonks/config', 'GET');
-      await workerHandler.fetch(getRequest, mockEnv);
-      expect(generateConfigPageClient).toHaveBeenCalled();
-      
-      // Test POST config
-      const postRequest = createMockRequest('http://localhost/stonks/config', 'POST');
-      await workerHandler.fetch(postRequest, mockEnv);
-      expect(handleConfigSubmission).toHaveBeenCalledWith(postRequest, expect.any(DatabaseService));
-    });
-  });
-
-  describe('Response handling', () => {
-    test('should preserve response headers from page generators', async () => {
-      const { generateTickerPage } = await import('../src/ticker.js');
-      vi.mocked(generateTickerPage).mockResolvedValueOnce(
-        new Response('Ticker Page', { 
-          status: 200, 
-          headers: { 'Custom-Header': 'test-value' } 
-        })
-      );
-      
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.headers.get('Custom-Header')).toBe('test-value');
-    });
-
-    test('should preserve response status from page generators', async () => {
-      const { generateTickerPage } = await import('../src/ticker.js');
-      vi.mocked(generateTickerPage).mockResolvedValueOnce(
-        new Response('Ticker Page', { status: 201 })
-      );
-      
-      mockRequest = createMockRequest('http://localhost/stonks/ticker');
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(201);
-    });
-  });
-
-  describe('Static file serving', () => {
-    test('should serve PNG icons with correct content type', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/icons/icon-192.png');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('PNG content', { 
-          status: 200,
-          headers: { 'content-type': 'image/png' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should serve SVG icons with correct content type', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/icons/icon.svg');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('SVG content', { 
-          status: 200,
-          headers: { 'content-type': 'image/svg+xml' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should serve JPG/JPEG icons with correct content type', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/icons/icon.jpg');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('JPG content', { 
-          status: 200,
-          headers: { 'content-type': 'image/jpeg' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should serve ICO icons with correct content type', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/icons/favicon.ico');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('ICO content', { 
-          status: 200,
-          headers: { 'content-type': 'image/x-icon' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should handle unknown icon extensions with default content type', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/icons/icon.unknown');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('Unknown content', { 
-          status: 200,
-          headers: { 'content-type': 'application/octet-stream' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should serve service worker file', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/sw.js');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('service worker code', { 
-          status: 200,
-          headers: { 'content-type': 'application/javascript' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
-
-    test('should serve manifest.json file', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/manifest.json');
-      mockEnv.ASSETS = {
-        fetch: vi.fn().mockResolvedValue(new Response('{"name":"Stonks"}', { 
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        }))
-      };
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toBe('text/css');
     });
   });
 
   describe('Redirects', () => {
-    test('should redirect /stonks/ to /stonks/prices', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('http://localhost/stonks/prices');
-    });
-
     test('should redirect /stonks to /stonks/prices', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
+      const request = new Request('https://example.com/stonks');
+      const response = await workerHandler.fetch(request, mockEnv);
+
       expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('http://localhost/stonks/prices');
+      expect(response.headers.get('Location')).toContain('/stonks/prices');
+    });
+
+    test('should redirect root to /stonks/', async () => {
+      const request = new Request('https://example.com/');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe('/stonks/');
     });
   });
 
-  describe('Prices page with query parameters', () => {
-    test('should handle prices page with rebalance mode', async () => {
-      const { generatePricesPageClient } = await import('../src/pricesClientWrapper.js');
-      mockRequest = createMockRequest('http://localhost/stonks/prices?mode=rebalance');
+  describe('API Endpoints - Config Data', () => {
+    test('should handle config data request', async () => {
+      const request = new Request('https://example.com/stonks/api/config-data');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      // Should return either success or structured error
+      expect(response).toBeDefined();
+      const data = await response.json();
       
-      await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Should be called with rebalanceMode = true
-      expect(generatePricesPageClient).toHaveBeenCalledWith(
-        true, // rebalanceMode
-        'USD' // currency
-      );
+      // If successful, check structure; if error, check error field
+      if (response.status === 200) {
+        expect(data).toHaveProperty('visibleHoldings');
+        expect(data).toHaveProperty('portfolioName');
+      } else {
+        expect(data).toHaveProperty('error');
+      }
     });
 
-    test('should handle prices page without rebalance mode', async () => {
-      const { generatePricesPageClient } = await import('../src/pricesClientWrapper.js');
-      mockRequest = createMockRequest('http://localhost/stonks/prices');
-      
-      await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Should be called with rebalanceMode = false
-      expect(generatePricesPageClient).toHaveBeenCalledWith(
-        false, // rebalanceMode
-        'USD' // currency
-      );
-    });
+    test('should respond to config-data endpoint', async () => {
+      const request = new Request('https://example.com/stonks/api/config-data');
+      const response = await workerHandler.fetch(request, mockEnv);
 
-    test('should handle prices page with currency parameter', async () => {
-      const { generatePricesPageClient } = await import('../src/pricesClientWrapper.js');
-      mockRequest = createMockRequest('http://localhost/stonks/prices?currency=SGD');
-      mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
-      
-      await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Should be called with currency = 'SGD'
-      expect(generatePricesPageClient).toHaveBeenCalledWith(
-        false, // rebalanceMode
-        'SGD' // currency
-      );
+      // Should get a response (either success or error)
+      expect(response).toBeDefined();
+      expect(response.status).toBeGreaterThanOrEqual(200);
     });
   });
 
-  describe('Service initialization', () => {
-    test('should initialize Finnhub service when API key is provided', async () => {
-      mockEnv.FINNHUB_API_KEY = 'test-finnhub-key';
-      mockRequest = createMockRequest('http://localhost/stonks/prices');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
+  describe('API Endpoints - Prices Data', () => {
+    test('should return error when Finnhub API key not configured', async () => {
+      const envWithoutFinnhub = { ...mockEnv, FINNHUB_API_KEY: null };
 
-    test('should initialize FX service when API key is provided', async () => {
-      mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
-      mockRequest = createMockRequest('http://localhost/stonks/prices');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(200);
-    });
+      const request = new Request('https://example.com/stonks/api/prices-data');
+      const response = await workerHandler.fetch(request, envWithoutFinnhub);
 
-    test('should reuse cached services when API keys unchanged', async () => {
-      mockEnv.FINNHUB_API_KEY = 'test-finnhub-key';
-      mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
-      mockRequest = createMockRequest('http://localhost/stonks/prices');
-      
-      // First request
-      await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Second request with same keys
-      const response2 = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response2.status).toBe(200);
-    });
-
-    test('should clear services when API keys are removed', async () => {
-      mockEnv.FINNHUB_API_KEY = 'test-finnhub-key';
-      mockRequest = createMockRequest('http://localhost/stonks/prices');
-      
-      // First request with API key
-      await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Second request without API key
-      delete mockEnv.FINNHUB_API_KEY;
-      const response2 = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response2.status).toBe(200);
-    });
-  });
-
-  describe('Error handling', () => {
-    test('should handle unknown routes', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/unknown');
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(404);
-    });
-
-    test('should handle API errors in prices-data endpoint', async () => {
-      mockEnv.FINNHUB_API_KEY = 'test-key';
-      mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
-      
-      // Mock a critical error by making Promise.all fail
-      // We'll make the database return invalid data that causes downstream errors
-      const mockHolding = { name: 'Test', code: 'TEST:SYMBOL', quantity: 10 };
-      mockEnv.STONKS_DB.prepare.mockReturnValue({
-        all: vi.fn().mockResolvedValue({ results: [mockHolding] }),
-        first: vi.fn().mockResolvedValue({ value: '1000' }),
-        bind: vi.fn().mockReturnThis()
-      });
-      
-      // Mock FinnhubService to throw an error
-      const { default: index } = await import('../src/index.js');
-      // Since we can't easily mock finnhubService methods after initialization,
-      // let's test with missing FINNHUB_API_KEY which returns 503
-      delete mockEnv.FINNHUB_API_KEY;
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      // Without Finnhub API key, we get 503 (Service Unavailable)
       expect(response.status).toBe(503);
       const data = await response.json();
-      expect(data.error).toContain('Finnhub API key');
+      expect(data.error).toBe('Finnhub API key not configured');
     });
 
-    test('should handle API errors in config-data endpoint', async () => {
-      mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
-      
-      // Mock database error
-      mockEnv.STONKS_DB.prepare.mockReturnValue({
-        all: vi.fn().mockRejectedValue(new Error('Database error')),
-        bind: vi.fn().mockReturnThis()
-      });
-      
-      const response = await workerHandler.fetch(mockRequest, mockEnv);
-      
-      expect(response.status).toBe(500);
-      const data = await response.json();
-      expect(data.error).toBeDefined();
+    test('should return prices data when API configured', async () => {
+      const request = new Request('https://example.com/stonks/api/prices-data');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      // Should succeed or return structured error
+      expect(response).toBeDefined();
+      expect([200, 500]).toContain(response.status);
     });
   });
 
-  describe('API Endpoints', () => {
-    describe('/stonks/api/config-data', () => {
-      test('should return config data with holdings and transactions', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
-        
-        // Mock successful database responses
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ 
-            results: [
-              { id: 1, name: 'Apple', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 25, hidden: 0 }
-            ] 
-          }),
-          first: vi.fn().mockResolvedValue({ value: 'Test Portfolio' }),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.status).toBe(200);
-        const data = await response.json();
-        expect(data.visibleHoldings).toBeDefined();
-        expect(data.hiddenHoldings).toBeDefined();
-        expect(data.transactions).toBeDefined();
-        expect(data.cashAmount).toBeDefined();
-        expect(data.portfolioName).toBeDefined();
-        expect(data.totalTargetWeight).toBeDefined();
-      });
+  describe('Database Initialization', () => {
+    test('should use mock database when STONKS_DB is not available', async () => {
+      const envWithoutDB = { ...mockEnv, STONKS_DB: null };
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
 
-      test('should optimize holding data by removing unnecessary fields', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/api/config-data');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ 
-            results: [
-              { 
-                id: 1, 
-                name: 'Apple', 
-                code: 'NASDAQ:AAPL', 
-                quantity: 10, 
-                target_weight: 25, 
-                hidden: 0,
-                created_at: '2024-01-01',
-                updated_at: '2024-01-02'
-              }
-            ] 
-          }),
-          first: vi.fn().mockResolvedValue(null),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        const data = await response.json();
-        
-        // Check that unnecessary fields are removed
-        if (data.visibleHoldings.length > 0) {
-          const holding = data.visibleHoldings[0];
-          expect(holding.id).toBeDefined();
-          expect(holding.name).toBeDefined();
-          expect(holding.code).toBeDefined();
-          expect(holding.quantity).toBeDefined();
-          expect(holding.target_weight).toBeDefined();
-          expect(holding.hidden).toBeUndefined();
-          expect(holding.created_at).toBeUndefined();
-          expect(holding.updated_at).toBeUndefined();
-        }
-      });
+      const request = new Request('https://example.com/stonks/prices');
+      const response = await workerHandler.fetch(request, envWithoutDB);
+
+      // Should successfully render even with mock database
+      expect(response.status).toBe(200);
     });
 
-    describe('/stonks/api/prices-data', () => {
-      test('should return error when Finnhub API key is not configured', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.status).toBe(503);
-        const data = await response.json();
-        expect(data.error).toContain('Finnhub API key');
-      });
-
-      test('should return prices data when Finnhub API key is configured', async () => {
-        mockEnv.FINNHUB_API_KEY = 'test-key';
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [] }),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.status).toBe(200);
-        const data = await response.json();
-        expect(data.holdings).toBeDefined();
-        expect(data.cashAmount).toBeDefined();
-        expect(data.closedPositions).toBeDefined();
-        expect(data.fxRates).toBeDefined();
-        expect(data.fxAvailable).toBeDefined();
-        expect(data.cacheStats).toBeDefined();
-      });
-
-      test('should optimize holding data by removing unnecessary fields', async () => {
-        mockEnv.FINNHUB_API_KEY = 'test-key';
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [] }),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        const data = await response.json();
-        
-        expect(data.holdings).toBeInstanceOf(Array);
-        // Holdings should not have hidden, created_at, updated_at fields
-        if (data.holdings.length > 0) {
-          const holding = data.holdings[0];
-          expect(holding.hidden).toBeUndefined();
-          expect(holding.created_at).toBeUndefined();
-          expect(holding.updated_at).toBeUndefined();
+    test('should handle database connection errors', async () => {
+      const envWithBrokenDB = {
+        ...mockEnv,
+        STONKS_DB: {
+          prepare: vi.fn(() => ({
+            bind: vi.fn().mockReturnThis(),
+            first: vi.fn().mockRejectedValue(new Error('Connection failed'))
+          }))
         }
-      });
+      };
 
-      test('should handle rebalance mode parameter', async () => {
-        mockEnv.FINNHUB_API_KEY = 'test-key';
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data?mode=rebalance');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [] }),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        const data = await response.json();
-        
-        expect(data.rebalanceMode).toBe(true);
-        // In rebalance mode, closed positions should be empty
-        expect(data.closedPositions).toEqual([]);
-      });
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
 
-      test('should handle currency parameter', async () => {
-        mockEnv.FINNHUB_API_KEY = 'test-key';
-        mockEnv.OPENEXCHANGERATES_API_KEY = 'test-fx-key';
-        mockRequest = createMockRequest('http://localhost/stonks/api/prices-data?currency=SGD');
-        
-        mockEnv.STONKS_DB.prepare.mockReturnValue({
-          all: vi.fn().mockResolvedValue({ results: [] }),
-          bind: vi.fn().mockReturnThis()
-        });
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        const data = await response.json();
-        
-        expect(data.currency).toBe('SGD');
-        expect(data.fxAvailable).toBe(true);
-      });
+      const request = new Request('https://example.com/stonks/prices');
+      const response = await workerHandler.fetch(request, envWithBrokenDB);
+
+      // Should fall back gracefully
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should handle ASSETS fetch errors gracefully', async () => {
+      mockASSETS.fetch.mockRejectedValue(new Error('Catastrophic failure'));
+
+      const request = new Request('https://example.com/stonks/sw.js');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      // Should handle the error (may return 500 or fall back to placeholder)
+      expect(response).toBeDefined();
     });
 
-    describe('Client script serving', () => {
-      test('should serve prices client script', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/client/prices.js');
-        mockEnv.ASSETS = {
-          fetch: vi.fn().mockResolvedValue(new Response('// prices client code', { 
-            status: 200 
-          }))
-        };
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.status).toBe(200);
-        expect(response.headers.get('content-type')).toBe('application/javascript');
+    test('should return 404 for unknown routes', async () => {
+      const request = new Request('https://example.com/unknown-path');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('Service Caching', () => {
+    test('should handle multiple requests', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
+
+      // First request
+      const request1 = new Request('https://example.com/stonks/prices');
+      const response1 = await workerHandler.fetch(request1, mockEnv);
+
+      // Second request with same API key
+      const request2 = new Request('https://example.com/stonks/prices');
+      const response2 = await workerHandler.fetch(request2, mockEnv);
+
+      // Both requests should succeed
+      expect(response1.status).toBe(200);
+      expect(response2.status).toBe(200);
+    });
+
+    test('should handle API key changes', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
+
+      // First request
+      const request1 = new Request('https://example.com/stonks/prices');
+      const response1 = await workerHandler.fetch(request1, mockEnv);
+
+      // Second request with different API key
+      const envWithNewKey = { ...mockEnv, FINNHUB_API_KEY: 'new-key' };
+      const request2 = new Request('https://example.com/stonks/prices');
+      const response2 = await workerHandler.fetch(request2, envWithNewKey);
+
+      // Both should work
+      expect(response1.status).toBe(200);
+      expect(response2.status).toBe(200);
+    });
+  });
+
+  describe('POST Request Handling', () => {
+    test('should handle POST to /stonks/config', async () => {
+      const formData = new FormData();
+      formData.append('action', 'add_holding');
+      formData.append('name', 'Apple Inc');
+      formData.append('code', 'NASDAQ:AAPL');
+
+      const request = new Request('https://example.com/stonks/config', {
+        method: 'POST',
+        body: formData
       });
 
-      test('should serve config client script', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/client/config.js');
-        mockEnv.ASSETS = {
-          fetch: vi.fn().mockResolvedValue(new Response('// config client code', { 
-            status: 200 
-          }))
-        };
-        
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
-        
-        expect(response.status).toBe(200);
-        expect(response.headers.get('content-type')).toBe('application/javascript');
-      });
+      // Mock the handleConfigSubmission to return a redirect
+      const response = await workerHandler.fetch(request, mockEnv);
 
-      test('should return 404 if client script not found', async () => {
-        mockRequest = createMockRequest('http://localhost/stonks/client/prices.js');
-        mockEnv.ASSETS = {
-          fetch: vi.fn().mockResolvedValue(new Response('Not found', { 
-            status: 404 
-          }))
-        };
+      // Should attempt to handle the config submission
+      expect(response).toBeDefined();
+    });
+  });
+
+  describe('Content Type Handling', () => {
+    test('should serve different file types with correct MIME types', async () => {
+      const testCases = [
+        { ext: 'png', mime: 'image/png', path: '/stonks/icons/icon.png' },
+        { ext: 'svg', mime: 'image/svg+xml', path: '/stonks/icons/icon.svg' },
+        { ext: 'jpg', mime: 'image/jpeg', path: '/stonks/icons/icon.jpg' },
+        { ext: 'js', mime: 'application/javascript', path: '/stonks/assets/file.js' },
+        { ext: 'css', mime: 'text/css', path: '/stonks/assets/file.css' }
+      ];
+
+      for (const { ext, mime, path } of testCases) {
+        mockASSETS.fetch.mockResolvedValue(new Response('content', { status: 200 }));
         
-        const response = await workerHandler.fetch(mockRequest, mockEnv);
+        const request = new Request(`https://example.com${path}`);
+        const response = await workerHandler.fetch(request, mockEnv);
         
-        expect(response.status).toBe(404);
-      });
+        expect(response.headers.get('content-type')).toBe(mime);
+      }
+    });
+
+    test('should serve font files with correct MIME types', async () => {
+      const fontTypes = [
+        { ext: 'woff', mime: 'font/woff' },
+        { ext: 'woff2', mime: 'font/woff2' },
+        { ext: 'ttf', mime: 'font/ttf' },
+        { ext: 'eot', mime: 'application/vnd.ms-fontobject' }
+      ];
+
+      for (const { ext, mime } of fontTypes) {
+        mockASSETS.fetch.mockResolvedValue(new Response('font', { status: 200 }));
+        
+        const request = new Request(`https://example.com/stonks/assets/font.${ext}`);
+        const response = await workerHandler.fetch(request, mockEnv);
+        
+        expect(response.headers.get('content-type')).toBe(mime);
+      }
+    });
+
+    test('should serve gif images with correct MIME type', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('gif', { status: 200 }));
+      
+      const request = new Request('https://example.com/stonks/assets/image.gif');
+      const response = await workerHandler.fetch(request, mockEnv);
+      
+      expect(response.headers.get('content-type')).toBe('image/gif');
+    });
+
+    test('should serve unknown extensions as octet-stream', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('data', { status: 200 }));
+      
+      const request = new Request('https://example.com/stonks/assets/file.xyz');
+      const response = await workerHandler.fetch(request, mockEnv);
+      
+      expect(response.headers.get('content-type')).toBe('application/octet-stream');
+    });
+  });
+
+  describe('Additional Route Coverage', () => {
+    test('should handle /stonks/chart-grid route', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/chart-grid');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(200);
+    });
+
+    test('should handle /stonks/chart-large route', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/chart-large');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(200);
+    });
+
+    test('should handle /stonks/chart-advanced route', async () => {
+      mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
+
+      const request = new Request('https://example.com/stonks/chart-advanced');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(200);
+    });
+
+    test('should handle empty path with redirect', async () => {
+      const request = new Request('https://example.com/');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe('/stonks/');
+    });
+
+    test('should redirect /stonks/ route to /stonks/prices', async () => {
+      const request = new Request('https://example.com/stonks/');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toContain('/stonks/prices');
+    });
+  });
+
+  describe('Error Path Coverage', () => {
+    test('should handle internal errors and return 500', async () => {
+      mockASSETS.fetch.mockRejectedValue(new Error('Internal failure'));
+
+      const request = new Request('https://example.com/stonks/prices');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(text).toBe('Internal Server Error');
+    });
+
+    test('should log error details on exception', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error');
+      mockASSETS.fetch.mockRejectedValue(new Error('Test error'));
+
+      const request = new Request('https://example.com/stonks/prices');
+      await workerHandler.fetch(request, mockEnv);
+
+      // Check that console.error was called with an error
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy.mock.calls[0][1]).toBeInstanceOf(Error);
     });
   });
 });

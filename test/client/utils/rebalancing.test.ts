@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { calculateRebalancing } from '@/utils/rebalancing';
-import type { HoldingWithQuote } from '@/types';
+import { calculateRebalancing } from '../../../src/client/utils/rebalancing';
+import type { HoldingWithQuote } from '../../../src/client/types';
 
 describe('rebalancing calculations', () => {
   const createHolding = (params: {
@@ -10,15 +10,33 @@ describe('rebalancing calculations', () => {
     quantity: number;
     targetWeight: number;
     current?: number;
-  }): HoldingWithQuote => ({
-    id: params.id,
-    name: params.name,
-    code: params.code,
-    quantity: params.quantity,
-    target_weight: params.targetWeight,
-    visible: 1,
-    quote: { current: params.current || 100 }
-  });
+  }): HoldingWithQuote => {
+    const current = params.current || 100;
+    const costBasis = current * 0.9; // Assume 10% gain for tests
+    return {
+      id: params.id,
+      name: params.name,
+      code: params.code,
+      quantity: params.quantity,
+      target_weight: params.targetWeight,
+      visible: 1,
+      quote: {
+        current,
+        previous_close: current,
+        change: 0,
+        percent_change: 0,
+        changePercent: 0,
+        high: current,
+        low: current,
+        open: current,
+        timestamp: Date.now()
+      },
+      marketValue: current * params.quantity,
+      costBasis: costBasis * params.quantity,
+      gain: (current - costBasis) * params.quantity,
+      gainPercent: ((current - costBasis) / costBasis) * 100
+    };
+  };
 
   test('should calculate rebalancing for simple portfolio', () => {
     const holdings: HoldingWithQuote[] = [

@@ -14,10 +14,14 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #212529 !important;
+  color: #ffffff !important;
 }
 
 #root {
   min-height: 100vh;
+  background-color: #212529;
+  color: #ffffff;
 }
 
 .loading-spinner {
@@ -36,15 +40,25 @@ body {
 }
 
 /* Preserve existing sticky column styles */
-.sortable {
+.sortable,
+.sortable-closed {
   cursor: pointer;
   user-select: none;
   position: relative;
 }
 
+.sortable:hover,
+.sortable-closed:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
 .sort-indicator {
   opacity: 0.3;
   margin-left: 5px;
+}
+
+.sort-indicator:after {
+  content: '⇅';
 }
 
 .sort-indicator.asc:after {
@@ -57,7 +71,8 @@ body {
   opacity: 1;
 }
 
-.sortable.active .sort-indicator {
+.sortable.active .sort-indicator,
+.sortable-closed.active .sort-indicator {
   opacity: 1;
 }
 
@@ -67,7 +82,6 @@ body {
   position: sticky;
   left: 0;
   z-index: 10;
-  background-color: #212529;
 }
 
 #holdingsTable thead th:nth-child(2),
@@ -75,7 +89,6 @@ body {
   position: sticky;
   left: 100px;
   z-index: 10;
-  background-color: #212529;
 }
 
 #holdingsTable th:nth-child(1),
@@ -89,7 +102,6 @@ body {
   position: sticky;
   left: 0;
   z-index: 10;
-  background-color: #212529;
 }
 
 #closedPositionsTable thead th:nth-child(2),
@@ -97,12 +109,17 @@ body {
   position: sticky;
   left: 100px;
   z-index: 10;
-  background-color: #212529;
 }
 
 #closedPositionsTable th:nth-child(1),
 #closedPositionsTable td:nth-child(1) {
   min-width: 100px;
+}
+
+/* Blur effect for refreshing data */
+.value-blur {
+  filter: blur(3px);
+  transition: filter 0.2s ease-in-out;
 }
 
 /* Company profile link styling */
@@ -119,4 +136,137 @@ body {
 /* Modal adjustments */
 .modal-dialog-scrollable .modal-body {
   overflow-y: auto;
+}
+
+/* Company Profile Modal */
+.company-profile-modal-content {
+  height: 50vh !important;
+}
+
+@media (max-width: 576px) {
+  .company-profile-modal-content {
+    height: 75vh !important;
+  }
+  .modal-dialog {
+    height: 75vh !important;
+    max-width: 100vw;
+    margin: 0;
+  }
+  .modal-content {
+    height: 75vh !important;
+  }
+}
+
+/* Use Bootstrap's default card styling with dark theme */
+
+/* Keep symbol code pink color */
+code {
+  color: #e83e8c !important;
+  background-color: transparent !important;
+}
+
+/* Keep success/danger colors for profit/loss */
+.text-success {
+  color: #28a745 !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.modal-content {
+  background-color: #2b3035 !important;
+  color: #ffffff !important;
+  border: 1px solid #3a3f44 !important;
+}
+
+.modal-header {
+  background-color: #2b3035 !important;
+  border-bottom: 1px solid #3a3f44 !important;
+  color: #ffffff !important;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+.modal-body {
+  background-color: #2b3035 !important;
+  color: #ffffff !important;
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  background-color: #2b3035 !important;
+  border-top: none !important;
+  padding: 1rem 1.5rem;
+}
+
+/* Use Bootstrap's default form and alert styling with dark theme */
+
+.alert-info {
+  background-color: #0dcaf0 !important;
+  color: #000 !important;
+}
+
+.alert-success {
+  background-color: #198754 !important;
+  color: #ffffff !important;
+}
+
+.alert-danger {
+  background-color: #dc3545 !important;
+  color: #ffffff !important;
+}
+
+.navbar-dark {
+  background-color: #212529 !important;
+}
+
+.text-muted {
+  color: #adb5bd !important;
+}
+
+/* Accordion styling for dark theme */
+.accordion-item {
+  background-color: #2b3035 !important;
+  border-color: #3a3f44 !important;
+}
+
+.accordion-button {
+  background-color: #2b3035 !important;
+  color: #ffffff !important;
+  border-color: #3a3f44 !important;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: #3a3f44 !important;
+  color: #ffffff !important;
+}
+
+.accordion-button:focus {
+  box-shadow: none;
+  border-color: #3a3f44 !important;
+}
+
+.accordion-button::after {
+  filter: invert(1);
+}
+
+.accordion-body {
+  background-color: #2b3035 !important;
+  color: #ffffff !important;
+}
+
+/* Add shadow to symbol column for sticky boundary */
+#closedPositionsTable th:nth-child(2),
+#closedPositionsTable td:nth-child(2) {
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure header cells have higher z-index for sticky columns */
+#closedPositionsTable thead th:nth-child(1),
+#closedPositionsTable thead th:nth-child(2) {
+  z-index: 11 !important;
 }

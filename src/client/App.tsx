@@ -1,26 +1,47 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import TickerPage from './components/pages/TickerPage';
-import ChartGridPage from './components/pages/ChartGridPage';
-import ChartLargePage from './components/pages/ChartLargePage';
-import ChartAdvancedPage from './components/pages/ChartAdvancedPage';
-import PricesPage from './components/pages/PricesPage';
-import ConfigPage from './components/pages/ConfigPage';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider, useConfig } from './context/ConfigContext';
+import { Navigation } from './components/common/Navigation';
+import { PricesPage } from './pages/prices/PricesPage';
+import { ConfigPage } from './pages/config/ConfigPage';
+import { TickerPage } from './pages/ticker/TickerPage';
+import { ChartGridPage } from './pages/chartGrid/ChartGridPage';
+import { ChartLargePage } from './pages/chartLarge/ChartLargePage';
+import { ChartAdvancedPage } from './pages/chartAdvanced/ChartAdvancedPage';
+import './styles.css';
 
-const App: React.FC = () => {
+const AppRoutes: React.FC = () => {
+  const { configData } = useConfig();
+
   return (
-    <Router basename="/stonks">
+    <BrowserRouter basename="/stonks">
+      <Navigation portfolioName={configData?.portfolioName || 'My Portfolio'} />
       <Routes>
+        <Route path="/" element={<Navigate to="/ticker" replace />} />
         <Route path="/ticker" element={<TickerPage />} />
-        <Route path="/charts" element={<ChartGridPage />} />
-        <Route path="/charts/large" element={<ChartLargePage />} />
-        <Route path="/charts/advanced" element={<ChartAdvancedPage />} />
         <Route path="/prices" element={<PricesPage />} />
         <Route path="/config" element={<ConfigPage />} />
-        <Route path="/" element={<Navigate to="/ticker" replace />} />
+        
+        {/* Chart routes with both old and new paths */}
+        <Route path="/charts" element={<ChartGridPage />} />
+        <Route path="/chart-grid" element={<ChartGridPage />} />
+        
+        <Route path="/charts/large" element={<ChartLargePage />} />
+        <Route path="/chart-large" element={<ChartLargePage />} />
+        
+        <Route path="/charts/advanced" element={<ChartAdvancedPage />} />
+        <Route path="/chart-advanced" element={<ChartAdvancedPage />} />
+        
+        <Route path="*" element={<Navigate to="/ticker" replace />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 };
 
-export default App;
+export const App: React.FC = () => {
+  return (
+    <ConfigProvider>
+      <AppRoutes />
+    </ConfigProvider>
+  );
+};

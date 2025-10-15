@@ -5,7 +5,7 @@ import { ErrorMessage } from '../../components/common/ErrorMessage';
 import { TradingViewWidget } from '../../components/charts/TradingViewWidget';
 
 export const ChartAdvancedPage: React.FC = () => {
-  const { holdings, loading, error } = useHoldings();
+  const { holdings, loading, error, cashAmount } = useHoldings();
 
   if (loading) {
     return (
@@ -23,57 +23,71 @@ export const ChartAdvancedPage: React.FC = () => {
     );
   }
 
-  // Format symbols for watchlist
-  const watchlistSymbols = holdings.map(h => h.code);
+  // Generate combined portfolio symbol: quantity*SYMBOL+quantity*SYMBOL+...+cash
+  const portfolioParts = holdings
+    .filter(h => h.quantity > 0)
+    .map(h => `${h.quantity}*${h.code}`);
+  
+  if (cashAmount > 0) {
+    portfolioParts.push(cashAmount.toFixed(2));
+  }
+  
+  const portfolioComposition = portfolioParts.join('+');
+
+  // Format symbols for watchlist - include combined portfolio first, then individual holdings
+  const watchlistSymbols = portfolioComposition ? [portfolioComposition, ...holdings.map(h => h.code)] : holdings.map(h => h.code);
+
+  // Debug: Log the symbols being used
+  console.log('Chart Advanced Holdings:', holdings);
+  console.log('Combined Portfolio Symbol:', portfolioComposition);
+  console.log('Watchlist Symbols for TradingView:', watchlistSymbols);
 
   const advancedChartConfig = {
-    width: '100%',
-    height: '100%',
-    symbol: holdings.length > 0 ? holdings[0].code : 'NASDAQ:AAPL',
-    watchlist: watchlistSymbols,
+    autosize: true,
+    symbol: portfolioComposition || (holdings.length > 0 ? holdings[0].code : 'NASDAQ:AAPL'),
     interval: 'D',
-    timezone: 'Etc/UTC',
+    timezone: 'Asia/Singapore',
     theme: 'dark',
     style: '1',
     locale: 'en',
-    enable_publishing: false,
-    hide_top_toolbar: false,
-    hide_legend: false,
-    save_image: false,
-    backgroundColor: 'rgba(33, 37, 41, 1)',
-    gridColor: 'rgba(255, 255, 255, 0.06)',
+    withdateranges: true,
+    hide_side_toolbar: true,
     allow_symbol_change: true,
     details: true,
-    hotlist: true,
+    hotlist: false,
     calendar: false,
-    container_id: 'tradingview_chart'
+    watchlist: watchlistSymbols,
+    compareSymbols: [
+      {
+        symbol: 'ICMARKETS:US500',
+        position: 'SameScale'
+      },
+      {
+        symbol: 'NASDAQ:NDX',
+        position: 'SameScale'
+      }
+    ],
+    support_host: 'https://www.tradingview.com'
   };
 
   return (
     <div style={{ backgroundColor: '#212529', height: '100vh', margin: 0 }}>
-      <div style={{ height: 'calc(100vh - 80px)', width: '100%' }}>
-        <TradingViewWidget
-          script="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"
-          config={advancedChartConfig}
-          style={{ height: '100%', width: '100%' }}
-        />
-      </div>
-      
-      {/* Footer Navigation */}
-      <div style={{ 
-        height: '80px', 
-        backgroundColor: '#212529', 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        gap: '15px'
-      }}>
-        <a href="/stonks/ticker" className="btn btn-outline-light">Ticker</a>
-        <a href="/stonks/charts" className="btn btn-outline-light">Grid</a>
-        <a href="/stonks/charts/large" className="btn btn-outline-light">Large</a>
-        <a href="/stonks/prices" className="btn btn-outline-light">Prices</a>
-        <a href="/stonks/config" className="btn btn-outline-light">Config</a>
-      </div>
+      {holdings.length === 0 ? (
+        <div className="container-fluid p-4">
+          <div className="alert alert-info" role="alert">
+            <h4 className="alert-heading">No Holdings Found</h4>
+            <p>You don't have any stocks in your portfolio yet. Add some holdings in the <a href="/stonks/config" className="alert-link">Configuration</a> page to see charts.</p>
+          </div>
+        </div>
+      ) : (
+        <div style={{ height: 'calc(100vh - 56px)', width: '100%' }}>
+          <TradingViewWidget
+            script="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"
+            config={advancedChartConfig}
+            style={{ height: '100%', width: '100%' }}
+          />
+        </div>
+      )}
     </div>
   );
 };

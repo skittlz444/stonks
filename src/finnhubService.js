@@ -144,27 +144,38 @@ export class FinnhubService {
    */
   async getPortfolioQuotes(holdings) {
     try {
-      const quotesPromises = holdings.map(async (holding) => {
-        try {
-          const quote = await this.getQuote(holding.code);
-          return {
-            ...holding,
-            quote: quote,
-            marketValue: holding.quantity * quote.current,
-            costBasis: holding.quantity * (holding.averageCost || quote.previousClose),
-            gain: holding.quantity * (quote.current - (holding.averageCost || quote.previousClose)),
-            gainPercent: ((quote.current - (holding.averageCost || quote.previousClose)) / (holding.averageCost || quote.previousClose)) * 100
-          };
-        } catch (error) {
-          return {
-            ...holding,
-            quote: null,
-            error: error.message
-          };
-        }
-      });
+      // Process in batches to avoid rate limits and timeouts
+      const BATCH_SIZE = 15; // Process 15 holdings at a time
+      const results = [];
       
-      return await Promise.all(quotesPromises);
+      for (let i = 0; i < holdings.length; i += BATCH_SIZE) {
+        const batch = holdings.slice(i, i + BATCH_SIZE);
+        
+        const batchPromises = batch.map(async (holding) => {
+          try {
+            const quote = await this.getQuote(holding.code);
+            return {
+              ...holding,
+              quote: quote,
+              marketValue: holding.quantity * quote.current,
+              costBasis: holding.quantity * (holding.averageCost || quote.previousClose),
+              gain: holding.quantity * (quote.current - (holding.averageCost || quote.previousClose)),
+              gainPercent: ((quote.current - (holding.averageCost || quote.previousClose)) / (holding.averageCost || quote.previousClose)) * 100
+            };
+          } catch (error) {
+            return {
+              ...holding,
+              quote: null,
+              error: error.message
+            };
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+      }
+      
+      return results;
     } catch (error) {
       console.error('Error fetching portfolio quotes:', error);
       throw error;

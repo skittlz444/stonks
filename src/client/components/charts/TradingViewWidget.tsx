@@ -18,7 +18,7 @@ export const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
 
   return (
     <div className={className} style={style}>
-      <div className="tradingview-widget-container__widget" ref={containerRef}></div>
+      <div className="tradingview-widget-container__widget" style={{ height: '100%' }} ref={containerRef}></div>
     </div>
   );
 };
