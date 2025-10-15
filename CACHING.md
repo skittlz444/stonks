@@ -19,13 +19,13 @@
 The FinnhubService implements an in-memory caching system to reduce API calls and avoid hitting rate limits. This documentation covers the complete caching implementation including the cache timestamp display feature.
 
 ### Key Features
-- ✅ In-memory caching with configurable duration (default: 1 minute)
+- ✅ In-memory caching with configurable duration (default: 1 minute for quotes)
 - ✅ Automatic cache validation and expiration
 - ✅ Cache management methods (clear, stats, timestamps)
-- ✅ Real-time cache timestamp display on prices page
-- ✅ Cache statistics and monitoring
-- ✅ Multi-service caching (Finnhub quotes and FX rates)
-- ✅ 97.66% test coverage for Finnhub, 96.66% for FX service
+- ✅ Cache statistics exposed via API endpoints
+- ✅ React components display cache status
+- ✅ Multi-service caching (Finnhub quotes + FX rates)
+- ✅ 97.76% test coverage for Finnhub, 96.66% for FX service
 
 ---
 
@@ -218,49 +218,50 @@ Total: 20 API calls instead of 50 (60% savings)
 
 ---
 
-## Cache Timestamp Feature
+## Cache Information in API Responses
 
 ### Overview
 
-The Live Stock Prices page displays the **actual cache timestamp** instead of the page load time, providing users with accurate information about when the stock price data was fetched.
+The API endpoints include cache statistics in their responses, allowing React components to display accurate cache information.
 
 ### How It Works
 
 1. Data is fetched from Finnhub API at **2:14:25 PM** → cached
 2. User loads page at **2:15:30 PM** (within 1 minute)
-3. Page shows: **"Last updated: 2:14:25 PM [Cached]"**
-4. After 1 minute, cache expires
-5. Next refresh fetches new data and updates timestamp
+3. API response includes `cacheStats` with oldest timestamp
+4. React component displays: **"Last updated: 2:14:25 PM"**
+5. After 1 minute, cache expires and new data is fetched
 
-### UI Display
+### API Response Structure
 
-The prices page footer shows:
+The `/api/prices-data` endpoint includes cache information:
 
-```html
-<div class="card-footer text-muted d-flex justify-content-between align-items-center">
-  <small>
-    Last updated: 10/6/2025, 2:14:25 PM
-    <span class="badge bg-success ms-2">Cached</span>
-  </small>
-  <small class="text-muted">
-    10 symbols in cache
-  </small>
-</div>
+```json
+{
+  "holdings": [...],
+  "cacheStats": {
+    "size": 10,
+    "oldestTimestamp": 1696598400000
+  }
+}
+```
+
+### React Component Display
+
+React components (`SummaryCards.tsx`) format and display the cache timestamp:
+
+```typescript
+const lastUpdated = new Date(cacheStats.oldestTimestamp).toLocaleString();
+// Displays: "Last updated: 10/15/2025, 2:14:25 PM"
 ```
 
 ### Timestamp Selection
 
-The page uses `getOldestCacheTimestamp()` for the "Last updated" display because:
+The API returns `oldestTimestamp` because:
 
 1. **Represents initial fetch**: Shows when the batch of quotes was first retrieved
 2. **Most conservative**: If symbols have different timestamps, oldest is safest
 3. **User expectation**: Users expect to see when data became "stale"
-
-### Visual Indicators
-
-- **"Cached" badge**: Green badge appears when data is from cache
-- **Cache size**: Shows number of symbols currently cached (e.g., "10 symbols in cache")
-- **Singular/plural**: "1 symbol" vs "2 symbols" handled automatically
 
 ---
 
@@ -281,14 +282,15 @@ const quote2 = await finnhubService.getQuote('AAPL');
 console.log('Cached!');
 ```
 
-### Portfolio Quotes
+### Portfolio Quotes (Server-Side)
 
 ```javascript
-const holdings = await databaseService.getCurrentHoldings();
+const holdings = await databaseService.getHoldings();
 const enrichedHoldings = await finnhubService.getPortfolioQuotes(holdings);
 
+// Enriched with cached quotes
 enrichedHoldings.forEach(holding => {
-  console.log(`${holding.name}: $${holding.marketValue}`);
+  console.log(`${holding.name}: $${holding.quote.current}`);
 });
 ```
 
@@ -308,12 +310,16 @@ finnhubService.clearCachedQuote('AAPL');
 finnhubService.clearCache();
 ```
 
-### Force Refresh
+### Force Refresh (Server-Side)
 
 ```javascript
-// User clicks "Force Refresh"
-finnhubService.clearCache();
-const quotes = await finnhubService.getQuotes(symbols);
+// Cloudflare Worker endpoint for force refresh
+case '/stonks/api/prices-data':
+  if (url.searchParams.get('refresh') === 'true') {
+    finnhubService.clearCache();
+  }
+  const quotes = await finnhubService.getQuotes(symbols);
+  return Response.json({ quotes, ... });
 ```
 
 ### Cache Monitoring
@@ -338,13 +344,13 @@ console.log(`Cache is ${ageMs / 1000} seconds old`);
 
 ### Test Coverage
 
-**Total Tests: 239** (17 for caching, 19 for API, 16 for prices page)
+**Total Tests: 456** (17 for Finnhub caching, 19 for API, 16 for FX service)
 
 **Coverage:**
-- Statements: 97.66%
-- Branches: 96.22%
-- Functions: 100%
-- Lines: 97.66%
+- Overall: 88.49%
+- FinnhubService: 97.76%
+- FxService: 96.66%
+- React Components: 91.89-100%
 
 ### Cache Test Categories
 
@@ -462,15 +468,16 @@ console.log(service.getCacheStats());
 **Issue**: "Last updated" shows current time instead of cache time.
 
 **Solution**: 
-- Ensure `getOldestCacheTimestamp()` is being called
-- Check that cache is not empty: `getCacheStats().size > 0`
-- Verify cache is being populated: check `isCacheValid(symbol)`
+- Check API response includes `cacheStats.oldestTimestamp`
+- Ensure `getCacheStats()` is called on server-side before returning API response
+- Verify cache is not empty: `getCacheStats().size > 0`
+- Check React component is correctly parsing the timestamp
 
 ### "Different timestamps for different stocks"
 
 **Issue**: Why does "Last updated" show oldest timestamp?
 
-**Explanation**: The page displays the oldest timestamp to be conservative. This represents when the batch of quotes was first retrieved. If individual symbols are refreshed at different times, the oldest timestamp ensures users see when data became "stale."
+**Explanation**: The API returns the oldest timestamp to be conservative. This represents when the batch of quotes was first retrieved. If individual symbols are refreshed at different times, the oldest timestamp ensures users see when data became "stale."
 
 ### Rate Limit Errors
 
@@ -516,10 +523,18 @@ await service.getQuote('AAPL');
 
 ```
 ┌─────────────────────────────────────────┐
-│           Prices Page                    │
-│  - Displays portfolio with live prices  │
-│  - Shows cache timestamp & badge         │
-│  - Refresh button                        │
+│      React Prices Page Component        │
+│  - Fetches data from API                 │
+│  - Displays holdings & cache info        │
+│  - HoldingsTable, SummaryCards           │
+└──────────────┬──────────────────────────┘
+               │ HTTP GET
+               ↓
+┌─────────────────────────────────────────┐
+│     Cloudflare Worker API Endpoint      │
+│  - /api/prices-data                      │
+│  - Calls FinnhubService                  │
+│  - Returns JSON with cacheStats          │
 └──────────────┬──────────────────────────┘
                │
                ↓
@@ -528,7 +543,7 @@ await service.getQuote('AAPL');
 │  - Cache management (Map)                │
 │  - getQuote() with caching               │
 │  - getPortfolioQuotes()                  │
-│  - Cache statistics                      │
+│  - getCacheStats()                       │
 └──────────────┬──────────────────────────┘
                │
      ┌─────────┴─────────┐
@@ -543,17 +558,31 @@ await service.getQuote('AAPL');
 
 ```
 src/
-  ├── finnhubService.js    # Caching logic and API integration
-  ├── prices.js            # Prices page with timestamp display
-  └── index.js             # Router with FinnhubService initialization
+  ├── finnhubService.js          # Caching logic and API integration
+  ├── fxService.js               # FX rate caching
+  ├── index.js                   # Cloudflare Worker with API endpoints
+  └── client/
+      ├── pages/PricesPage.tsx   # React prices page
+      ├── components/
+      │   └── prices/
+      │       ├── HoldingsTable.tsx      # Displays holdings
+      │       └── SummaryCards.tsx       # Shows cache timestamp
+      └── hooks/
+          └── usePricesData.ts   # Fetches data from API
 
 test/
-  ├── finnhubService.test.js       # API integration tests (19 tests)
-  ├── finnhubService.cache.test.js # Cache functionality tests (17 tests)
-  └── prices.test.js               # Prices page tests (16 tests)
+  ├── finnhubService.test.js              # API integration tests (19 tests)
+  ├── finnhubService.cache.test.js        # Cache tests (17 tests)
+  ├── fxService.test.js                   # FX caching tests (16 tests)
+  └── client/
+      ├── components/prices/
+      │   ├── HoldingsTable.test.tsx      # 62 tests
+      │   └── SummaryCards.test.tsx       # 12 tests
+      └── hooks/
+          └── usePricesData.test.ts       # 8 tests
 
 docs/
-  └── CACHING.md           # This comprehensive documentation
+  └── CACHING.md                  # This comprehensive documentation
 ```
 
 ---
@@ -584,19 +613,22 @@ Potential improvements:
 ✅ **Reduces API calls by ~80%**  
 ✅ **Improves response time by 200-500x for cached data**  
 ✅ **Prevents rate limit issues**  
-✅ **Maintains data freshness (1-minute default)**  
-✅ **Provides manual cache control**  
-✅ **Includes comprehensive tests (97.66% coverage)**  
-✅ **Displays accurate cache timestamps**  
+✅ **Maintains data freshness (1-minute default for quotes)**  
+✅ **Dual-cache strategy (quotes + FX rates)**  
+✅ **Comprehensive test coverage (97.76% FinnhubService, 96.66% FxService)**  
+✅ **Cache statistics exposed via API**  
+✅ **React components display cache info**  
 ✅ **Fully documented**  
 
 ### Key Metrics
 
-- **239 total tests** (17 cache + 19 API + 16 prices)
-- **94.05% overall coverage**
-- **97.66% FinnhubService coverage**
-- **100% prices page coverage**
-- **1-minute default cache duration**
+- **456 total tests** (covering server-side and React components)
+- **88.49% overall coverage**
+- **97.76% FinnhubService coverage**
+- **96.66% FxService coverage**
+- **91.89-100% React component coverage**
+- **1-minute default cache for quotes**
+- **1-hour default cache for FX rates**
 - **< 1ms cached response time**
 
 ---
@@ -683,4 +715,64 @@ This dual-cache approach optimizes API usage while maintaining data freshness ap
 
 ---
 
-*Last updated: October 8, 2025*
+## React Integration
+
+### Displaying Cache Information
+
+React components receive cache information from the API and display it to users:
+
+**API Endpoint** (`/api/prices-data`):
+```javascript
+// Cloudflare Worker
+const cacheStats = finnhubService.getCacheStats();
+return Response.json({
+  holdings,
+  cacheStats: {
+    size: cacheStats.size,
+    oldestTimestamp: cacheStats.oldestCacheTime
+  }
+});
+```
+
+**React Component** (`SummaryCards.tsx`):
+```typescript
+interface CacheStats {
+  size: number;
+  oldestTimestamp: number | null;
+}
+
+function SummaryCards({ cacheStats }: { cacheStats?: CacheStats }) {
+  if (!cacheStats?.oldestTimestamp) return null;
+  
+  const lastUpdated = new Date(cacheStats.oldestTimestamp).toLocaleString();
+  
+  return (
+    <div className="text-muted small">
+      Last updated: {lastUpdated}
+      <span className="badge bg-success ms-2">Cached</span>
+    </div>
+  );
+}
+```
+
+**Custom Hook** (`usePricesData.ts`):
+```typescript
+export function usePricesData(currency: string, mode: string) {
+  const [data, setData] = useState<PricesData | null>(null);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await fetch(`/api/prices-data?currency=${currency}&mode=${mode}`);
+      const json = await response.json();
+      setData(json); // Includes cacheStats
+    };
+    fetchData();
+  }, [currency, mode]);
+  
+  return data;
+}
+```
+
+---
+
+*Last updated: October 15, 2025*

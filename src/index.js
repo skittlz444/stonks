@@ -1,11 +1,4 @@
-import { generateTickerPage } from './ticker.js';
-import { generateChartGridPage } from './chartGrid.js';
-import { generateLargeChartPage } from './chartLarge.js';
-import { generateAdvancedChartPage } from './chartAdvanced.js';
-import { generateConfigPage, handleConfigSubmission } from './config.js';
-import { generateConfigPageClient } from './configClientWrapper.js';
-import { generatePricesPage } from './prices.js';
-import { generatePricesPageClient } from './pricesClientWrapper.js';
+import { handleConfigSubmission } from './api.js';
 import { DatabaseService, MockD1Database } from './databaseService.js';
 import { createFinnhubService } from './finnhubService.js';
 import { createFxService } from './fxService.js';
@@ -55,12 +48,63 @@ async function serveStaticFile(env, filename, contentType) {
     
     // For all other files (including manifest.json), return 404 if not found
     console.error(`File not found in ASSETS: ${filename}`);
-    return new Response(`File not found: ${filename}. Make sure wrangler.toml [assets] configuration is correct.`, { 
+    // Use the correct content type even for 404 to avoid MIME type errors
+    return new Response(`/* File not found: ${filename}. Make sure wrangler.toml [assets] configuration is correct. */`, { 
       status: 404,
-      headers: { 'content-type': 'text/plain' }
+      headers: { 'content-type': contentType }
     });
   } catch (error) {
     console.error('Error serving static file:', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
+}
+
+/**
+ * Serve the main React application HTML
+ */
+async function serveAppHTML(env) {
+  try {
+    if (env.ASSETS) {
+      const response = await env.ASSETS.fetch(new Request(`https://placeholder/dist/index.html`));
+      if (response.status === 200) {
+        return new Response(response.body, {
+          headers: {
+            'content-type': 'text/html; charset=utf-8',
+            'cache-control': 'no-cache',
+          },
+        });
+      }
+    }
+    
+    // Fallback HTML for development
+    console.warn('index.html not found in ASSETS, using development placeholder');
+    return new Response(`
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stonks Portfolio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  </head>
+  <body style="background-color: #212529; color: #ffffff;">
+    <div id="root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+    <div style="padding: 20px; text-align: center;">
+      <h1>Development Mode</h1>
+      <p>Run <code>npm run build</code> to build the application.</p>
+    </div>
+  </body>
+</html>
+    `, {
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-cache',
+      },
+    });
+  } catch (error) {
+    console.error('Error serving HTML:', error);
     return new Response('Internal Server Error', { status: 500 });
   }
 }
@@ -98,7 +142,8 @@ async function handleRequest(request, env) {
   // Initialize Finnhub service if API key is available (reuse cached instance)
   if (env.FINNHUB_API_KEY) {
     if (!cachedFinnhubService || cachedFinnhubApiKey !== env.FINNHUB_API_KEY) {
-      cachedFinnhubService = createFinnhubService(env.FINNHUB_API_KEY);
+      // Cache quotes for 1 minute (60000ms)
+      cachedFinnhubService = createFinnhubService(env.FINNHUB_API_KEY, 60000);
       cachedFinnhubApiKey = env.FINNHUB_API_KEY;
     }
   } else {
@@ -179,16 +224,28 @@ async function handleRequest(request, env) {
             // Removed: hidden (always 0 or 1 based on which list), created_at, updated_at
           });
           
-          const optimizeTransaction = (txn) => ({
-            id: txn.id,
-            code: txn.code,
-            type: txn.type,
-            date: txn.date,
-            quantity: txn.quantity,
-            value: txn.value,
-            fee: txn.fee
-            // Removed: created_at (not displayed)
-          });
+          // Map holdings by code for transaction enrichment
+          const allHoldings = [...visibleHoldings, ...hiddenHoldings];
+          const holdingsByCode = allHoldings.reduce((map, h) => {
+            map[h.code] = h;
+            return map;
+          }, {});
+          
+          const optimizeTransaction = (txn) => {
+            const holding = holdingsByCode[txn.code];
+            return {
+              id: txn.id,
+              holding_id: holding ? holding.id : null,
+              holding_name: holding ? holding.name : txn.code,
+              holding_code: txn.code,
+              type: txn.type,
+              date: txn.date,
+              quantity: txn.quantity,
+              price: txn.quantity > 0 ? txn.value / txn.quantity : 0,
+              notes: txn.notes || null
+              // Removed: created_at (not displayed), value, fee (combined into price)
+            };
+          };
           
           return new Response(JSON.stringify({
             visibleHoldings: visibleHoldings.map(optimizeHolding),
@@ -198,7 +255,9 @@ async function handleRequest(request, env) {
             portfolioName,
             totalTargetWeight
           }), {
-            headers: { 'content-type': 'application/json' }
+            headers: { 
+              'content-type': 'application/json'
+            }
           });
         } catch (error) {
           console.error('Error in /api/config-data:', error);
@@ -225,14 +284,15 @@ async function handleRequest(request, env) {
             databaseService.getVisiblePortfolioHoldings(),
             databaseService.getAllTransactionsGroupedByCode(),
             databaseService.getCashAmount(),
+            databaseService.db.prepare('SELECT value FROM portfolio_settings WHERE key = ?').bind('portfolio_name').first()
           ];
           
-          // Only fetch FX rates if needed
-          if (fxService && currency !== 'USD') {
+          // Always fetch FX rates for SGD/AUD for alt currency display
+          if (fxService) {
             dataPromises.push(fxService.getLatestRates(['SGD', 'AUD']));
           }
           
-          // Only fetch closed positions in normal mode (not used in rebalance mode)
+          // Always fetch closed positions (needed for total gain/loss calculation)
           if (!rebalanceMode) {
             dataPromises.push(databaseService.getClosedPositions());
           }
@@ -244,12 +304,14 @@ async function handleRequest(request, env) {
           const holdings = results[0];
           const allTransactions = results[1];
           const cashAmount = results[2];
+          const portfolioNameResult = results[3];
+          const portfolioName = portfolioNameResult ? portfolioNameResult.value : 'My Portfolio';
           let fxRates = {};
           let closedPositions = [];
           
           // Parse optional results based on what was fetched
-          let resultIndex = 3;
-          if (fxService && currency !== 'USD') {
+          let resultIndex = 4;
+          if (fxService) {
             fxRates = results[resultIndex++];
           }
           if (!rebalanceMode) {
@@ -281,6 +343,7 @@ async function handleRequest(request, env) {
               
               // Return only necessary fields, including minimized quote object
               return {
+                id: holding.id,
                 name: holding.name,
                 code: holding.code,
                 quantity: holding.quantity,
@@ -298,6 +361,7 @@ async function handleRequest(request, env) {
             } else {
               // For error cases, only include minimal fields
               return {
+                id: holding.id,
                 name: holding.name,
                 code: holding.code,
                 quantity: holding.quantity,
@@ -306,24 +370,55 @@ async function handleRequest(request, env) {
             }
           });
           
+          // Calculate portfolio totals
+          const totalMarketValue = optimizedHoldings.reduce((sum, h) => {
+            return h.marketValue ? sum + h.marketValue : sum;
+          }, 0);
+          
+          const totalCostBasis = optimizedHoldings.reduce((sum, h) => {
+            return h.costBasis ? sum + h.costBasis : sum;
+          }, 0);
+          
+          const portfolioTotal = totalMarketValue + cashAmount;
+          
+          // Calculate total gain/loss including closed positions
+          const closedPositionsGain = closedPositions.reduce((sum, pos) => sum + pos.profitLoss, 0);
+          const openPositionsGain = totalMarketValue - totalCostBasis;
+          const totalGainLoss = openPositionsGain + closedPositionsGain;
+          const totalGainLossPercent = (totalCostBasis + Math.abs(closedPositionsGain)) > 0 
+            ? (totalGainLoss / (totalCostBasis + Math.abs(closedPositionsGain))) * 100 
+            : 0;
+          
+          // Calculate FX rate for currency conversion
+          const fxRate = (currency !== 'USD' && fxRates && fxRates[currency]) ? fxRates[currency] : 1;
+          
+          // Always include SGD rate for alt currency display when viewing USD
+          const sgdRate = (fxRates && fxRates['SGD']) ? fxRates['SGD'] : null;
+          
           // Get cache stats (synchronous, no await needed)
           const cacheStats = finnhubService.getCacheStats();
           const oldestCacheTime = finnhubService.getOldestCacheTimestamp();
           
           return new Response(JSON.stringify({
             holdings: optimizedHoldings,
-            cashAmount,
             closedPositions,
-            fxRates,
+            cashAmount,
+            portfolioTotal,
+            totalGainLoss,
+            totalGainLossPercent,
+            currency,
+            portfolioName,
             fxAvailable: !!fxService,
+            fxRate,
+            sgdRate,
             cacheStats: {
               size: cacheStats.size,
               oldestTimestamp: oldestCacheTime
-            },
-            rebalanceMode,
-            currency
+            }
           }), {
-            headers: { 'content-type': 'application/json' }
+            headers: { 
+              'content-type': 'application/json'
+            }
           });
         } catch (error) {
           console.error('Error in /api/prices-data:', error);
@@ -333,59 +428,62 @@ async function handleRequest(request, env) {
           });
         }
       
-      // Serve client-side JavaScript files
-      case '/stonks/client/prices.js':
-      case '/stonks/client/config.js':
-        const clientFile = pathname.replace('/stonks/', '');
-        if (env.ASSETS) {
-          try {
-            const response = await env.ASSETS.fetch(new Request(`https://placeholder/${clientFile}`));
-            if (response.status === 200) {
-              return new Response(response.body, {
-                headers: {
-                  'content-type': 'application/javascript',
-                  'cache-control': 'public, max-age=3600',
-                },
-              });
-            }
-          } catch (error) {
-            console.error(`Failed to fetch ${clientFile} from ASSETS:`, error);
-          }
-        }
-        return new Response('Client script not found', { status: 404 });
-      
-      case '/stonks/ticker':
-        return await generateTickerPage(databaseService);
-      
-      case '/stonks/charts':
-        return await generateChartGridPage(databaseService);
-      
-      case '/stonks/charts/large':
-        return await generateLargeChartPage(databaseService);
-      
-      case '/stonks/charts/advanced':
-        return await generateAdvancedChartPage(databaseService);
-      
-      case '/stonks/prices':
-        const rebalanceMode = url.searchParams.get('mode') === 'rebalance';
-        const currency = url.searchParams.get('currency') || 'USD';
-        return generatePricesPageClient(rebalanceMode, currency);
-      
+      // Handle POST to config (form submission)
       case '/stonks/config':
         if (request.method === 'POST') {
           return await handleConfigSubmission(request, databaseService);
-        } else {
-          return generateConfigPageClient();
         }
+        // GET requests fall through to serve the SPA
+        break;
       
       default:
-        return new Response('404 Not Found - Available routes: /stonks/ticker, /stonks/charts, /stonks/charts/large, /stonks/charts/advanced, /stonks/prices, /stonks/config', {
-          status: 404,
-          headers: {
-            'content-type': 'text/plain',
-          },
-        });
+        // Check for static assets (Vite builds to /dist/assets/ but serves from /assets/)
+        if (pathname.startsWith('/stonks/assets/')) {
+          // Map /stonks/assets/ to dist/assets/ in the ASSETS binding
+          const assetFile = pathname.replace('/stonks/assets/', 'dist/assets/');
+          const extension = assetFile.split('.').pop().toLowerCase();
+          const contentTypes = {
+            'js': 'application/javascript',
+            'css': 'text/css',
+            'json': 'application/json',
+            'svg': 'image/svg+xml',
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'woff': 'font/woff',
+            'woff2': 'font/woff2',
+            'ttf': 'font/ttf',
+            'eot': 'application/vnd.ms-fontobject'
+          };
+          const contentType = contentTypes[extension] || 'application/octet-stream';
+          return await serveStaticFile(env, assetFile, contentType);
+        }
+        break;
     }
+    
+    // For all other routes (SPA routes), serve the main HTML
+    // This includes: /stonks, /stonks/, /stonks/ticker, /stonks/prices, /stonks/config, /stonks/chart-grid, etc.
+    if (pathname === '/stonks' || pathname.startsWith('/stonks/')) {
+      return await serveAppHTML(env);
+    }
+    
+    // Root or other paths - redirect to /stonks
+    if (pathname === '/' || pathname === '') {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          'Location': '/stonks/',
+        },
+      });
+    }
+    
+    return new Response('404 Not Found', {
+      status: 404,
+      headers: {
+        'content-type': 'text/plain',
+      },
+    });
   } catch (error) {
     console.error('Error handling request:', error);
     return new Response('Internal Server Error', {

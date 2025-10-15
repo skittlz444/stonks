@@ -13,10 +13,12 @@ The application is now a fully functional Progressive Web App that can:
 ## Architecture
 
 ### Service Worker (`public/sw.js`)
-- Caches essential resources for offline functionality
+- Caches static resources (HTML, CSS, JS bundles) for offline functionality
+- **Does NOT cache API endpoints** (`/api/*`) - always fetched fresh
 - Automatically versioned with build timestamps
 - Cleans up old caches on activation
-- Implements cache-first strategy with network fallback
+- Implements cache-first strategy with network fallback for static assets
+- Development mode detection (skips caching when using placeholders)
 
 ### Manifest (`public/manifest.json`)
 - Defines app metadata (name, icons, theme colors)
@@ -77,15 +79,26 @@ stonks/
 ├── public/
 │   ├── sw.js                    # Service worker (auto-versioned)
 │   ├── manifest.json            # PWA manifest
+│   ├── dist/                    # Built React bundles (cached)
+│   │   ├── prices.js           # Prices page React bundle
+│   │   ├── config.js           # Config page React bundle
+│   │   ├── ticker.js           # Ticker page React bundle
+│   │   └── ...                 # Other page bundles
 │   └── icons/                   # App icons
 │       ├── icon-192x192.png    # 192x192 icon
 │       ├── icon-512x512.png    # 512x512 icon
-│       └── screenshot-mobile.png
+│       └── ...                 # Other icons
+├── src/
+│   ├── index.js                 # Cloudflare Worker (serves HTML + API)
+│   └── client/                  # React/TypeScript source
+│       ├── pages/              # React page components
+│       ├── components/         # Reusable React components
+│       └── ...                 # Hooks, utils, types
 ├── scripts/
-│   ├── update-cache-version.js  # Build script
-│   └── reset-cache-version.js   # Reset script
+│   ├── update-cache-version.js  # Build script (adds timestamp)
+│   └── reset-cache-version.js   # Reset script (dev mode)
 └── test/
-    └── cache-version.test.js    # Tests for cache management
+    └── cache-version.test.js    # Tests for cache management (8 tests)
 ```
 
 ## PWA Features
@@ -97,31 +110,88 @@ Users can install the app on:
 - **Desktop (Safari)**: Add to Dock
 
 ### Offline Support
-- Cached pages load instantly
+- Cached React app shells load instantly
+- React bundles cached for offline functionality
 - Bootstrap CSS/JS cached for styling
+- API data requires network (not cached)
 - Fallback to offline message when network unavailable
-- Smart cache-first strategy with network fallback
+- Smart cache-first strategy for static assets only
 
 ### Automatic Updates
-- Each deployment gets unique cache version
-- Old caches automatically cleaned up
-- Users get latest version on next visit
+- Each deployment gets unique cache version (timestamped)
+- Old caches automatically cleaned up on service worker activation
+- Users get latest React bundles and HTML on next visit
 - No manual cache clearing needed
+- API data always fresh (never cached by service worker)
+- Server-side caching (1-minute for quotes) independent of PWA cache
+
+## React Application Integration
+
+The PWA works seamlessly with the React/TypeScript application:
+
+### How It Works
+1. **Service Worker** caches the minimal HTML shell and React bundles
+2. **User visits offline** → Cached HTML and React bundles load
+3. **React app initializes** → Attempts to fetch data from API endpoints
+4. **API fetch fails** (offline) → React components show error state with retry
+5. **User goes online** → React app can fetch fresh data
+
+### What's Cached vs What's Not
+
+**Cached (Works Offline):**
+- HTML shells for all pages
+- React JavaScript bundles (Vite builds)
+- Bootstrap CSS and JavaScript
+- PWA manifest and icons
+- TradingView widget scripts (if previously loaded)
+
+**Not Cached (Requires Network):**
+- Portfolio data (holdings, transactions)
+- Stock quotes (Finnhub API)
+- Currency exchange rates (OpenExchangeRates)
+- Database queries (D1)
+- User actions (add/edit/delete)
+
+### React Loading States
+
+React components handle offline gracefully:
+```typescript
+// React component shows loading/error states
+const { data, loading, error } = usePricesData();
+
+if (loading) return <LoadingSpinner />;
+if (error) return <ErrorMessage message={error} retry={refetch} />;
+```
 
 ## Cache Strategy
 
 ### Cached Resources
-1. App routes (`/stonks/`, `/stonks/prices`, `/stonks/config`)
-2. Bootstrap CSS (from CDN)
-3. Bootstrap JS (from CDN)
-4. PWA manifest
+1. **App routes**: `/stonks/`, `/stonks/prices`, `/stonks/config`, `/stonks/ticker`, `/stonks/charts`, `/stonks/charts/large`
+2. **React bundles**: `/stonks/dist/prices.js`, `/stonks/dist/config.js`, `/stonks/dist/ticker.js`, etc.
+3. **Bootstrap CSS**: CDN (jsdelivr.net)
+4. **Bootstrap JS**: CDN (jsdelivr.net)
+5. **PWA manifest**: `/stonks/manifest.json`
 
-### Cache-First with Network Fallback
+### NOT Cached (Always Fresh)
+1. **API endpoints**: `/stonks/api/prices-data`, `/stonks/api/config-data` - always fetched from network
+2. **External APIs**: Finnhub, OpenExchangeRates - never cached by service worker
+3. **Database queries**: All D1 queries bypass the service worker
+4. **POST/PUT/DELETE requests**: Non-GET requests always go to network
+
+### Cache Strategy Details
+
+**For Static Assets (HTML, JS, CSS):**
 1. Check cache for resource
-2. Return cached version if available
+2. Return cached version if available (instant load)
 3. Otherwise, fetch from network
-4. Cache successful responses
+4. Cache successful responses for future use
 5. Show offline page if both fail
+
+**For API Endpoints:**
+1. Always bypass cache
+2. Fetch directly from network
+3. Server-side caching handles data freshness (1-minute for quotes)
+4. Ensures real-time data updates
 
 ### Cache Invalidation
 - New cache version on each deployment
@@ -169,10 +239,12 @@ Assets are served via Cloudflare Workers with:
 - Automatic MIME type detection
 - Edge caching for performance
 
-### Routes
-- `/stonks/sw.js` - Service worker (no-cache)
+### Routes & Caching Headers
+- `/stonks/sw.js` - Service worker (no-cache, always fresh)
 - `/stonks/manifest.json` - PWA manifest (1hr cache)
-- `/stonks/icons/*` - App icons (served as assets)
+- `/stonks/icons/*` - App icons (served as assets, long cache)
+- `/stonks/dist/*` - React bundles (cached by service worker)
+- `/stonks/api/*` - API endpoints (NEVER cached by service worker)
 
 ## Development Notes
 
@@ -194,16 +266,60 @@ Assets are served via Cloudflare Workers with:
 - Run `npm run build:sw:reset` before dev
 - Hard refresh (Ctrl+Shift+R) in browser
 - Check DevTools > Application > Service Workers
+- Ensure "Update on reload" is checked during development
 
 **Cache version not updating:**
-- Ensure build script runs before deploy
-- Check `public/sw.js` has timestamp (not placeholder)
+- Ensure build script runs before deploy: `npm run build`
+- Check `public/sw.js` has timestamp (not `{{BUILD_TIMESTAMP}}` placeholder)
 - Verify wrangler uploads updated file
+- Clear old service workers in DevTools if needed
+
+**React app loads but shows "no data":**
+- This is expected offline behavior - API endpoints not cached
+- Check Network tab in DevTools to confirm API requests failing
+- React error boundaries should show retry option
+- Ensure you have network connectivity for data
 
 **Icons not showing:**
 - Add your icon files to `public/icons/`
 - Update manifest.json with correct paths
-- Icons must be PNG format
+- Icons must be PNG format (192x192, 512x512 minimum)
+
+**API data seems stale:**
+- Service worker does NOT cache API endpoints
+- If data seems old, it's server-side caching (1-minute for quotes)
+- Check cache timestamp displayed in React UI
+- API requests always go to network, bypassing service worker
+
+## Important Notes for Developers
+
+### Service Worker Scope
+The service worker operates at `/stonks/` scope and:
+- ✅ **Caches**: HTML shells, React bundles (`/stonks/dist/*`), CSS, JS
+- ❌ **Does NOT cache**: API endpoints (`/stonks/api/*`), external APIs
+- 🔄 **Always fresh**: Service worker file itself, manifest
+
+### React Bundle Caching
+React bundles are cached by the service worker:
+- First visit: Downloaded and cached
+- Subsequent visits: Loaded from cache (instant)
+- After deployment: New cache version, old bundles purged
+- Vite builds include content hashes in filenames for cache busting
+
+### API vs Static Asset Caching
+**Two separate caching layers:**
+
+1. **Service Worker Cache** (Client-Side):
+   - Caches: HTML, React bundles, CSS, JS
+   - Duration: Until next deployment
+   - Purpose: Offline functionality
+
+2. **Server-Side Cache** (Cloudflare Worker):
+   - Caches: Stock quotes (1 minute), FX rates (1 hour)
+   - Duration: Time-based expiration
+   - Purpose: Reduce API calls, improve performance
+
+These work independently and complement each other.
 
 ## Future Enhancements
 
@@ -212,6 +328,7 @@ Assets are served via Cloudflare Workers with:
 - [ ] Web Share API for sharing portfolios
 - [ ] Badging API for portfolio changes
 - [ ] Periodic background sync for price updates
+- [ ] IndexedDB for offline data caching (optional)
 
 ## References
 

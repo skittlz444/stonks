@@ -5,10 +5,12 @@
   "main": "src/index.js",
   "scripts": {
     "check": "tsc && wrangler deploy --dry-run",
-    "build": "node scripts/update-cache-version.js",
+    "build": "npm run build:client && npm run build:sw",
+    "build:client": "vite build",
     "build:sw": "node scripts/update-cache-version.js",
     "build:sw:reset": "node scripts/reset-cache-version.js",
     "dev": "npm run build:sw:reset && pnpm seedLocalD1 && wrangler dev --local --persist-to ./local-db",
+    "dev:client": "vite",
     "deploy": "npm run build && wrangler deploy",
     "seedLocalD1": "wrangler d1 migrations apply stonks-portfolio --local --persist-to ./local-db",
     "predeploy": "wrangler d1 migrations apply stonks-portfolio --remote",
@@ -25,10 +27,24 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^2.1.9",
     "jsdom": "^27.0.0",
     "pnpm": "^10.18.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.20",
     "vitest": "^2.1.9",
     "wrangler": "^4.42.0"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.4"
   }
 }
