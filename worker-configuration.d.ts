@@ -6,6 +6,8 @@ declare namespace Cloudflare {
 		mainModule: typeof import("./src/index");
 	}
 	interface Env {
+		FINNHUB_API_KEY: string;
+		OPENEXCHANGERATES_API_KEY: string;
 		STONKS_DB: D1Database;
 		ASSETS: Fetcher;
 	}
