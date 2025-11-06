@@ -36,7 +36,7 @@
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/coverage-v8": "^2.1.9",
     "jsdom": "^27.0.1",
-    "pnpm": "^10.18.3",
+    "pnpm": "^10.20.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.12",
     "vitest": "^2.1.9",
