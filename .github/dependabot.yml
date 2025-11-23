@@ -43,8 +43,21 @@ updates:
           - "minor"
           - "patch"
       # Group all other dev dependencies with minor and patch updates
+      # Note: Dependencies matching specific groups above take precedence
+      # This catches remaining dev deps not covered by react/testing/build-tools groups
       dev-dependencies:
         dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
+        exclude-patterns:
+          - "react*"
+          - "@types/react*"
+          - "@testing-library/*"
+          - "@vitest/*"
+          - "vitest"
+          - "jsdom"
+          - "vite*"
+          - "@vitejs/*"
+          - "typescript"
+          - "wrangler"
