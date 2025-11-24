@@ -6,7 +6,7 @@
  * Handle configuration form submissions (add/update/delete holdings, transactions, settings)
  */
 export async function handleConfigSubmission(request, databaseService) {
-  let redirectUrl = '/stonks/config';
+  let redirectUrl = '/config';
   const isAjax = request.headers.get('Accept')?.includes('application/json');
   
   try {

@@ -42,7 +42,7 @@ describe('api.js - handleConfigSubmission', () => {
       expect(mockDatabaseService.updateCashAmount).toHaveBeenCalledWith(5000);
       expect(mockDatabaseService.db.prepare).toHaveBeenCalled();
       expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/stonks/config');
+      expect(response.headers.get('Location')).toBe('/config');
     });
 
     test('should return JSON for AJAX request', async () => {
@@ -307,7 +307,7 @@ describe('api.js - handleConfigSubmission', () => {
       const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
 
       expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/stonks/config');
+      expect(response.headers.get('Location')).toBe('/config');
 
       consoleErrorSpy.mockRestore();
     });
@@ -328,7 +328,7 @@ describe('api.js - handleConfigSubmission', () => {
       const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
 
       expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/stonks/config');
+      expect(response.headers.get('Location')).toBe('/config');
     });
 
     test('should detect AJAX from Accept header', async () => {

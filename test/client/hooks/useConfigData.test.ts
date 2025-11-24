@@ -48,7 +48,7 @@ describe('useConfigData', () => {
 
     expect(result.current.data).toEqual(mockConfigData);
     expect(result.current.error).toBe(null);
-    expect(global.fetch).toHaveBeenCalledWith('/stonks/api/config-data');
+    expect(global.fetch).toHaveBeenCalledWith('/api/config-data');
   });
 
   test('should handle API error', async () => {
