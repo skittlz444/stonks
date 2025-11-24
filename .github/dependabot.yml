@@ -5,8 +5,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
-      timezone: "UTC"
+      time: "06:00"
+      timezone: "Asia/Singapore"
     target-branch: "dev"
     open-pull-requests-limit: 10
     commit-message:
@@ -17,58 +17,19 @@ updates:
       - "dependencies"
       - "npm"
     groups:
-      # Group React-related dependencies
-      react:
-        patterns:
-          - "react*"
-          - "@types/react*"
-      # Group testing dependencies
-      testing:
-        patterns:
-          - "@testing-library/*"
-          - "@vitest/*"
-          - "vitest"
-          - "jsdom"
+      # Group all minor and patch updates together
+      minor-and-patch:
         update-types:
           - "minor"
           - "patch"
-      # Group build tools
-      build-tools:
-        patterns:
-          - "vite*"
-          - "@vitejs/*"
-          - "typescript"
-          - "wrangler"
-        update-types:
-          - "minor"
-          - "patch"
-      # Group all other dev dependencies with minor and patch updates
-      # Note: Dependencies matching specific groups above take precedence
-      # This catches remaining dev deps not covered by react/testing/build-tools groups
-      dev-dependencies:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
-        exclude-patterns:
-          - "react*"
-          - "@types/react*"
-          - "@testing-library/*"
-          - "@vitest/*"
-          - "vitest"
-          - "jsdom"
-          - "vite*"
-          - "@vitejs/*"
-          - "typescript"
-          - "wrangler"
   
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
-      timezone: "UTC"
+      time: "06:00"
+      timezone: "Asia/Singapore"
     target-branch: "dev"
     open-pull-requests-limit: 5
     commit-message:
@@ -78,7 +39,8 @@ updates:
       - "dependencies"
       - "github-actions"
     groups:
-      # Group all GitHub Actions updates together
-      github-actions:
-        patterns:
-          - "*"
+      # Group all minor and patch updates together
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
