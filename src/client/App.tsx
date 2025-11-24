@@ -17,7 +17,7 @@ const AppRoutes: React.FC = () => {
     <BrowserRouter>
       <Navigation portfolioName={configData?.portfolioName || 'My Portfolio'} />
       <Routes>
-        <Route path="/" element={<Navigate to="/ticker" replace />} />
+        <Route path="/" element={<Navigate to="/prices" replace />} />
         <Route path="/ticker" element={<TickerPage />} />
         <Route path="/prices" element={<PricesPage />} />
         <Route path="/config" element={<ConfigPage />} />
