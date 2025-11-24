@@ -29,7 +29,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
       setError(null);
 
-      const response = await fetch('/stonks/api/config-data');
+      const response = await fetch('/api/config-data');
 
       if (!response.ok) {
         throw new Error(`Failed to fetch config data: ${response.statusText}`);

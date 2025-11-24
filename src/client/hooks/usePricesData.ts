@@ -28,7 +28,7 @@ export function usePricesData(rebalanceMode: boolean, currency: string): UsePric
         setError(null);
 
         const response = await fetch(
-          `/stonks/api/prices-data?mode=${rebalanceMode ? 'rebalance' : 'normal'}&currency=${currency}`
+          `/api/prices-data?mode=${rebalanceMode ? 'rebalance' : 'normal'}&currency=${currency}`
         );
 
         if (!response.ok) {

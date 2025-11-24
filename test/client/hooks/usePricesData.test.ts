@@ -69,7 +69,7 @@ describe('usePricesData', () => {
 
     expect(result.current.data).toEqual(mockPricesData);
     expect(result.current.error).toBe(null);
-    expect(global.fetch).toHaveBeenCalledWith('/stonks/api/prices-data?mode=normal&currency=USD');
+    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=USD');
   });
 
   test('should fetch rebalance mode data when rebalanceMode is true', async () => {
@@ -84,7 +84,7 @@ describe('usePricesData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/stonks/api/prices-data?mode=rebalance&currency=USD');
+    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=rebalance&currency=USD');
   });
 
   test('should fetch data with different currency', async () => {
@@ -99,7 +99,7 @@ describe('usePricesData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/stonks/api/prices-data?mode=normal&currency=SGD');
+    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=SGD');
   });
 
   test('should handle API error', async () => {
@@ -208,13 +208,13 @@ describe('usePricesData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/stonks/api/prices-data?mode=normal&currency=USD');
+    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=USD');
 
     // Change to rebalance mode
     rerender({ mode: true, currency: 'USD' });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/stonks/api/prices-data?mode=rebalance&currency=USD');
+      expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=rebalance&currency=USD');
     });
   });
 });
