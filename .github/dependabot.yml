@@ -17,8 +17,15 @@ updates:
       - "dependencies"
       - "npm"
     groups:
-      # Group all minor and patch updates together
-      minor-and-patch:
+      # Group production dependencies with minor and patch updates
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group dev dependencies with minor and patch updates
+      dev-dependencies:
+        dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
