@@ -168,7 +168,7 @@ async function handleRequest(request, env) {
   try {
     // Handle static assets (icons, images, etc.)
     if (pathname.startsWith('/icons/')) {
-      const filename = pathname.replace('/', '');
+      const filename = pathname.substring(1); // Remove leading slash
       const extension = filename.split('.').pop().toLowerCase();
       const contentTypes = {
         'png': 'image/png',

@@ -21,4 +21,4 @@ database_id = "0015b265-8d4e-4e57-9f18-c8973ecb46c6"
 
 [[routes]]
 pattern = "stonks.haydencarson.com/*"
-custom_domain = true
+zone_name = "haydencarson.com"
