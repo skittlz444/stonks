@@ -15,12 +15,12 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const handleCurrencyChange = (newCurrency: string) => {
     const mode = rebalanceMode ? 'rebalance' : 'normal';
-    window.location.href = `/stonks/prices?mode=${mode}&currency=${newCurrency}`;
+    window.location.href = `/prices?mode=${mode}&currency=${newCurrency}`;
   };
 
   const toggleRebalanceMode = () => {
     const newMode = !rebalanceMode;
-    window.location.href = `/stonks/prices?mode=${newMode ? 'rebalance' : 'normal'}&currency=${currency}`;
+    window.location.href = `/prices?mode=${newMode ? 'rebalance' : 'normal'}&currency=${currency}`;
   };
 
   return (
@@ -70,11 +70,11 @@ export const Navigation: React.FC<NavigationProps> = ({
           </button>
 
           {/* Navigation Links */}
-          <a href="/stonks/ticker" className="btn btn-sm btn-outline-light me-2">Ticker</a>
-          <a href="/stonks/charts" className="btn btn-sm btn-outline-light me-2">Grid</a>
-          <a href="/stonks/charts/large" className="btn btn-sm btn-outline-light me-2">Large</a>
-          <a href="/stonks/charts/advanced" className="btn btn-sm btn-outline-light me-2">Advanced</a>
-          <a href="/stonks/config" className="btn btn-sm btn-outline-light">Config</a>
+          <a href="/ticker" className="btn btn-sm btn-outline-light me-2">Ticker</a>
+          <a href="/charts" className="btn btn-sm btn-outline-light me-2">Grid</a>
+          <a href="/charts/large" className="btn btn-sm btn-outline-light me-2">Large</a>
+          <a href="/charts/advanced" className="btn btn-sm btn-outline-light me-2">Advanced</a>
+          <a href="/config" className="btn btn-sm btn-outline-light">Config</a>
         </div>
       </div>
     </nav>

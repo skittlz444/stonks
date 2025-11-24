@@ -21,7 +21,7 @@ export const ConfigPage: React.FC = () => {
     const formData = new FormData(form);
 
     try {
-      const response = await fetch('/stonks/config', {
+      const response = await fetch('/config', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -63,7 +63,7 @@ export const ConfigPage: React.FC = () => {
     formData.append(action === 'delete_transaction' ? 'transaction_id' : 'holding_id', id.toString());
 
     try {
-      const response = await fetch('/stonks/config', {
+      const response = await fetch('/config', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -90,7 +90,7 @@ export const ConfigPage: React.FC = () => {
     formData.append('holding_id', holdingId.toString());
 
     try {
-      const response = await fetch('/stonks/config', {
+      const response = await fetch('/config', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

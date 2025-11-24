@@ -76,7 +76,7 @@ export const ChartAdvancedPage: React.FC = () => {
         <div className="container-fluid p-4">
           <div className="alert alert-info" role="alert">
             <h4 className="alert-heading">No Holdings Found</h4>
-            <p>You don't have any stocks in your portfolio yet. Add some holdings in the <a href="/stonks/config" className="alert-link">Configuration</a> page to see charts.</p>
+            <p>You don't have any stocks in your portfolio yet. Add some holdings in the <a href="/config" className="alert-link">Configuration</a> page to see charts.</p>
           </div>
         </div>
       ) : (

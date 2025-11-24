@@ -14,7 +14,7 @@ const AppRoutes: React.FC = () => {
   const { configData } = useConfig();
 
   return (
-    <BrowserRouter basename="/stonks">
+    <BrowserRouter>
       <Navigation portfolioName={configData?.portfolioName || 'My Portfolio'} />
       <Routes>
         <Route path="/" element={<Navigate to="/ticker" replace />} />

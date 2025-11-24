@@ -167,8 +167,8 @@ async function handleRequest(request, env) {
   // Route to appropriate page based on URL path
   try {
     // Handle static assets (icons, images, etc.)
-    if (pathname.startsWith('/stonks/icons/')) {
-      const filename = pathname.replace('/stonks/', '');
+    if (pathname.startsWith('/icons/')) {
+      const filename = pathname.replace('/', '');
       const extension = filename.split('.').pop().toLowerCase();
       const contentTypes = {
         'png': 'image/png',
@@ -182,21 +182,21 @@ async function handleRequest(request, env) {
     }
     
     switch (pathname) {
-      case '/stonks/':
-      case '/stonks':
+      case '/':
+      case '':
         // Redirect to prices page as default
-        return Response.redirect(url.origin + '/stonks/prices', 302);
+        return Response.redirect(url.origin + '/prices', 302);
       
-      case '/stonks/sw.js':
+      case '/sw.js':
         // Serve service worker
         return await serveStaticFile(env, 'sw.js', 'application/javascript');
       
-      case '/stonks/manifest.json':
+      case '/manifest.json':
         // Serve PWA manifest
         return await serveStaticFile(env, 'manifest.json', 'application/json');
       
       // API Endpoints for client-side data fetching
-      case '/stonks/api/config-data':
+      case '/api/config-data':
         try {
           // OPTIMIZATION: Parallelize all independent data fetching operations
           const [visibleHoldings, hiddenHoldings, transactions, cashAmount, portfolioNameResult] = await Promise.all([
@@ -267,7 +267,7 @@ async function handleRequest(request, env) {
           });
         }
       
-      case '/stonks/api/prices-data':
+      case '/api/prices-data':
         try {
           if (!finnhubService) {
             return new Response(JSON.stringify({ error: 'Finnhub API key not configured' }), {
@@ -429,7 +429,7 @@ async function handleRequest(request, env) {
         }
       
       // Handle POST to config (form submission)
-      case '/stonks/config':
+      case '/config':
         if (request.method === 'POST') {
           return await handleConfigSubmission(request, databaseService);
         }
@@ -438,9 +438,9 @@ async function handleRequest(request, env) {
       
       default:
         // Check for static assets (Vite builds to /dist/assets/ but serves from /assets/)
-        if (pathname.startsWith('/stonks/assets/')) {
-          // Map /stonks/assets/ to dist/assets/ in the ASSETS binding
-          const assetFile = pathname.replace('/stonks/assets/', 'dist/assets/');
+        if (pathname.startsWith('/assets/')) {
+          // Map /assets/ to dist/assets/ in the ASSETS binding
+          const assetFile = pathname.replace('/assets/', 'dist/assets/');
           const extension = assetFile.split('.').pop().toLowerCase();
           const contentTypes = {
             'js': 'application/javascript',
@@ -463,20 +463,8 @@ async function handleRequest(request, env) {
     }
     
     // For all other routes (SPA routes), serve the main HTML
-    // This includes: /stonks, /stonks/, /stonks/ticker, /stonks/prices, /stonks/config, /stonks/chart-grid, etc.
-    if (pathname === '/stonks' || pathname.startsWith('/stonks/')) {
-      return await serveAppHTML(env);
-    }
-    
-    // Root or other paths - redirect to /stonks
-    if (pathname === '/' || pathname === '') {
-      return new Response(null, {
-        status: 302,
-        headers: {
-          'Location': '/stonks/',
-        },
-      });
-    }
+    // This includes: /, /ticker, /prices, /config, /chart-grid, etc.
+    return await serveAppHTML(env);
     
     return new Response('404 Not Found', {
       status: 404,

@@ -18,7 +18,7 @@ export function useConfigData(): UseConfigDataResult {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/stonks/api/config-data');
+      const response = await fetch('/api/config-data');
 
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.statusText}`);

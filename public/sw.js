@@ -6,13 +6,13 @@ const CACHE_NAME = `stonks-{{BUILD_TIMESTAMP}}`;
 const isDevelopment = BUILD_TIMESTAMP.includes('{{');
 
 const urlsToCache = [
-  '/stonks/',
-  '/stonks/prices',
-  '/stonks/config',
-  '/stonks/ticker',
-  '/stonks/charts',
-  '/stonks/charts/large',
-  '/stonks/manifest.json',
+  '/',
+  '/prices',
+  '/config',
+  '/ticker',
+  '/charts',
+  '/charts/large',
+  '/manifest.json',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js'
 ];
@@ -112,7 +112,7 @@ self.addEventListener('fetch', (event) => {
             const responseToCache = response.clone();
             
             // Cache static assets and pages (but not API endpoints)
-            if (event.request.url.includes('/stonks/') && !event.request.url.includes('/api/')) {
+            if (!event.request.url.includes('/api/')) {
               caches.open(CACHE_NAME)
                 .then((cache) => {
                   cache.put(event.request, responseToCache);
@@ -124,7 +124,7 @@ self.addEventListener('fetch', (event) => {
           .catch(() => {
             // If both cache and network fail, return a basic offline page
             if (event.request.headers.get('accept').includes('text/html')) {
-              return caches.match('/stonks/').then((cachedResponse) => {
+              return caches.match('/').then((cachedResponse) => {
                 if (cachedResponse) {
                   return cachedResponse;
                 }
