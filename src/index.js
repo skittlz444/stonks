@@ -465,13 +465,6 @@ async function handleRequest(request, env) {
     // For all other routes (SPA routes), serve the main HTML
     // This includes: /, /ticker, /prices, /config, /chart-grid, etc.
     return await serveAppHTML(env);
-    
-    return new Response('404 Not Found', {
-      status: 404,
-      headers: {
-        'content-type': 'text/plain',
-      },
-    });
   } catch (error) {
     console.error('Error handling request:', error);
     return new Response('Internal Server Error', {
