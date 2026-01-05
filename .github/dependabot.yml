@@ -7,7 +7,7 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Singapore"
-    target-branch: "dev"
+    target-branch: "main"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "npm"
@@ -38,7 +38,7 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Asia/Singapore"
-    target-branch: "dev"
+    target-branch: "main"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "ci"
