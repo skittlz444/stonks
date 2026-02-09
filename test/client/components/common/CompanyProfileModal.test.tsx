@@ -14,7 +14,9 @@ describe('CompanyProfileModal', () => {
     };
 
     mockBootstrap = {
-      Modal: vi.fn(() => mockModal),
+      Modal: vi.fn(function MockModal() {
+        return mockModal;
+      }),
     };
 
     (window as any).bootstrap = mockBootstrap;

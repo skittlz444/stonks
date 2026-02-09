@@ -18,27 +18,33 @@ vi.mock('../src/databaseService.js', () => {
   }));
 
   return {
-    DatabaseService: vi.fn().mockImplementation((db) => ({
-      db: { prepare: mockPrepare },
-      getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
-      getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
-      getTransactions: mockGetTransactions,
-      getCashAmount: mockGetCashAmount,
-      getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
-      getClosedPositions: mockGetClosedPositions
-    })),
-    MockD1Database: vi.fn().mockImplementation(() => ({
-      prepare: mockPrepare
-    })),
-    default: vi.fn().mockImplementation((db) => ({
-      db: { prepare: mockPrepare },
-      getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
-      getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
-      getTransactions: mockGetTransactions,
-      getCashAmount: mockGetCashAmount,
-      getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
-      getClosedPositions: mockGetClosedPositions
-    }))
+    DatabaseService: vi.fn().mockImplementation(function MockDatabaseService() {
+      return {
+        db: { prepare: mockPrepare },
+        getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
+        getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
+        getTransactions: mockGetTransactions,
+        getCashAmount: mockGetCashAmount,
+        getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
+        getClosedPositions: mockGetClosedPositions
+      };
+    }),
+    MockD1Database: vi.fn().mockImplementation(function MockD1Database() {
+      return {
+        prepare: mockPrepare
+      };
+    }),
+    default: vi.fn().mockImplementation(function MockDatabaseServiceDefault() {
+      return {
+        db: { prepare: mockPrepare },
+        getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
+        getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
+        getTransactions: mockGetTransactions,
+        getCashAmount: mockGetCashAmount,
+        getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
+        getClosedPositions: mockGetClosedPositions
+      };
+    })
   };
 });
 
