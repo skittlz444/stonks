@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, useConfig } from './context/ConfigContext';
 import { Navigation } from './components/common/Navigation';
-import { PricesPage } from './pages/prices/PricesPage';
+import { RoutedPricesPage } from './pages/prices/PricesPage';
 import { ConfigPage } from './pages/config/ConfigPage';
 import { TickerPage } from './pages/ticker/TickerPage';
 import { ChartGridPage } from './pages/chartGrid/ChartGridPage';
@@ -19,7 +19,7 @@ const AppRoutes: React.FC = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/prices" replace />} />
         <Route path="/ticker" element={<TickerPage />} />
-        <Route path="/prices" element={<PricesPage />} />
+        <Route path="/prices" element={<RoutedPricesPage />} />
         <Route path="/config" element={<ConfigPage />} />
         
         {/* Chart routes with both old and new paths */}

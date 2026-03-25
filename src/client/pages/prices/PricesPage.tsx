@@ -11,12 +11,40 @@ import { ColumnControls } from '../../components/prices/ColumnControls';
 import { CompanyProfileModal } from '../../components/common/CompanyProfileModal';
 import { calculateRebalancing } from '../../utils/rebalancing';
 
-export const PricesPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  
-  const rebalanceMode = searchParams.get('mode') === 'rebalance';
-  const currency = searchParams.get('currency') || 'USD';
+type PricesPageProps = {
+  rebalanceMode?: boolean;
+  currency?: string;
+  onNavigate?: (path: string, options?: { replace?: boolean }) => void;
+};
+
+export const PricesPage: React.FC<PricesPageProps> = ({
+  rebalanceMode: rebalanceModeProp,
+  currency: currencyProp,
+  onNavigate,
+}) => {
+  const searchParams = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : new URLSearchParams();
+  const rebalanceMode = rebalanceModeProp ?? searchParams.get('mode') === 'rebalance';
+  const currency = (currencyProp ?? searchParams.get('currency')) || 'USD';
+
+  const navigate = (path: string, options?: { replace?: boolean }) => {
+    if (onNavigate) {
+      onNavigate(path, options);
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (options?.replace) {
+      window.location.replace(path);
+      return;
+    }
+
+    window.location.assign(path);
+  };
 
   // Rebalancing is only available in USD - redirect if necessary
   useEffect(() => {
@@ -267,5 +295,18 @@ export const PricesPage: React.FC = () => {
         onHide={() => setModalState({ show: false, symbol: '', name: '' })}
       />
     </div>
+  );
+};
+
+export const RoutedPricesPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  return (
+    <PricesPage
+      rebalanceMode={searchParams.get('mode') === 'rebalance'}
+      currency={searchParams.get('currency') || 'USD'}
+      onNavigate={(path, options) => navigate(path, options)}
+    />
   );
 };
