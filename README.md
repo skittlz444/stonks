@@ -69,7 +69,7 @@ The application uses a **modern React/TypeScript architecture**:
 
 ### Prerequisites
 
-1. Install Node.js and npm
+1. Install Node.js `^20.19.0` or `>=22.12.0`
 2. Install Wrangler CLI: `npm install -g wrangler`
 3. Authenticate with Cloudflare: `wrangler login`
 
