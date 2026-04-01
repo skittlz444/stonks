@@ -22,7 +22,7 @@ describe('useHoldings', () => {
   );
 
   beforeEach(() => {
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
   });
 
   afterEach(() => {
@@ -30,7 +30,7 @@ describe('useHoldings', () => {
   });
 
   test('should return holdings from config context', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockConfigData
     });
@@ -47,7 +47,7 @@ describe('useHoldings', () => {
   });
 
   test('should return empty array when config data is loading', () => {
-    (global.fetch as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (globalThis.fetch as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     const { result } = renderHook(() => useHoldings(), { wrapper });
 
@@ -57,7 +57,7 @@ describe('useHoldings', () => {
   });
 
   test('should return error state from config context', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: false,
       statusText: 'Server Error'
     });
@@ -77,7 +77,7 @@ describe('useHoldings', () => {
   });
 
   test('should return loading state from config context', () => {
-    (global.fetch as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (globalThis.fetch as any).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     const { result } = renderHook(() => useHoldings(), { wrapper });
 
@@ -86,7 +86,7 @@ describe('useHoldings', () => {
   });
 
   test('should handle empty visible holdings', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ ...mockConfigData, visibleHoldings: [] })
     });
@@ -102,7 +102,7 @@ describe('useHoldings', () => {
   });
 
   test('should handle zero cash amount', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ ...mockConfigData, cashAmount: 0 })
     });

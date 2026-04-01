@@ -44,7 +44,7 @@ describe('usePricesData', () => {
   };
 
   beforeEach(() => {
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
   });
 
   afterEach(() => {
@@ -52,7 +52,7 @@ describe('usePricesData', () => {
   });
 
   test('should fetch prices data on mount', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockPricesData
     });
@@ -69,11 +69,11 @@ describe('usePricesData', () => {
 
     expect(result.current.data).toEqual(mockPricesData);
     expect(result.current.error).toBe(null);
-    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=USD');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=USD');
   });
 
   test('should fetch rebalance mode data when rebalanceMode is true', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockPricesData
     });
@@ -84,11 +84,11 @@ describe('usePricesData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=rebalance&currency=USD');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/prices-data?mode=rebalance&currency=USD');
   });
 
   test('should fetch data with different currency', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockPricesData
     });
@@ -99,11 +99,11 @@ describe('usePricesData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=SGD');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=SGD');
   });
 
   test('should handle API error', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: false,
       statusText: 'Internal Server Error'
     });
@@ -124,7 +124,7 @@ describe('usePricesData', () => {
   });
 
   test('should handle JSON error response', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ error: 'Database connection failed' })
     });
@@ -144,7 +144,7 @@ describe('usePricesData', () => {
   });
 
   test('should handle network error', async () => {
-    (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+    (globalThis.fetch as any).mockRejectedValueOnce(new Error('Network error'));
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -161,7 +161,7 @@ describe('usePricesData', () => {
   });
 
   test('should show refreshing state on subsequent fetches', async () => {
-    (global.fetch as any).mockResolvedValue({
+    (globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => mockPricesData
     });
@@ -194,7 +194,7 @@ describe('usePricesData', () => {
   });
 
   test('should refetch when rebalance mode changes', async () => {
-    (global.fetch as any).mockResolvedValue({
+    (globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => mockPricesData
     });
@@ -208,13 +208,13 @@ describe('usePricesData', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=USD');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/prices-data?mode=normal&currency=USD');
 
     // Change to rebalance mode
     rerender({ mode: true, currency: 'USD' });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/prices-data?mode=rebalance&currency=USD');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/prices-data?mode=rebalance&currency=USD');
     });
   });
 });
