@@ -36,11 +36,11 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.2",
     "jsdom": "^29.0.1",
     "pnpm": "^10.33.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vitest": "^4.0.18",
     "wrangler": "^4.78.0"
@@ -48,6 +48,6 @@
   "dependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.13.2"
   }
 }

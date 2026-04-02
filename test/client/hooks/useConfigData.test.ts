@@ -23,7 +23,7 @@ describe('useConfigData', () => {
   };
 
   beforeEach(() => {
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
   });
 
   afterEach(() => {
@@ -31,7 +31,7 @@ describe('useConfigData', () => {
   });
 
   test('should fetch config data on mount', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockConfigData
     });
@@ -48,11 +48,11 @@ describe('useConfigData', () => {
 
     expect(result.current.data).toEqual(mockConfigData);
     expect(result.current.error).toBe(null);
-    expect(global.fetch).toHaveBeenCalledWith('/api/config-data');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/config-data');
   });
 
   test('should handle API error', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: false,
       statusText: 'Internal Server Error'
     });
@@ -73,7 +73,7 @@ describe('useConfigData', () => {
   });
 
   test('should handle JSON error response', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ error: 'Database connection failed' })
     });
@@ -93,7 +93,7 @@ describe('useConfigData', () => {
   });
 
   test('should handle network error', async () => {
-    (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+    (globalThis.fetch as any).mockRejectedValueOnce(new Error('Network error'));
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -110,7 +110,7 @@ describe('useConfigData', () => {
   });
 
   test('should provide refetch function', async () => {
-    (global.fetch as any).mockResolvedValue({
+    (globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => mockConfigData
     });
@@ -127,7 +127,7 @@ describe('useConfigData', () => {
 
   test('should refetch data when refetch is called', async () => {
     let callCount = 0;
-    (global.fetch as any).mockImplementation(() => {
+    (globalThis.fetch as any).mockImplementation(() => {
       callCount++;
       return Promise.resolve({
         ok: true,
@@ -160,7 +160,7 @@ describe('useConfigData', () => {
   });
 
   test('should set loading state during refetch', async () => {
-    (global.fetch as any).mockResolvedValue({
+    (globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => mockConfigData
     });
@@ -186,7 +186,7 @@ describe('useConfigData', () => {
 
   test('should handle error during refetch', async () => {
     // First call succeeds
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockConfigData
     });
@@ -203,7 +203,7 @@ describe('useConfigData', () => {
     expect(result.current.error).toBe(null);
 
     // Second call fails
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: false,
       statusText: 'Server Error'
     });
@@ -224,7 +224,7 @@ describe('useConfigData', () => {
 
   test('should clear error on successful refetch', async () => {
     // First call fails
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: false,
       statusText: 'Server Error'
     });
@@ -240,7 +240,7 @@ describe('useConfigData', () => {
     expect(result.current.error).toBe('Failed to fetch data: Server Error');
 
     // Second call succeeds
-    (global.fetch as any).mockResolvedValueOnce({
+    (globalThis.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockConfigData
     });
