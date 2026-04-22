@@ -71,7 +71,6 @@ export interface PricesData {
   portfolioName: string;
   fxAvailable?: boolean;
   fxRate?: number;
-  sgdRate?: number;
   alternateCurrency?: string;
   alternateFxRate?: number;
   fxRates?: Record<string, number>;

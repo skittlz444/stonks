@@ -426,7 +426,6 @@ async function handleRequest(request, env) {
             portfolioName,
             fxAvailable: !!env.OPENEXCHANGERATES_API_KEY,
             fxRate: displayRate,
-            sgdRate: currency === 'USD' ? alternateFxRate : null,
             alternateCurrency,
             alternateFxRate,
             fxRates,

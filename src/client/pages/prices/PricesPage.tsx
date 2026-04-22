@@ -131,7 +131,6 @@ export const PricesPage: React.FC<PricesPageProps> = ({
     totalGainLossPercent: 0,
     fxAvailable: false,
     fxRate: 1,
-    sgdRate: 1,
     alternateCurrency: currency !== 'USD' ? 'USD' : 'SGD',
     alternateFxRate: currency !== 'USD' ? 1 : 1.35,
     cacheStats: null,
