@@ -1,6 +1,6 @@
 // Build timestamp - this should be replaced during build process
-const BUILD_TIMESTAMP = '{{BUILD_TIMESTAMP}}';
-const CACHE_NAME = `stonks-{{BUILD_TIMESTAMP}}`;
+const BUILD_TIMESTAMP = '20260422-003930';
+const CACHE_NAME = `stonks-20260422-003930`;
 
 // Check if we're in development mode (timestamp placeholder not replaced)
 const isDevelopment = BUILD_TIMESTAMP.includes('{{');
