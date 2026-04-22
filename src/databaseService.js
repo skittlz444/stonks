@@ -31,7 +31,7 @@ export class DatabaseService {
       // Build dynamic portfolio from holdings with BATS codes
       const portfolioHoldings = holdingsWithQuantity.filter(h => h.code && h.code.startsWith('BATS:') && h.quantity > 0);
       if (portfolioHoldings.length > 0) {
-        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount || '0');
+        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount_USD || settings.cash_amount || '0');
         const portfolioName = settings.portfolio_name || 'My Portfolio';
         
         // Create the dynamic portfolio entry
@@ -91,7 +91,7 @@ export class DatabaseService {
       // Build dynamic portfolio from visible holdings with BATS codes
       const portfolioHoldings = holdingsWithQuantity.filter(h => h.code && h.code.startsWith('BATS:') && h.quantity > 0);
       if (portfolioHoldings.length > 0) {
-        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount || '0');
+        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount_USD || settings.cash_amount || '0');
         const portfolioName = settings.portfolio_name || 'My Portfolio';
         
         // Create the dynamic portfolio entry
@@ -215,14 +215,35 @@ export class DatabaseService {
    * Update portfolio cash amount
    */
   async updateCashAmount(amount) {
+    return this.updateCashBalances({ USD: amount });
+  }
+
+  /**
+   * Update portfolio cash balances by currency.
+   */
+  async updateCashBalances(cashBalances) {
     try {
-      const result = await this.db.prepare(
-        'INSERT OR REPLACE INTO portfolio_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
-      ).bind('cash_amount', amount.toString()).run();
-      
-      return result.success;
+      const balances = Object.entries(cashBalances || {});
+      let success = true;
+
+      for (const [currency, amount] of balances) {
+        const result = await this.db.prepare(
+          'INSERT OR REPLACE INTO portfolio_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
+        ).bind(`cash_amount_${currency}`, amount.toString()).run();
+
+        success = success && !!result.success;
+
+        if (currency === 'USD') {
+          const legacyResult = await this.db.prepare(
+            'INSERT OR REPLACE INTO portfolio_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
+          ).bind('cash_amount', amount.toString()).run();
+          success = success && !!legacyResult.success;
+        }
+      }
+
+      return success;
     } catch (error) {
-      console.error('Error updating cash amount:', error);
+      console.error('Error updating cash balances:', error);
       return false;
     }
   }
@@ -231,15 +252,36 @@ export class DatabaseService {
    * Get portfolio cash amount
    */
   async getCashAmount() {
+    const cashBalances = await this.getCashBalances();
+    return cashBalances.USD || 0;
+  }
+
+  /**
+   * Get portfolio cash balances keyed by currency.
+   */
+  async getCashBalances() {
     try {
       const result = await this.db.prepare(
-        'SELECT value FROM portfolio_settings WHERE key = ?'
-      ).bind('cash_amount').first();
-      
-      return result ? parseFloat(result.value) : 0;
+        "SELECT key, value FROM portfolio_settings WHERE key = 'cash_amount' OR key LIKE 'cash_amount_%'"
+      ).all();
+
+      const cashBalances = {};
+      for (const row of result.results || []) {
+        if (row.key === 'cash_amount') {
+          if (cashBalances.USD == null) {
+            cashBalances.USD = parseFloat(row.value) || 0;
+          }
+          continue;
+        }
+
+        const currency = row.key.replace('cash_amount_', '').toUpperCase();
+        cashBalances[currency] = parseFloat(row.value) || 0;
+      }
+
+      return cashBalances;
     } catch (error) {
-      console.error('Error getting cash amount:', error);
-      return 0;
+      console.error('Error getting cash balances:', error);
+      return {};
     }
   }
 
@@ -565,6 +607,10 @@ export class MockD1Database {
     
     this.portfolioSettings = {
       cash_amount: 101.8,
+      cash_amount_USD: 101.8,
+      cash_amount_SGD: 0,
+      cash_amount_AUD: 0,
+      cash_amount_HKD: 0,
       portfolio_name: "My Portfolio"
     };
     
@@ -758,10 +804,10 @@ class MockPreparedStatement {
     // Portfolio settings queries (all settings)
     if (this.query.includes('SELECT key, value FROM portfolio_settings')) {
       return {
-        results: [
-          { key: 'cash_amount', value: this.mockDb.portfolioSettings.cash_amount.toString() },
-          { key: 'portfolio_name', value: this.mockDb.portfolioSettings.portfolio_name }
-        ],
+        results: Object.entries(this.mockDb.portfolioSettings).map(([key, value]) => ({
+          key,
+          value: value.toString()
+        })),
         success: true
       };
     }
@@ -784,6 +830,9 @@ class MockPreparedStatement {
       const key = this.bindings[0];
       if (key === 'cash_amount') {
         return { value: this.mockDb.portfolioSettings.cash_amount.toString() };
+      }
+      if (this.mockDb.portfolioSettings[key] != null) {
+        return { value: this.mockDb.portfolioSettings[key].toString() };
       }
       if (key === 'portfolio_name') {
         return { value: this.mockDb.portfolioSettings.portfolio_name };
@@ -910,6 +959,12 @@ class MockPreparedStatement {
     if (this.query.includes('INSERT OR REPLACE INTO portfolio_settings')) {
       const [key, value] = this.bindings;
       this.mockDb.portfolioSettings[key] = value;
+      if (key === 'cash_amount_USD') {
+        this.mockDb.portfolioSettings.cash_amount = value;
+      }
+      if (key === 'cash_amount') {
+        this.mockDb.portfolioSettings.cash_amount_USD = value;
+      }
       return { success: true };
     }
     

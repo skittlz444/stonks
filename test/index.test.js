@@ -9,7 +9,7 @@ vi.mock('../src/databaseService.js', () => {
   ]);
   const mockGetHiddenPortfolioHoldings = vi.fn().mockResolvedValue([]);
   const mockGetTransactions = vi.fn().mockResolvedValue([]);
-  const mockGetCashAmount = vi.fn().mockResolvedValue(1000);
+  const mockGetCashBalances = vi.fn().mockResolvedValue({ USD: 1000, SGD: 1350 });
   const mockGetAllTransactionsGroupedByCode = vi.fn().mockResolvedValue({});
   const mockGetClosedPositions = vi.fn().mockResolvedValue([]);
   
@@ -26,7 +26,7 @@ vi.mock('../src/databaseService.js', () => {
         getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
         getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
         getTransactions: mockGetTransactions,
-        getCashAmount: mockGetCashAmount,
+        getCashBalances: mockGetCashBalances,
         getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
         getClosedPositions: mockGetClosedPositions
       };
@@ -42,7 +42,7 @@ vi.mock('../src/databaseService.js', () => {
         getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
         getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
         getTransactions: mockGetTransactions,
-        getCashAmount: mockGetCashAmount,
+        getCashBalances: mockGetCashBalances,
         getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
         getClosedPositions: mockGetClosedPositions
       };
@@ -273,6 +273,7 @@ describe('index.js - Cloudflare Worker', () => {
       // If successful, check structure; if error, check error field
       if (response.status === 200) {
         expect(data).toHaveProperty('visibleHoldings');
+        expect(data).toHaveProperty('cashBalances');
         expect(data).toHaveProperty('portfolioName');
       } else {
         expect(data).toHaveProperty('error');
@@ -299,7 +300,20 @@ describe('index.js - Cloudflare Worker', () => {
       expect(data).toHaveProperty('holdings');
       expect(data.holdings[0]).toHaveProperty('currency', 'USD');
       expect(data.holdings[0].quote).toHaveProperty('currency', 'USD');
+      expect(data).toHaveProperty('cashBalances');
+      expect(data.cashAmount).toBe(2000);
       expect(data).toHaveProperty('alternateCurrency');
+    });
+
+    test('should support rebalance mode in non-USD currencies', async () => {
+      const request = new Request('https://example.com/api/prices-data?mode=rebalance&currency=SGD');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.currency).toBe('SGD');
+      expect(data.cashAmount).toBe(2700);
+      expect(data.holdings[0].quote.current).toBe(135);
     });
   });
 

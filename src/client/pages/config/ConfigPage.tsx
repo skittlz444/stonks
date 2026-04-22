@@ -15,6 +15,7 @@ export const ConfigPage: React.FC = () => {
   const { configData: data, loading, error, isRefreshing, refetch } = useConfig();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editHolding, setEditHolding] = useState<EditHoldingData | null>(null);
+  const cashCurrencies = Array.from(new Set(['USD', 'SGD', 'AUD', 'HKD', ...Object.keys(data?.cashBalances || {})]));
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -170,18 +171,20 @@ export const ConfigPage: React.FC = () => {
                     required
                   />
                 </div>
-                <div className="col-md-6 mb-3">
-                  <label htmlFor="cash_amount" className="form-label">Cash Amount</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    id="cash_amount"
-                    name="cash_amount"
-                    step="0.01"
-                    defaultValue={data.cashAmount}
-                    required
-                  />
-                </div>
+                {cashCurrencies.map((currency) => (
+                  <div key={currency} className="col-md-3 mb-3">
+                    <label htmlFor={`cash_amount_${currency}`} className="form-label">{currency} Cash</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      id={`cash_amount_${currency}`}
+                      name={`cash_amount_${currency}`}
+                      step="0.01"
+                      defaultValue={data.cashBalances?.[currency] ?? 0}
+                      required
+                    />
+                  </div>
+                ))}
               </div>
               
               <button type="submit" className="btn btn-primary">Update Settings</button>

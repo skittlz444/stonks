@@ -30,6 +30,7 @@ describe('MockD1Database', () => {
     test('should initialize with portfolio settings', () => {
       expect(mockDb.portfolioSettings).toBeDefined();
       expect(mockDb.portfolioSettings.cash_amount).toBe(101.8);
+      expect(mockDb.portfolioSettings.cash_amount_USD).toBe(101.8);
       expect(mockDb.portfolioSettings.portfolio_name).toBe('My Portfolio');
     });
 
@@ -104,6 +105,7 @@ describe('MockD1Database', () => {
       
       expect(result.success).toBe(true);
       expect(mockDb.portfolioSettings.cash_amount).toBe('150.5');
+      expect(mockDb.portfolioSettings.cash_amount_USD).toBe('150.5');
     });
 
     test('should return visible holdings with WHERE hidden = 0', async () => {
@@ -186,10 +188,11 @@ describe('MockD1Database', () => {
       const result = await stmt.all();
       
       expect(result.success).toBe(true);
-      expect(result.results).toEqual([
+      expect(result.results).toEqual(expect.arrayContaining([
         { key: 'cash_amount', value: mockDb.portfolioSettings.cash_amount.toString() },
+        { key: 'cash_amount_USD', value: mockDb.portfolioSettings.cash_amount_USD.toString() },
         { key: 'portfolio_name', value: mockDb.portfolioSettings.portfolio_name }
-      ]);
+      ]));
     });
 
     test('should return portfolio_name setting', async () => {
@@ -339,6 +342,20 @@ describe('DatabaseService', () => {
     test('should get cash amount', async () => {
       const amount = await databaseService.getCashAmount();
       expect(amount).toBe(101.8);
+    });
+
+    test('should update cash balances', async () => {
+      const result = await databaseService.updateCashBalances({ USD: 200.75, SGD: 50 });
+      expect(result).toBe(true);
+      expect(mockDb.portfolioSettings.cash_amount).toBe('200.75');
+      expect(mockDb.portfolioSettings.cash_amount_USD).toBe('200.75');
+      expect(mockDb.portfolioSettings.cash_amount_SGD).toBe('50');
+    });
+
+    test('should get cash balances', async () => {
+      mockDb.portfolioSettings.cash_amount_SGD = 50;
+      const balances = await databaseService.getCashBalances();
+      expect(balances).toEqual(expect.objectContaining({ USD: 101.8, SGD: 50 }));
     });
   });
 

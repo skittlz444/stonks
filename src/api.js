@@ -13,6 +13,25 @@ export async function handleConfigSubmission(request, databaseService) {
     const normalized = String(value || 'USD').trim().toUpperCase();
     return /^[A-Z]{3}$/.test(normalized) ? normalized : 'USD';
   };
+
+  const parseCashBalances = (formData) => {
+    const cashBalances = {};
+
+    for (const [key, rawValue] of formData.entries()) {
+      if (key !== 'cash_amount' && !key.startsWith('cash_amount_')) {
+        continue;
+      }
+
+      const currency = key === 'cash_amount'
+        ? 'USD'
+        : normalizeCurrency(key.slice('cash_amount_'.length));
+      const amount = parseFloat(String(rawValue || '0'));
+
+      cashBalances[currency] = Number.isFinite(amount) ? amount : 0;
+    }
+
+    return cashBalances;
+  };
   
   try {
     const formData = await request.formData();
@@ -20,9 +39,9 @@ export async function handleConfigSubmission(request, databaseService) {
     switch (action) {
       case 'update_settings':
         const portfolioName = formData.get('portfolio_name');
-        const cashAmount = parseFloat(formData.get('cash_amount'));
+        const cashBalances = parseCashBalances(formData);
         
-        await databaseService.updateCashAmount(cashAmount);
+        await databaseService.updateCashBalances(cashBalances);
         
         // Update portfolio name
         await databaseService.db.prepare(

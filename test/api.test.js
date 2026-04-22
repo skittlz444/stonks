@@ -16,6 +16,7 @@ describe('api.js - handleConfigSubmission', () => {
         }))
       },
       updateCashAmount: vi.fn(() => Promise.resolve(true)),
+      updateCashBalances: vi.fn(() => Promise.resolve(true)),
       addPortfolioHolding: vi.fn(() => Promise.resolve(true)),
       updatePortfolioHolding: vi.fn(() => Promise.resolve(true)),
       deletePortfolioHolding: vi.fn(() => Promise.resolve(true)),
@@ -26,11 +27,12 @@ describe('api.js - handleConfigSubmission', () => {
   });
 
   describe('update_settings action', () => {
-    test('should update portfolio name and cash amount', async () => {
+    test('should update portfolio name and cash balances', async () => {
       const formData = new FormData();
       formData.append('action', 'update_settings');
       formData.append('portfolio_name', 'My New Portfolio');
-      formData.append('cash_amount', '5000');
+      formData.append('cash_amount_USD', '5000');
+      formData.append('cash_amount_SGD', '250');
 
       mockRequest = {
         formData: vi.fn(() => Promise.resolve(formData)),
@@ -39,7 +41,7 @@ describe('api.js - handleConfigSubmission', () => {
 
       const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
 
-      expect(mockDatabaseService.updateCashAmount).toHaveBeenCalledWith(5000);
+      expect(mockDatabaseService.updateCashBalances).toHaveBeenCalledWith({ USD: 5000, SGD: 250 });
       expect(mockDatabaseService.db.prepare).toHaveBeenCalled();
       expect(response.status).toBe(302);
       expect(response.headers.get('Location')).toBe('/config');
@@ -49,7 +51,7 @@ describe('api.js - handleConfigSubmission', () => {
       const formData = new FormData();
       formData.append('action', 'update_settings');
       formData.append('portfolio_name', 'Test Portfolio');
-      formData.append('cash_amount', '1000');
+      formData.append('cash_amount_USD', '1000');
 
       mockRequest = {
         formData: vi.fn(() => Promise.resolve(formData)),
@@ -322,7 +324,7 @@ describe('api.js - handleConfigSubmission', () => {
       const formData = new FormData();
       formData.append('action', 'update_settings');
       formData.append('portfolio_name', 'Test');
-      formData.append('cash_amount', '1000');
+      formData.append('cash_amount_USD', '1000');
 
       mockRequest = {
         formData: vi.fn(() => Promise.resolve(formData)),

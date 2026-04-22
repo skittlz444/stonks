@@ -120,6 +120,34 @@ export default {
 async function handleRequest(request, env) {
   const url = new URL(request.url);
   const pathname = url.pathname;
+
+  const sumCashBalancesInCurrency = async (cashBalances, targetCurrency, fxService) => {
+    const balanceEntries = Object.entries(cashBalances || {});
+    if (balanceEntries.length === 0) {
+      return { total: 0, rates: {}, convertedBalances: {} };
+    }
+
+    const requiredCurrencies = [...new Set(
+      balanceEntries
+        .map(([currency]) => currency.toUpperCase())
+        .filter(currency => currency !== 'USD')
+    )];
+    if (targetCurrency && targetCurrency.toUpperCase() !== 'USD') {
+      requiredCurrencies.push(targetCurrency.toUpperCase());
+    }
+
+    const fxRates = await fxService.getLatestRates([...new Set(requiredCurrencies)]);
+    const convertedBalances = {};
+    let total = 0;
+
+    for (const [currency, amount] of balanceEntries) {
+      const convertedAmount = fxService.convertAmount(amount, currency, targetCurrency, fxRates);
+      convertedBalances[currency] = convertedAmount;
+      total += convertedAmount;
+    }
+
+    return { total, rates: fxRates, convertedBalances };
+  };
   
   // Use MockD1Database for development if STONKS_DB is not available
   let databaseService;
@@ -186,11 +214,11 @@ async function handleRequest(request, env) {
       case '/api/config-data':
         try {
           // OPTIMIZATION: Parallelize all independent data fetching operations
-          const [visibleHoldings, hiddenHoldings, transactions, cashAmount, portfolioNameResult] = await Promise.all([
+          const [visibleHoldings, hiddenHoldings, transactions, cashBalances, portfolioNameResult] = await Promise.all([
             databaseService.getVisiblePortfolioHoldings(),
             databaseService.getHiddenPortfolioHoldings(),
             databaseService.getTransactions(),
-            databaseService.getCashAmount(),
+            databaseService.getCashBalances(),
             databaseService.db.prepare('SELECT value FROM portfolio_settings WHERE key = ?').bind('portfolio_name').first()
           ]);
           
@@ -235,11 +263,14 @@ async function handleRequest(request, env) {
             };
           };
           
+          const { total: cashAmount } = await sumCashBalancesInCurrency(cashBalances, 'USD', fxService);
+
           return new Response(JSON.stringify({
             visibleHoldings: visibleHoldings.map(optimizeHolding),
             hiddenHoldings: hiddenHoldings.map(optimizeHolding),
             transactions: transactions.map(optimizeTransaction),
             cashAmount,
+            cashBalances,
             portfolioName,
             totalTargetWeight
           }), {
@@ -264,7 +295,7 @@ async function handleRequest(request, env) {
           const dataPromises = [
             databaseService.getVisiblePortfolioHoldings(),
             databaseService.getAllTransactionsGroupedByCode(),
-            databaseService.getCashAmount(),
+            databaseService.getCashBalances(),
             databaseService.db.prepare('SELECT value FROM portfolio_settings WHERE key = ?').bind('portfolio_name').first()
           ];
           
@@ -279,7 +310,7 @@ async function handleRequest(request, env) {
           // Extract results
           const holdings = results[0];
           const allTransactions = results[1];
-          const cashAmount = results[2];
+          const cashBalances = results[2];
           const portfolioNameResult = results[3];
           const portfolioName = portfolioNameResult ? portfolioNameResult.value : 'My Portfolio';
           let closedPositions = [];
@@ -311,6 +342,9 @@ async function handleRequest(request, env) {
           for (const position of closedPositions) {
             requiredCurrencies.add((position.currency || 'USD').toUpperCase());
           }
+          for (const cashCurrency of Object.keys(cashBalances || {})) {
+            requiredCurrencies.add(cashCurrency.toUpperCase());
+          }
 
           const fxRates = await fxService.getLatestRates(
             Array.from(requiredCurrencies).filter(code => code !== 'USD')
@@ -320,6 +354,14 @@ async function handleRequest(request, env) {
             fxService.convertAmount(amount, fromCurrency || 'USD', toCurrency, fxRates)
           );
           
+          const convertedCashBalances = Object.fromEntries(
+            Object.entries(cashBalances || {}).map(([cashCurrency, amount]) => [
+              cashCurrency,
+              convertAmount(amount, cashCurrency)
+            ])
+          );
+          const cashAmount = Object.values(convertedCashBalances).reduce((sum, amount) => sum + amount, 0);
+
           // Calculate cost basis and gains - optimized loop
           // Also strip unnecessary fields to reduce payload size
           const optimizedHoldings = holdingsWithQuotes.map(holding => {
@@ -419,6 +461,7 @@ async function handleRequest(request, env) {
             holdings: optimizedHoldings,
             closedPositions: convertedClosedPositions,
             cashAmount,
+            cashBalances: convertedCashBalances,
             portfolioTotal,
             totalGainLoss,
             totalGainLossPercent,

@@ -46,13 +46,6 @@ export const PricesPage: React.FC<PricesPageProps> = ({
     window.location.assign(path);
   };
 
-  // Rebalancing is only available in USD - redirect if necessary
-  useEffect(() => {
-    if (rebalanceMode && currency !== 'USD') {
-      navigate('/prices?mode=rebalance&currency=USD', { replace: true });
-    }
-  }, [rebalanceMode, currency, navigate]);
-
   const { data, loading, error, isRefreshing } = usePricesData(rebalanceMode, currency);
   const [fxAvailable, setFxAvailable] = useState(false);
   // Column visibility state - Cost column (index 5) is hidden by default
@@ -126,6 +119,7 @@ export const PricesPage: React.FC<PricesPageProps> = ({
     ],
     closedPositions: [],
     cashAmount: 0,
+    cashBalances: {},
     portfolioTotal: 0,
     totalGainLoss: 0,
     totalGainLossPercent: 0,

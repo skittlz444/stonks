@@ -1,5 +1,7 @@
 // Core data types for Stonks Portfolio application
 
+export type CashBalances = Record<string, number>;
+
 export interface Holding {
   id: number;
   name: string;
@@ -64,6 +66,7 @@ export interface PricesData {
   holdings: HoldingWithQuote[];
   closedPositions: ClosedPosition[];
   cashAmount: number;
+  cashBalances?: CashBalances;
   portfolioTotal: number;
   totalGainLoss: number;
   totalGainLossPercent: number;
@@ -82,6 +85,7 @@ export interface ConfigData {
   hiddenHoldings: Holding[];
   transactions: Transaction[];
   cashAmount: number;
+  cashBalances: CashBalances;
   portfolioName: string;
   totalTargetWeight: number;
 }
