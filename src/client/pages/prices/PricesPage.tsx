@@ -104,6 +104,7 @@ export const PricesPage: React.FC<PricesPageProps> = ({
     id: -id, // Use negative IDs to avoid conflicts with real data
     name: 'Loading...',
     code: '---',
+    currency: 'USD',
     quantity: 0,
     target_weight: undefined,
     hidden: false,
@@ -131,23 +132,20 @@ export const PricesPage: React.FC<PricesPageProps> = ({
     fxAvailable: false,
     fxRate: 1,
     sgdRate: 1,
+    alternateCurrency: currency !== 'USD' ? 'USD' : 'SGD',
+    alternateFxRate: currency !== 'USD' ? 1 : 1.35,
     cacheStats: null,
   };
 
   // Determine if we should show blur (initial loading or refreshing)
   const shouldBlur = loading || isRefreshing;
 
-  // Calculate currency conversion functions
-  const fxRate = displayData.fxRate || 1;
-  const sgdRate = displayData.sgdRate || 1;
-  const convert = (amount: number) => amount * fxRate;
-  
-  // Alt currency logic:
-  // - When viewing SGD/AUD: show USD as alt currency (no conversion, show original USD values)
-  // - When viewing USD: show SGD as alt currency (convert USD to SGD)
-  const altCurrency = currency !== 'USD' ? 'USD' : 'SGD';
-  const convertToAlt = fxAvailable 
-    ? (amount: number) => currency === 'USD' ? amount * sgdRate : amount // If viewing USD, convert to SGD using sgdRate. If viewing SGD/AUD, return USD as-is
+  // Server responses are already normalized into the selected display currency.
+  const convert = (amount: number) => amount;
+  const altCurrency = displayData.alternateCurrency || (currency !== 'USD' ? 'USD' : 'SGD');
+  const alternateFxRate = displayData.alternateFxRate || 1;
+  const convertToAlt = fxAvailable
+    ? (amount: number) => amount * alternateFxRate
     : undefined;
 
   // Calculate rebalancing data if in rebalance mode

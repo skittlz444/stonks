@@ -203,13 +203,13 @@ const [holdings, transactions, cash] = await Promise.all([
 
 ### API Endpoints
 
-**Missing API Keys**:
+**Quote Provider Errors**:
 ```json
 {
-  "error": "Finnhub API key not configured"
+  "error": "Yahoo Finance API error: 500 Server Error"
 }
 ```
-Status: `503 Service Unavailable`
+Status: `500 Internal Server Error`
 
 **Database Errors**:
 ```json
@@ -279,7 +279,7 @@ case '/stonks/api/prices-data':
     db.getTransactions(),
     db.getCashAmount()
   ]);
-  const quotes = await finnhub.getQuotes(holdings);
+  const quotes = await yfinance.getQuotes(holdings);
   return Response.json({ holdings, quotes, cash, ... });
 ```
 
@@ -339,7 +339,7 @@ export function usePricesData(currency: string, mode: string) {
 - **Testing**: Vitest 2.1 with React Testing Library
 - **Backend**: Cloudflare Workers (edge computing)
 - **Database**: Cloudflare D1 (serverless SQLite)
-- **APIs**: Finnhub (stock prices), OpenExchangeRates (currency)
+- **APIs**: Yahoo Finance (stock prices), OpenExchangeRates (currency)
 - **Charts**: TradingView widgets
 
 ## Future Enhancements

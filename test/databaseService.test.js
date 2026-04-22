@@ -60,7 +60,7 @@ describe('MockD1Database', () => {
     test('should handle INSERT operations for portfolio holdings', async () => {
       const initialCount = mockDb.portfolioHoldings.length;
       const stmt = mockDb.prepare('INSERT INTO portfolio_holdings');
-      const result = await stmt.bind('Test Stock', 'NASDAQ:TEST', null).run();
+      const result = await stmt.bind('Test Stock', 'NASDAQ:TEST', 'USD', null).run();
       
       expect(result.success).toBe(true);
       expect(mockDb.portfolioHoldings.length).toBe(initialCount + 1);
@@ -68,19 +68,21 @@ describe('MockD1Database', () => {
       const newHolding = mockDb.portfolioHoldings[mockDb.portfolioHoldings.length - 1];
       expect(newHolding.name).toBe('Test Stock');
       expect(newHolding.code).toBe('NASDAQ:TEST');
+      expect(newHolding.currency).toBe('USD');
       expect(newHolding.target_weight).toBe(null);
     });
 
     test('should handle UPDATE operations for portfolio holdings', async () => {
       const holdingId = mockDb.portfolioHoldings[0].id;
       const stmt = mockDb.prepare('UPDATE portfolio_holdings SET');
-      const result = await stmt.bind('Updated Name', 'NASDAQ:UPDATED', 25.5, holdingId).run();
+      const result = await stmt.bind('Updated Name', 'NASDAQ:UPDATED', 'SGD', 25.5, holdingId).run();
       
       expect(result.success).toBe(true);
       
       const updatedHolding = mockDb.portfolioHoldings.find(h => h.id === holdingId);
       expect(updatedHolding.name).toBe('Updated Name');
       expect(updatedHolding.code).toBe('NASDAQ:UPDATED');
+      expect(updatedHolding.currency).toBe('SGD');
       expect(updatedHolding.target_weight).toBe(25.5);
     });
 
@@ -108,7 +110,7 @@ describe('MockD1Database', () => {
       // Set one holding as hidden
       mockDb.portfolioHoldings[0].hidden = 1;
       
-      const stmt = mockDb.prepare('SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 0');
+      const stmt = mockDb.prepare('SELECT id, name, code, currency, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 0');
       const result = await stmt.all();
       
       expect(result.success).toBe(true);
@@ -120,7 +122,7 @@ describe('MockD1Database', () => {
       // Set one holding as hidden
       mockDb.portfolioHoldings[0].hidden = 1;
       
-      const stmt = mockDb.prepare('SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 1');
+      const stmt = mockDb.prepare('SELECT id, name, code, currency, target_weight, hidden, created_at, updated_at FROM portfolio_holdings WHERE hidden = 1');
       const result = await stmt.all();
       
       expect(result.success).toBe(true);
@@ -313,13 +315,13 @@ describe('DatabaseService', () => {
 
   describe('CRUD operations', () => {
     test('should add portfolio holding', async () => {
-      const result = await databaseService.addPortfolioHolding('New Stock', 'NASDAQ:NEW', 15);
+      const result = await databaseService.addPortfolioHolding('New Stock', 'NASDAQ:NEW', 'SGD', 15);
       expect(result).toBe(true);
     });
 
     test('should update portfolio holding', async () => {
       const holdingId = mockDb.portfolioHoldings[0].id;
-      const result = await databaseService.updatePortfolioHolding(holdingId, 'Updated', 'NASDAQ:UPD', 25);
+      const result = await databaseService.updatePortfolioHolding(holdingId, 'Updated', 'NASDAQ:UPD', 'AUD', 25);
       expect(result).toBe(true);
     });
 
@@ -509,7 +511,7 @@ describe('DatabaseService', () => {
       };
       
       const errorService = new DatabaseService(errorDb);
-      const result = await errorService.addPortfolioHolding('Test', 'TEST', 1);
+      const result = await errorService.addPortfolioHolding('Test', 'TEST', 'USD', 1);
       
       expect(result).toBe(false);
     });

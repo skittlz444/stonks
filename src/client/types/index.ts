@@ -4,12 +4,14 @@ export interface Holding {
   id: number;
   name: string;
   code: string;
+  currency: string;
   quantity: number;
   target_weight?: number;
   visible?: number;
 }
 
 export interface Quote {
+  currency?: string;
   current: number;
   previous_close: number;
   change: number;
@@ -45,6 +47,7 @@ export interface Transaction {
 export interface ClosedPosition {
   name: string;
   code: string;
+  currency?: string;
   totalCost: number;
   totalRevenue: number;
   profitLoss: number;
@@ -69,6 +72,9 @@ export interface PricesData {
   fxAvailable?: boolean;
   fxRate?: number;
   sgdRate?: number;
+  alternateCurrency?: string;
+  alternateFxRate?: number;
+  fxRates?: Record<string, number>;
   cacheStats?: CacheStats;
 }
 

@@ -147,7 +147,7 @@ The PWA works seamlessly with the React/TypeScript application:
 
 **Not Cached (Requires Network):**
 - Portfolio data (holdings, transactions)
-- Stock quotes (Finnhub API)
+- Stock quotes (Yahoo Finance)
 - Currency exchange rates (OpenExchangeRates)
 - Database queries (D1)
 - User actions (add/edit/delete)
@@ -174,7 +174,7 @@ if (error) return <ErrorMessage message={error} retry={refetch} />;
 
 ### NOT Cached (Always Fresh)
 1. **API endpoints**: `/stonks/api/prices-data`, `/stonks/api/config-data` - always fetched from network
-2. **External APIs**: Finnhub, OpenExchangeRates - never cached by service worker
+2. **External APIs**: Yahoo Finance, OpenExchangeRates - never cached by service worker
 3. **Database queries**: All D1 queries bypass the service worker
 4. **POST/PUT/DELETE requests**: Non-GET requests always go to network
 

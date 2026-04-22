@@ -31,8 +31,6 @@ jobs:
         
       - name: Run tests
         run: npm run test:coverage
-        env:
-            FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
 
       - name: Archive coverage artifacts
         if: matrix.node-version == 22

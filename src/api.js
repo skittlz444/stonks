@@ -8,6 +8,11 @@
 export async function handleConfigSubmission(request, databaseService) {
   let redirectUrl = '/config';
   const isAjax = request.headers.get('Accept')?.includes('application/json');
+
+  const normalizeCurrency = (value) => {
+    const normalized = String(value || 'USD').trim().toUpperCase();
+    return /^[A-Z]{3}$/.test(normalized) ? normalized : 'USD';
+  };
   
   try {
     const formData = await request.formData();
@@ -29,20 +34,22 @@ export async function handleConfigSubmission(request, databaseService) {
       case 'add_holding':
         const addName = formData.get('name');
         const addCode = formData.get('code');
+        const addCurrency = normalizeCurrency(formData.get('currency'));
         const addTargetWeight = formData.get('target_weight');
         const addTargetWeightValue = addTargetWeight && addTargetWeight.trim() !== '' ? parseFloat(addTargetWeight) : null;
         
-        await databaseService.addPortfolioHolding(addName, addCode, addTargetWeightValue);
+        await databaseService.addPortfolioHolding(addName, addCode, addCurrency, addTargetWeightValue);
         break;
         
       case 'update_holding':
         const updateId = parseInt(formData.get('holding_id'));
         const updateName = formData.get('name');
         const updateCode = formData.get('code');
+        const updateCurrency = normalizeCurrency(formData.get('currency'));
         const updateTargetWeight = formData.get('target_weight');
         const updateTargetWeightValue = updateTargetWeight && updateTargetWeight.trim() !== '' ? parseFloat(updateTargetWeight) : null;
         
-        await databaseService.updatePortfolioHolding(updateId, updateName, updateCode, updateTargetWeightValue);
+        await databaseService.updatePortfolioHolding(updateId, updateName, updateCode, updateCurrency, updateTargetWeightValue);
         break;
         
       case 'delete_holding':

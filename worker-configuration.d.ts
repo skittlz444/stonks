@@ -8,7 +8,6 @@ declare namespace Cloudflare {
 	interface Env {
 		STONKS_DB: D1Database;
 		ASSETS: Fetcher;
-		FINNHUB_API_KEY: string;
 		OPENEXCHANGERATES_API_KEY: string;
 	}
 }

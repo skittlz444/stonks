@@ -11,6 +11,8 @@ export function formatCurrency(amount: number, decimals: number = 2, currency: s
     return `$${value}`;
   } else if (currency === 'AUD') {
     return `A$${value}`;
+  } else if (currency === 'HKD') {
+    return `HK$${value}`;
   }
   
   return `$${value}`;
@@ -28,6 +30,8 @@ export function formatCurrencyWithCode(amount: number, decimals: number = 2, cur
     return `$${value}`;
   } else if (currency === 'AUD') {
     return `A$${value}`;
+  } else if (currency === 'HKD') {
+    return showCode ? `HKD HK$${value}` : `HK$${value}`;
   }
   
   return `$${value}`;
@@ -46,6 +50,7 @@ export function getCurrencySymbol(currency: string): string {
     'USD': '$',
     'SGD': 'S$',
     'AUD': 'A$',
+    'HKD': 'HK$',
   };
   return symbols[currency] || '$';
 }
