@@ -1,3 +1,5 @@
+const USD_BASE_RATE = 1;
+
 /**
  * FX Service - Handles currency exchange rates from OpenExchangeRates API
  * Provides caching to minimize API calls (rates are cached for 1 hour)
@@ -88,7 +90,7 @@ export class FxService {
    */
   getFallbackRates(currencies) {
     const fallback = {
-      'USD': 1,
+      'USD': USD_BASE_RATE,
       'SGD': 1.35,  // Approximate USD to SGD rate
       'AUD': 1.52,  // Approximate USD to AUD rate
       'HKD': 7.82   // Approximate USD to HKD rate
@@ -131,7 +133,7 @@ export class FxService {
     }
 
     const normalizedRates = {
-      USD: 1,
+      USD: USD_BASE_RATE,
       ...rates,
     };
 
@@ -167,8 +169,8 @@ export class FxService {
 }
 
 /**
- * Factory function to create FxService instance
- * Returns null if no API key is provided
+ * Factory function to create FxService instance.
+ * Falls back to approximate built-in rates when no API key is provided.
  */
 export function createFxService(apiKey) {
   return new FxService(apiKey);

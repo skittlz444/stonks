@@ -1,5 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const mockFxRates = { SGD: 1.35, AUD: 1.52, HKD: 7.82 };
+
 // Mock DatabaseService before importing the worker
 vi.mock('../src/databaseService.js', () => {
   const mockGetVisiblePortfolioHoldings = vi.fn().mockResolvedValue([
@@ -74,9 +76,9 @@ vi.mock('../src/yfinanceService.js', () => ({
 
 vi.mock('../src/fxService.js', () => ({
   createFxService: vi.fn(() => ({
-    getLatestRates: vi.fn().mockResolvedValue({ SGD: 1.35, AUD: 1.52, HKD: 7.82 }),
+    getLatestRates: vi.fn().mockResolvedValue(mockFxRates),
     convertAmount: vi.fn((amount, fromCurrency, toCurrency, rates = {}) => {
-      const normalizedRates = { USD: 1, ...rates };
+      const normalizedRates = { USD: 1, ...mockFxRates, ...rates };
       if (fromCurrency === toCurrency) return amount;
       return (amount / normalizedRates[fromCurrency]) * normalizedRates[toCurrency];
     })

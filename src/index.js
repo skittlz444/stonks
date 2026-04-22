@@ -144,12 +144,10 @@ async function handleRequest(request, env) {
   }
   const yfinanceService = cachedYFinanceService;
   
-  // Initialize FX service if API key is available (reuse cached instance)
+  // Initialize FX service (uses OpenExchangeRates when configured, otherwise fallback rates)
   if (!cachedFxService || cachedFxApiKey !== env.OPENEXCHANGERATES_API_KEY) {
     cachedFxService = createFxService(env.OPENEXCHANGERATES_API_KEY || null);
     cachedFxApiKey = env.OPENEXCHANGERATES_API_KEY || null;
-  } else {
-    cachedFxService = cachedFxService;
   }
   const fxService = cachedFxService;
   
@@ -402,11 +400,11 @@ async function handleRequest(request, env) {
           
           // Calculate total gain/loss including closed positions
           const closedPositionsGain = convertedClosedPositions.reduce((sum, pos) => sum + pos.profitLoss, 0);
-          const closedPositionsCost = convertedClosedPositions.reduce((sum, pos) => sum + pos.totalCost, 0);
+          const totalClosedPositionsCost = convertedClosedPositions.reduce((sum, pos) => sum + pos.totalCost, 0);
           const openPositionsGain = totalMarketValue - totalCostBasis;
           const totalGainLoss = openPositionsGain + closedPositionsGain;
-          const totalGainLossPercent = (totalCostBasis + closedPositionsCost) > 0 
-            ? (totalGainLoss / (totalCostBasis + closedPositionsCost)) * 100 
+          const totalGainLossPercent = (totalCostBasis + totalClosedPositionsCost) > 0 
+            ? (totalGainLoss / (totalCostBasis + totalClosedPositionsCost)) * 100 
             : 0;
 
           const displayRate = fxService.convertAmount(1, 'USD', currency, fxRates);
