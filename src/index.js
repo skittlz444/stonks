@@ -454,7 +454,10 @@ async function handleRequest(request, env) {
 
           const displayRate = fxService.convertAmount(1, 'USD', currency, fxRates);
           const alternateFxRate = fxService.convertAmount(1, currency, alternateCurrency, fxRates);
-          const fxAvailable = typeof fxService?.convertAmount === 'function';
+          const fallbackDisplayRates = typeof fxService?.getFallbackRates === 'function'
+            ? fxService.getFallbackRates(['SGD', 'AUD'])
+            : {};
+          const fxAvailable = ['SGD', 'AUD'].every(code => (fxRates[code] || fallbackDisplayRates[code]));
           const fxUsingFallback = !env.OPENEXCHANGERATES_API_KEY;
           
           // Get cache stats (synchronous, no await needed)
