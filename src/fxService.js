@@ -1,10 +1,12 @@
+const USD_BASE_RATE = 1;
+
 /**
  * FX Service - Handles currency exchange rates from OpenExchangeRates API
  * Provides caching to minimize API calls (rates are cached for 1 hour)
  */
 
 export class FxService {
-  constructor(apiKey) {
+  constructor(apiKey = null) {
     this.apiKey = apiKey;
     this.baseUrl = 'https://openexchangerates.org/api';
     this.cache = new Map();
@@ -23,6 +25,11 @@ export class FxService {
     if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
       console.log('Using cached FX rates');
       return this.filterRates(cached.data, currencies);
+    }
+
+    if (!this.apiKey) {
+      console.log('Using fallback FX rates (no API key configured)');
+      return this.getFallbackRates(currencies);
     }
 
     try {
@@ -83,8 +90,10 @@ export class FxService {
    */
   getFallbackRates(currencies) {
     const fallback = {
+      'USD': USD_BASE_RATE,
       'SGD': 1.35,  // Approximate USD to SGD rate
-      'AUD': 1.52   // Approximate USD to AUD rate
+      'AUD': 1.52,  // Approximate USD to AUD rate
+      'HKD': 7.82   // Approximate USD to HKD rate
     };
     
     const filtered = {};
@@ -104,17 +113,39 @@ export class FxService {
    * @returns {number} - Converted amount
    */
   convertFromUSD(amountUSD, targetCurrency, rates) {
-    if (targetCurrency === 'USD') {
-      return amountUSD;
+    return this.convertAmount(amountUSD, 'USD', targetCurrency, rates);
+  }
+
+  /**
+   * Convert an amount between any two currencies using USD-based rates.
+   * @param {number} amount - Amount in source currency
+   * @param {string} fromCurrency - Source currency code
+   * @param {string} toCurrency - Target currency code
+   * @param {Object} rates - USD-based exchange rates
+   * @returns {number} Converted amount
+   */
+  convertAmount(amount, fromCurrency, toCurrency, rates = {}) {
+    const source = (fromCurrency || 'USD').toUpperCase();
+    const target = (toCurrency || 'USD').toUpperCase();
+
+    if (source === target) {
+      return amount;
     }
-    
-    const rate = rates[targetCurrency];
-    if (!rate) {
-      console.warn(`No rate available for ${targetCurrency}, returning USD amount`);
-      return amountUSD;
+
+    const normalizedRates = {
+      USD: USD_BASE_RATE,
+      ...rates,
+    };
+
+    const sourceRate = normalizedRates[source];
+    const targetRate = normalizedRates[target];
+
+    if (!sourceRate || !targetRate) {
+      console.warn(`Missing FX rate for ${source} -> ${target}, returning original amount`);
+      return amount;
     }
-    
-    return amountUSD * rate;
+
+    return (amount / sourceRate) * targetRate;
   }
 
   /**
@@ -138,13 +169,9 @@ export class FxService {
 }
 
 /**
- * Factory function to create FxService instance
- * Returns null if no API key is provided
+ * Factory function to create FxService instance.
+ * Falls back to approximate built-in rates when no API key is provided.
  */
 export function createFxService(apiKey) {
-  if (!apiKey) {
-    console.log('OpenExchangeRates API key not provided. Currency conversion will not be available.');
-    return null;
-  }
   return new FxService(apiKey);
 }

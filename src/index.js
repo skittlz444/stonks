@@ -1,14 +1,15 @@
 import { handleConfigSubmission } from './api.js';
 import { DatabaseService, MockD1Database } from './databaseService.js';
-import { createFinnhubService } from './finnhubService.js';
+import { createYFinanceService } from './yfinanceService.js';
 import { createFxService } from './fxService.js';
 
 // Module-level cache for services to persist across requests
 // This allows the in-memory cache to work properly in Cloudflare Workers
-let cachedFinnhubService = null;
-let cachedFinnhubApiKey = null;
+let cachedYFinanceService = null;
 let cachedFxService = null;
 let cachedFxApiKey = null;
+const SELECTABLE_DISPLAY_CURRENCIES = ['USD', 'SGD', 'AUD'];
+const NON_USD_DISPLAY_CURRENCIES = SELECTABLE_DISPLAY_CURRENCIES.filter(code => code !== 'USD');
 
 /**
  * Serve static files from ASSETS binding
@@ -121,6 +122,34 @@ export default {
 async function handleRequest(request, env) {
   const url = new URL(request.url);
   const pathname = url.pathname;
+
+  const sumCashBalancesInCurrency = async (cashBalances, targetCurrency, fxService) => {
+    const balanceEntries = Object.entries(cashBalances || {});
+    if (balanceEntries.length === 0) {
+      return { total: 0, rates: {}, convertedBalances: {} };
+    }
+
+    const requiredCurrencies = [...new Set(
+      balanceEntries
+        .map(([currency]) => currency.toUpperCase())
+        .filter(currency => currency !== 'USD')
+    )];
+    if (targetCurrency && targetCurrency.toUpperCase() !== 'USD') {
+      requiredCurrencies.push(targetCurrency.toUpperCase());
+    }
+
+    const fxRates = await fxService.getLatestRates([...new Set(requiredCurrencies)]);
+    const convertedBalances = {};
+    let total = 0;
+
+    for (const [currency, amount] of balanceEntries) {
+      const convertedAmount = fxService.convertAmount(amount, currency, targetCurrency, fxRates);
+      convertedBalances[currency] = convertedAmount;
+      total += convertedAmount;
+    }
+
+    return { total, rates: fxRates, convertedBalances };
+  };
   
   // Use MockD1Database for development if STONKS_DB is not available
   let databaseService;
@@ -139,28 +168,16 @@ async function handleRequest(request, env) {
     databaseService = new DatabaseService(new MockD1Database());
   }
   
-  // Initialize Finnhub service if API key is available (reuse cached instance)
-  if (env.FINNHUB_API_KEY) {
-    if (!cachedFinnhubService || cachedFinnhubApiKey !== env.FINNHUB_API_KEY) {
-      // Cache quotes for 1 minute (60000ms)
-      cachedFinnhubService = createFinnhubService(env.FINNHUB_API_KEY, 60000);
-      cachedFinnhubApiKey = env.FINNHUB_API_KEY;
-    }
-  } else {
-    cachedFinnhubService = null;
-    cachedFinnhubApiKey = null;
+  // Initialize Yahoo Finance service (reuse cached instance)
+  if (!cachedYFinanceService) {
+    cachedYFinanceService = createYFinanceService(60000);
   }
-  const finnhubService = cachedFinnhubService;
+  const yfinanceService = cachedYFinanceService;
   
-  // Initialize FX service if API key is available (reuse cached instance)
-  if (env.OPENEXCHANGERATES_API_KEY) {
-    if (!cachedFxService || cachedFxApiKey !== env.OPENEXCHANGERATES_API_KEY) {
-      cachedFxService = createFxService(env.OPENEXCHANGERATES_API_KEY);
-      cachedFxApiKey = env.OPENEXCHANGERATES_API_KEY;
-    }
-  } else {
-    cachedFxService = null;
-    cachedFxApiKey = null;
+  // Initialize FX service (uses OpenExchangeRates when configured, otherwise fallback rates)
+  if (!cachedFxService || cachedFxApiKey !== env.OPENEXCHANGERATES_API_KEY) {
+    cachedFxService = createFxService(env.OPENEXCHANGERATES_API_KEY || null);
+    cachedFxApiKey = env.OPENEXCHANGERATES_API_KEY || null;
   }
   const fxService = cachedFxService;
   
@@ -199,11 +216,11 @@ async function handleRequest(request, env) {
       case '/api/config-data':
         try {
           // OPTIMIZATION: Parallelize all independent data fetching operations
-          const [visibleHoldings, hiddenHoldings, transactions, cashAmount, portfolioNameResult] = await Promise.all([
+          const [visibleHoldings, hiddenHoldings, transactions, cashBalances, portfolioNameResult] = await Promise.all([
             databaseService.getVisiblePortfolioHoldings(),
             databaseService.getHiddenPortfolioHoldings(),
             databaseService.getTransactions(),
-            databaseService.getCashAmount(),
+            databaseService.getCashBalances(),
             databaseService.db.prepare('SELECT value FROM portfolio_settings WHERE key = ?').bind('portfolio_name').first()
           ]);
           
@@ -219,6 +236,7 @@ async function handleRequest(request, env) {
             id: holding.id,
             name: holding.name,
             code: holding.code,
+            currency: holding.currency || 'USD',
             quantity: holding.quantity,
             target_weight: holding.target_weight
             // Removed: hidden (always 0 or 1 based on which list), created_at, updated_at
@@ -247,11 +265,14 @@ async function handleRequest(request, env) {
             };
           };
           
+          const { total: cashAmount } = await sumCashBalancesInCurrency(cashBalances, 'USD', fxService);
+
           return new Response(JSON.stringify({
             visibleHoldings: visibleHoldings.map(optimizeHolding),
             hiddenHoldings: hiddenHoldings.map(optimizeHolding),
             transactions: transactions.map(optimizeTransaction),
             cashAmount,
+            cashBalances,
             portfolioName,
             totalTargetWeight
           }), {
@@ -269,13 +290,6 @@ async function handleRequest(request, env) {
       
       case '/api/prices-data':
         try {
-          if (!finnhubService) {
-            return new Response(JSON.stringify({ error: 'Finnhub API key not configured' }), {
-              status: 503,
-              headers: { 'content-type': 'application/json' }
-            });
-          }
-          
           const rebalanceMode = url.searchParams.get('mode') === 'rebalance';
           const currency = url.searchParams.get('currency') || 'USD';
           
@@ -283,14 +297,9 @@ async function handleRequest(request, env) {
           const dataPromises = [
             databaseService.getVisiblePortfolioHoldings(),
             databaseService.getAllTransactionsGroupedByCode(),
-            databaseService.getCashAmount(),
+            databaseService.getCashBalances(),
             databaseService.db.prepare('SELECT value FROM portfolio_settings WHERE key = ?').bind('portfolio_name').first()
           ];
-          
-          // Always fetch FX rates for SGD/AUD for alt currency display
-          if (fxService) {
-            dataPromises.push(fxService.getLatestRates(['SGD', 'AUD']));
-          }
           
           // Always fetch closed positions (needed for total gain/loss calculation)
           if (!rebalanceMode) {
@@ -303,17 +312,13 @@ async function handleRequest(request, env) {
           // Extract results
           const holdings = results[0];
           const allTransactions = results[1];
-          const cashAmount = results[2];
+          const cashBalances = results[2];
           const portfolioNameResult = results[3];
           const portfolioName = portfolioNameResult ? portfolioNameResult.value : 'My Portfolio';
-          let fxRates = {};
           let closedPositions = [];
           
           // Parse optional results based on what was fetched
           let resultIndex = 4;
-          if (fxService) {
-            fxRates = results[resultIndex++];
-          }
           if (!rebalanceMode) {
             closedPositions = results[resultIndex++];
           }
@@ -323,37 +328,80 @@ async function handleRequest(request, env) {
             ? holdings.filter(h => h.quantity > 0 || h.target_weight != null)
             : holdings.filter(h => h.quantity > 0);
           
-          // Fetch quotes (this is the slowest operation, unavoidable)
-          const holdingsWithQuotes = await finnhubService.getPortfolioQuotes(activeHoldings);
+          // Fetch quotes
+          const holdingsWithQuotes = await yfinanceService.getPortfolioQuotes(activeHoldings);
+
+          const alternateCurrency = currency !== 'USD' ? 'USD' : 'SGD';
+
+          // Fetch FX rates only for currencies involved in the response
+          const requiredCurrencies = new Set([currency, alternateCurrency]);
+          for (const holding of activeHoldings) {
+            requiredCurrencies.add((holding.currency || 'USD').toUpperCase());
+          }
+          for (const holding of holdingsWithQuotes) {
+            if (holding.quote?.currency) {
+              requiredCurrencies.add(holding.quote.currency.toUpperCase());
+            }
+          }
+          for (const position of closedPositions) {
+            requiredCurrencies.add((position.currency || 'USD').toUpperCase());
+          }
+          for (const cashCurrency of Object.keys(cashBalances || {})) {
+            requiredCurrencies.add(cashCurrency.toUpperCase());
+          }
+
+          const fxRates = await fxService.getLatestRates(
+            Array.from(requiredCurrencies).filter(code => code !== 'USD')
+          );
+
+          const convertAmount = (amount, fromCurrency, toCurrency = currency) => (
+            fxService.convertAmount(amount, fromCurrency || 'USD', toCurrency, fxRates)
+          );
           
+          const convertedCashBalances = Object.fromEntries(
+            Object.entries(cashBalances || {}).map(([cashCurrency, amount]) => [
+              cashCurrency,
+              convertAmount(amount, cashCurrency)
+            ])
+          );
+          const cashAmount = Object.values(convertedCashBalances).reduce((sum, amount) => sum + amount, 0);
+
           // Calculate cost basis and gains - optimized loop
           // Also strip unnecessary fields to reduce payload size
           const optimizedHoldings = holdingsWithQuotes.map(holding => {
             if (!holding.error && holding.quote) {
               const transactions = allTransactions[holding.code] || [];
-              
+              const holdingCurrency = holding.currency || 'USD';
+              const quoteCurrency = holding.quote.currency || 'USD';
+               
               // Calculate cost basis in a single pass
               const costBasis = transactions.reduce((sum, txn) => {
                 return txn.type === 'buy' ? sum + parseFloat(txn.value) + parseFloat(txn.fee) : sum;
               }, 0);
-              
-              const marketValue = holding.quote.current * holding.quantity;
-              const gain = marketValue - costBasis;
-              const gainPercent = costBasis > 0 ? (gain / costBasis) * 100 : 0;
-              
+               
+              const convertedPrice = convertAmount(holding.quote.current, quoteCurrency);
+              const convertedChange = convertAmount(holding.quote.change, quoteCurrency);
+              const convertedCostBasis = convertAmount(costBasis, holdingCurrency);
+              const marketValue = convertedPrice * holding.quantity;
+              const gain = marketValue - convertedCostBasis;
+              const gainPercent = convertedCostBasis > 0 ? (gain / convertedCostBasis) * 100 : 0;
+               
               // Return only necessary fields, including minimized quote object
               return {
                 id: holding.id,
                 name: holding.name,
                 code: holding.code,
+                currency: holdingCurrency,
                 quantity: holding.quantity,
                 target_weight: holding.target_weight,
                 quote: {
-                  current: holding.quote.current,
-                  change: holding.quote.change,
-                  changePercent: holding.quote.changePercent
+                  current: convertedPrice,
+                  change: convertedChange,
+                  changePercent: holding.quote.changePercent,
+                  currency,
+                  sourceCurrency: quoteCurrency
                 },
-                costBasis,
+                costBasis: convertedCostBasis,
                 marketValue,
                 gain,
                 gainPercent
@@ -365,9 +413,25 @@ async function handleRequest(request, env) {
                 name: holding.name,
                 code: holding.code,
                 quantity: holding.quantity,
+                currency: holding.currency || 'USD',
                 error: holding.error
               };
             }
+          });
+
+          const convertedClosedPositions = closedPositions.map(position => {
+            const positionCurrency = position.currency || 'USD';
+            const totalCost = convertAmount(position.totalCost, positionCurrency);
+            const totalRevenue = convertAmount(position.totalRevenue, positionCurrency);
+            const profitLoss = totalRevenue - totalCost;
+
+            return {
+              ...position,
+              currency: positionCurrency,
+              totalCost,
+              totalRevenue,
+              profitLoss,
+            };
           });
           
           // Calculate portfolio totals
@@ -382,35 +446,44 @@ async function handleRequest(request, env) {
           const portfolioTotal = totalMarketValue + cashAmount;
           
           // Calculate total gain/loss including closed positions
-          const closedPositionsGain = closedPositions.reduce((sum, pos) => sum + pos.profitLoss, 0);
+          const closedPositionsGain = convertedClosedPositions.reduce((sum, pos) => sum + pos.profitLoss, 0);
+          const totalClosedPositionsCost = convertedClosedPositions.reduce((sum, pos) => sum + pos.totalCost, 0);
           const openPositionsGain = totalMarketValue - totalCostBasis;
           const totalGainLoss = openPositionsGain + closedPositionsGain;
-          const totalGainLossPercent = (totalCostBasis + Math.abs(closedPositionsGain)) > 0 
-            ? (totalGainLoss / (totalCostBasis + Math.abs(closedPositionsGain))) * 100 
+          const totalGainLossPercent = (totalCostBasis + totalClosedPositionsCost) > 0 
+            ? (totalGainLoss / (totalCostBasis + totalClosedPositionsCost)) * 100 
             : 0;
-          
-          // Calculate FX rate for currency conversion
-          const fxRate = (currency !== 'USD' && fxRates && fxRates[currency]) ? fxRates[currency] : 1;
-          
-          // Always include SGD rate for alt currency display when viewing USD
-          const sgdRate = (fxRates && fxRates['SGD']) ? fxRates['SGD'] : null;
+
+          const displayRate = fxService.convertAmount(1, 'USD', currency, fxRates);
+          const alternateFxRate = fxService.convertAmount(1, currency, alternateCurrency, fxRates);
+          const fallbackDisplayRates = typeof fxService?.getFallbackRates === 'function'
+            ? fxService.getFallbackRates(NON_USD_DISPLAY_CURRENCIES)
+            : {};
+          const fxAvailable = NON_USD_DISPLAY_CURRENCIES
+            .every(code => (fxRates[code] ?? fallbackDisplayRates[code]) != null);
+          const fxUsingFallback = !env.OPENEXCHANGERATES_API_KEY;
           
           // Get cache stats (synchronous, no await needed)
-          const cacheStats = finnhubService.getCacheStats();
-          const oldestCacheTime = finnhubService.getOldestCacheTimestamp();
+          const cacheStats = yfinanceService.getCacheStats();
+          const oldestCacheTime = yfinanceService.getOldestCacheTimestamp();
           
           return new Response(JSON.stringify({
             holdings: optimizedHoldings,
-            closedPositions,
+            closedPositions: convertedClosedPositions,
             cashAmount,
+            cashBalances,
+            cashBalancesDisplayCurrency: convertedCashBalances,
             portfolioTotal,
             totalGainLoss,
             totalGainLossPercent,
             currency,
             portfolioName,
-            fxAvailable: !!fxService,
-            fxRate,
-            sgdRate,
+            fxAvailable,
+            fxUsingFallback,
+            fxRate: displayRate,
+            alternateCurrency,
+            alternateFxRate,
+            fxRates,
             cacheStats: {
               size: cacheStats.size,
               oldestTimestamp: oldestCacheTime
@@ -478,5 +551,9 @@ async function handleRequest(request, env) {
 
 // For backwards compatibility with addEventListener style
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request, { STONKS_DB: typeof STONKS_DB !== 'undefined' ? STONKS_DB : null }));
+  event.respondWith(handleRequest(event.request, {
+    STONKS_DB: typeof STONKS_DB !== 'undefined' ? STONKS_DB : null,
+    ASSETS: typeof ASSETS !== 'undefined' ? ASSETS : null,
+    OPENEXCHANGERATES_API_KEY: typeof OPENEXCHANGERATES_API_KEY !== 'undefined' ? OPENEXCHANGERATES_API_KEY : null,
+  }));
 });

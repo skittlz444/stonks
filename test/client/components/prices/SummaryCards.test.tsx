@@ -95,6 +95,7 @@ describe('SummaryCards', () => {
           id: 1,
           name: 'Test',
           code: 'TEST',
+          currency: 'USD',
           quantity: 10,
           currentQuantity: 10,
           currentValue: 1000,

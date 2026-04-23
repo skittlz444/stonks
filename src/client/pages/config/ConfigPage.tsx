@@ -7,6 +7,7 @@ interface EditHoldingData {
   id: number;
   name: string;
   code: string;
+  currency: string;
   target_weight?: number;
 }
 
@@ -14,6 +15,7 @@ export const ConfigPage: React.FC = () => {
   const { configData: data, loading, error, isRefreshing, refetch } = useConfig();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editHolding, setEditHolding] = useState<EditHoldingData | null>(null);
+  const cashCurrencies = Array.from(new Set(['USD', 'SGD', 'AUD', 'HKD', ...Object.keys(data?.cashBalances || {})]));
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -169,18 +171,20 @@ export const ConfigPage: React.FC = () => {
                     required
                   />
                 </div>
-                <div className="col-md-6 mb-3">
-                  <label htmlFor="cash_amount" className="form-label">Cash Amount</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    id="cash_amount"
-                    name="cash_amount"
-                    step="0.01"
-                    defaultValue={data.cashAmount}
-                    required
-                  />
-                </div>
+                {cashCurrencies.map((currency) => (
+                  <div key={currency} className="col-md-3 mb-3">
+                    <label htmlFor={`cash_amount_${currency}`} className="form-label">{currency} Cash</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      id={`cash_amount_${currency}`}
+                      name={`cash_amount_${currency}`}
+                      step="0.01"
+                      defaultValue={data.cashBalances?.[currency] ?? 0}
+                      required
+                    />
+                  </div>
+                ))}
               </div>
               
               <button type="submit" className="btn btn-primary">Update Settings</button>
@@ -203,6 +207,7 @@ export const ConfigPage: React.FC = () => {
                   <tr>
                     <th>Name</th>
                     <th>Code</th>
+                    <th>Currency</th>
                     <th className="text-end">Quantity</th>
                     <th className="text-end">Target Weight</th>
                     <th className="text-center">Visibility</th>
@@ -214,6 +219,7 @@ export const ConfigPage: React.FC = () => {
                     <tr key={holding.id}>
                       <td>{holding.name}</td>
                       <td><code style={{ color: '#e83e8c' }}>{holding.code}</code></td>
+                      <td><span className="badge bg-secondary">{holding.currency}</span></td>
                       <td className="text-end">{holding.quantity.toFixed(2)} <small className="text-muted">(from txns)</small></td>
                       <td className="text-end">
                         {holding.target_weight != null ? `${holding.target_weight.toFixed(0)}%` : '-'}
@@ -289,6 +295,7 @@ export const ConfigPage: React.FC = () => {
                       <tr>
                         <th>Name</th>
                         <th>Code</th>
+                        <th>Currency</th>
                         <th className="text-end">Quantity</th>
                         <th className="text-center">Visibility</th>
                         <th className="text-center">Actions</th>
@@ -299,6 +306,7 @@ export const ConfigPage: React.FC = () => {
                         <tr key={holding.id}>
                           <td>{holding.name}</td>
                           <td><code style={{ color: '#e83e8c' }}>{holding.code}</code></td>
+                          <td><span className="badge bg-secondary">{holding.currency}</span></td>
                           <td className="text-end">{holding.quantity.toFixed(2)} <small className="text-muted">(from txns)</small></td>
                           <td className="text-center">
                             <button
@@ -419,7 +427,23 @@ export const ConfigPage: React.FC = () => {
                   />
                   <div className="form-text">Use format: EXCHANGE:SYMBOL (e.g., NASDAQ:AAPL, BATS:VOO)</div>
                 </div>
-                
+
+                <div className="mb-3">
+                  <label htmlFor="add_currency" className="form-label">Holding Currency</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="add_currency"
+                    name="currency"
+                    defaultValue="USD"
+                    placeholder="e.g., USD, SGD, HKD"
+                    maxLength={3}
+                    pattern="[A-Za-z]{3}"
+                    required
+                  />
+                  <div className="form-text">Use the holding's transaction currency as a 3-letter ISO code.</div>
+                </div>
+                 
                 <div className="mb-3">
                   <label htmlFor="add_target_weight" className="form-label">Target Weight (%)</label>
                   <input
@@ -483,7 +507,23 @@ export const ConfigPage: React.FC = () => {
                   />
                   <div className="form-text">Use format: EXCHANGE:SYMBOL (e.g., NASDAQ:AAPL, BATS:VOO)</div>
                 </div>
-                
+
+                <div className="mb-3">
+                  <label htmlFor="edit_currency" className="form-label">Holding Currency</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="edit_currency"
+                    name="currency"
+                    defaultValue={editHolding?.currency || 'USD'}
+                    placeholder="e.g., USD, SGD, HKD"
+                    maxLength={3}
+                    pattern="[A-Za-z]{3}"
+                    required
+                  />
+                  <div className="form-text">Use the holding's transaction currency as a 3-letter ISO code.</div>
+                </div>
+                 
                 <div className="mb-3">
                   <label htmlFor="edit_target_weight" className="form-label">Target Weight (%)</label>
                   <input
@@ -571,7 +611,7 @@ export const ConfigPage: React.FC = () => {
                 </div>
                 
                 <div className="mb-3">
-                  <label htmlFor="txn_value" className="form-label">Transaction Value ($)</label>
+                  <label htmlFor="txn_value" className="form-label">Transaction Value</label>
                   <input
                     type="number"
                     step="0.01"
@@ -582,11 +622,11 @@ export const ConfigPage: React.FC = () => {
                     placeholder="e.g., 1250.00"
                     required
                   />
-                  <div className="form-text">Total value before fees</div>
+                  <div className="form-text">Total value before fees, entered in the holding currency.</div>
                 </div>
-                
+                 
                 <div className="mb-3">
-                  <label htmlFor="txn_fee" className="form-label">Fee ($)</label>
+                  <label htmlFor="txn_fee" className="form-label">Fee</label>
                   <input
                     type="number"
                     step="0.01"
@@ -597,7 +637,7 @@ export const ConfigPage: React.FC = () => {
                     placeholder="e.g., 10.00"
                     defaultValue="0"
                   />
-                  <div className="form-text">Trading fee or commission</div>
+                  <div className="form-text">Trading fee or commission in the holding currency.</div>
                 </div>
               </div>
               <div className="modal-footer">

@@ -16,6 +16,7 @@ describe('api.js - handleConfigSubmission', () => {
         }))
       },
       updateCashAmount: vi.fn(() => Promise.resolve(true)),
+      updateCashBalances: vi.fn(() => Promise.resolve(true)),
       addPortfolioHolding: vi.fn(() => Promise.resolve(true)),
       updatePortfolioHolding: vi.fn(() => Promise.resolve(true)),
       deletePortfolioHolding: vi.fn(() => Promise.resolve(true)),
@@ -26,11 +27,12 @@ describe('api.js - handleConfigSubmission', () => {
   });
 
   describe('update_settings action', () => {
-    test('should update portfolio name and cash amount', async () => {
+    test('should update portfolio name and cash balances', async () => {
       const formData = new FormData();
       formData.append('action', 'update_settings');
       formData.append('portfolio_name', 'My New Portfolio');
-      formData.append('cash_amount', '5000');
+      formData.append('cash_amount_USD', '5000');
+      formData.append('cash_amount_SGD', '250');
 
       mockRequest = {
         formData: vi.fn(() => Promise.resolve(formData)),
@@ -39,7 +41,7 @@ describe('api.js - handleConfigSubmission', () => {
 
       const response = await handleConfigSubmission(mockRequest, mockDatabaseService);
 
-      expect(mockDatabaseService.updateCashAmount).toHaveBeenCalledWith(5000);
+      expect(mockDatabaseService.updateCashBalances).toHaveBeenCalledWith({ USD: 5000, SGD: 250 });
       expect(mockDatabaseService.db.prepare).toHaveBeenCalled();
       expect(response.status).toBe(302);
       expect(response.headers.get('Location')).toBe('/config');
@@ -49,7 +51,7 @@ describe('api.js - handleConfigSubmission', () => {
       const formData = new FormData();
       formData.append('action', 'update_settings');
       formData.append('portfolio_name', 'Test Portfolio');
-      formData.append('cash_amount', '1000');
+      formData.append('cash_amount_USD', '1000');
 
       mockRequest = {
         formData: vi.fn(() => Promise.resolve(formData)),
@@ -70,6 +72,7 @@ describe('api.js - handleConfigSubmission', () => {
       formData.append('action', 'add_holding');
       formData.append('name', 'New Stock');
       formData.append('code', 'BATS:NEW');
+      formData.append('currency', 'sgd');
       formData.append('target_weight', '25');
 
       mockRequest = {
@@ -79,7 +82,7 @@ describe('api.js - handleConfigSubmission', () => {
 
       await handleConfigSubmission(mockRequest, mockDatabaseService);
 
-      expect(mockDatabaseService.addPortfolioHolding).toHaveBeenCalledWith('New Stock', 'BATS:NEW', 25);
+      expect(mockDatabaseService.addPortfolioHolding).toHaveBeenCalledWith('New Stock', 'BATS:NEW', 'SGD', 25);
     });
 
     test('should add holding without target weight', async () => {
@@ -87,6 +90,7 @@ describe('api.js - handleConfigSubmission', () => {
       formData.append('action', 'add_holding');
       formData.append('name', 'New Stock');
       formData.append('code', 'BATS:NEW');
+      formData.append('currency', '');
       formData.append('target_weight', '');
 
       mockRequest = {
@@ -96,7 +100,7 @@ describe('api.js - handleConfigSubmission', () => {
 
       await handleConfigSubmission(mockRequest, mockDatabaseService);
 
-      expect(mockDatabaseService.addPortfolioHolding).toHaveBeenCalledWith('New Stock', 'BATS:NEW', null);
+      expect(mockDatabaseService.addPortfolioHolding).toHaveBeenCalledWith('New Stock', 'BATS:NEW', 'USD', null);
     });
   });
 
@@ -107,6 +111,7 @@ describe('api.js - handleConfigSubmission', () => {
       formData.append('holding_id', '1');
       formData.append('name', 'Updated Stock');
       formData.append('code', 'BATS:UPD');
+      formData.append('currency', 'hkd');
       formData.append('target_weight', '30');
 
       mockRequest = {
@@ -116,7 +121,7 @@ describe('api.js - handleConfigSubmission', () => {
 
       await handleConfigSubmission(mockRequest, mockDatabaseService);
 
-      expect(mockDatabaseService.updatePortfolioHolding).toHaveBeenCalledWith(1, 'Updated Stock', 'BATS:UPD', 30);
+      expect(mockDatabaseService.updatePortfolioHolding).toHaveBeenCalledWith(1, 'Updated Stock', 'BATS:UPD', 'HKD', 30);
     });
 
     test('should update holding with null target weight', async () => {
@@ -125,6 +130,7 @@ describe('api.js - handleConfigSubmission', () => {
       formData.append('holding_id', '2');
       formData.append('name', 'Stock Name');
       formData.append('code', 'BATS:TEST');
+      formData.append('currency', 'invalid');
       formData.append('target_weight', '');
 
       mockRequest = {
@@ -134,7 +140,7 @@ describe('api.js - handleConfigSubmission', () => {
 
       await handleConfigSubmission(mockRequest, mockDatabaseService);
 
-      expect(mockDatabaseService.updatePortfolioHolding).toHaveBeenCalledWith(2, 'Stock Name', 'BATS:TEST', null);
+      expect(mockDatabaseService.updatePortfolioHolding).toHaveBeenCalledWith(2, 'Stock Name', 'BATS:TEST', 'USD', null);
     });
   });
 
@@ -318,7 +324,7 @@ describe('api.js - handleConfigSubmission', () => {
       const formData = new FormData();
       formData.append('action', 'update_settings');
       formData.append('portfolio_name', 'Test');
-      formData.append('cash_amount', '1000');
+      formData.append('cash_amount_USD', '1000');
 
       mockRequest = {
         formData: vi.fn(() => Promise.resolve(formData)),

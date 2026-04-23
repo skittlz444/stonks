@@ -38,6 +38,7 @@ describe('ConfigContext', () => {
       { id: 1, code: 'BATS:TEST1', type: 'buy' as const, date: '2024-01-01', quantity: 10, value: 1000, fee: 10 }
     ],
     cashAmount: 1000,
+    cashBalances: { USD: 1000, HKD: 780 },
     portfolioName: 'Test Portfolio',
     apiKeys: {
       finnhub: 'test_key_123',

@@ -13,6 +13,7 @@ describe('useHoldings', () => {
     hiddenHoldings: [],
     transactions: [],
     cashAmount: 1000,
+    cashBalances: { USD: 1000 },
     portfolioName: 'Test Portfolio',
     apiKeys: { finnhub: null, openExchangeRates: null }
   };

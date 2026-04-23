@@ -199,18 +199,18 @@ describe('FxService', () => {
   });
 
   describe('createFxService factory', () => {
-    it('should return null when no API key provided', async () => {
+    it('should create a fallback service when no API key is provided', async () => {
       const { createFxService } = await import('../src/fxService.js');
       const service = createFxService(null);
       
-      expect(service).toBeNull();
+      expect(service).not.toBeNull();
     });
 
-    it('should return null when empty API key provided', async () => {
+    it('should create a fallback service when empty API key is provided', async () => {
       const { createFxService } = await import('../src/fxService.js');
       const service = createFxService('');
       
-      expect(service).toBeNull();
+      expect(service).not.toBeNull();
     });
 
     it('should create FxService when valid API key provided', async () => {

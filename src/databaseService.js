@@ -31,7 +31,7 @@ export class DatabaseService {
       // Build dynamic portfolio from holdings with BATS codes
       const portfolioHoldings = holdingsWithQuantity.filter(h => h.code && h.code.startsWith('BATS:') && h.quantity > 0);
       if (portfolioHoldings.length > 0) {
-        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount || '0');
+        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount_USD || settings.cash_amount || '0');
         const portfolioName = settings.portfolio_name || 'My Portfolio';
         
         // Create the dynamic portfolio entry
@@ -91,7 +91,7 @@ export class DatabaseService {
       // Build dynamic portfolio from visible holdings with BATS codes
       const portfolioHoldings = holdingsWithQuantity.filter(h => h.code && h.code.startsWith('BATS:') && h.quantity > 0);
       if (portfolioHoldings.length > 0) {
-        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount || '0');
+        const portfolioSymbol = this.buildPortfolioSymbol(portfolioHoldings, settings.cash_amount_USD || settings.cash_amount || '0');
         const portfolioName = settings.portfolio_name || 'My Portfolio';
         
         // Create the dynamic portfolio entry
@@ -166,11 +166,11 @@ export class DatabaseService {
   /**
    * Add a new portfolio holding (without quantity - use transactions instead)
    */
-  async addPortfolioHolding(name, code, targetWeight = null) {
+  async addPortfolioHolding(name, code, currency = 'USD', targetWeight = null) {
     try {
       const result = await this.db.prepare(
-        'INSERT INTO portfolio_holdings (name, code, target_weight) VALUES (?, ?, ?)'
-      ).bind(name, code, targetWeight).run();
+        'INSERT INTO portfolio_holdings (name, code, currency, target_weight) VALUES (?, ?, ?, ?)'
+      ).bind(name, code, currency, targetWeight).run();
       
       return result.success;
     } catch (error) {
@@ -182,11 +182,11 @@ export class DatabaseService {
   /**
    * Update an existing portfolio holding (without quantity - use transactions instead)
    */
-  async updatePortfolioHolding(id, name, code, targetWeight = null) {
+  async updatePortfolioHolding(id, name, code, currency = 'USD', targetWeight = null) {
     try {
       const result = await this.db.prepare(
-        'UPDATE portfolio_holdings SET name = ?, code = ?, target_weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-      ).bind(name, code, targetWeight, id).run();
+        'UPDATE portfolio_holdings SET name = ?, code = ?, currency = ?, target_weight = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(name, code, currency, targetWeight, id).run();
       
       return result.success;
     } catch (error) {
@@ -215,14 +215,35 @@ export class DatabaseService {
    * Update portfolio cash amount
    */
   async updateCashAmount(amount) {
+    return this.updateCashBalances({ USD: amount });
+  }
+
+  /**
+   * Update portfolio cash balances by currency.
+   */
+  async updateCashBalances(cashBalances) {
     try {
-      const result = await this.db.prepare(
-        'INSERT OR REPLACE INTO portfolio_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
-      ).bind('cash_amount', amount.toString()).run();
-      
-      return result.success;
+      const balances = Object.entries(cashBalances || {});
+      let success = true;
+
+      for (const [currency, amount] of balances) {
+        const result = await this.db.prepare(
+          'INSERT OR REPLACE INTO portfolio_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
+        ).bind(`cash_amount_${currency}`, amount.toString()).run();
+
+        success = success && !!result.success;
+
+        if (currency === 'USD') {
+          const legacyResult = await this.db.prepare(
+            'INSERT OR REPLACE INTO portfolio_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
+          ).bind('cash_amount', amount.toString()).run();
+          success = success && !!legacyResult.success;
+        }
+      }
+
+      return success;
     } catch (error) {
-      console.error('Error updating cash amount:', error);
+      console.error('Error updating cash balances:', error);
       return false;
     }
   }
@@ -231,15 +252,36 @@ export class DatabaseService {
    * Get portfolio cash amount
    */
   async getCashAmount() {
+    const cashBalances = await this.getCashBalances();
+    return cashBalances.USD || 0;
+  }
+
+  /**
+   * Get portfolio cash balances keyed by currency.
+   */
+  async getCashBalances() {
     try {
       const result = await this.db.prepare(
-        'SELECT value FROM portfolio_settings WHERE key = ?'
-      ).bind('cash_amount').first();
-      
-      return result ? parseFloat(result.value) : 0;
+        "SELECT key, value FROM portfolio_settings WHERE key = 'cash_amount' OR key LIKE 'cash_amount_%'"
+      ).all();
+
+      const cashBalances = {};
+      for (const row of result.results || []) {
+        if (row.key === 'cash_amount') {
+          if (cashBalances.USD == null) {
+            cashBalances.USD = parseFloat(row.value) || 0;
+          }
+          continue;
+        }
+
+        const currency = row.key.replace('cash_amount_', '').toUpperCase();
+        cashBalances[currency] = parseFloat(row.value) || 0;
+      }
+
+      return cashBalances;
     } catch (error) {
-      console.error('Error getting cash amount:', error);
-      return 0;
+      console.error('Error getting cash balances:', error);
+      return {};
     }
   }
 
@@ -366,6 +408,7 @@ export class DatabaseService {
           h.id, 
           h.name, 
           h.code, 
+          h.currency,
           h.target_weight, 
           h.hidden,
           h.created_at,
@@ -379,7 +422,7 @@ export class DatabaseService {
           ), 0) as quantity
         FROM portfolio_holdings h
         LEFT JOIN transactions t ON h.code = t.code
-        GROUP BY h.id, h.name, h.code, h.target_weight, h.hidden, h.created_at, h.updated_at
+        GROUP BY h.id, h.name, h.code, h.currency, h.target_weight, h.hidden, h.created_at, h.updated_at
         ORDER BY h.id
       `).all();
       
@@ -401,6 +444,7 @@ export class DatabaseService {
           h.id, 
           h.name, 
           h.code, 
+          h.currency,
           h.target_weight, 
           h.hidden,
           h.created_at,
@@ -415,7 +459,7 @@ export class DatabaseService {
         FROM portfolio_holdings h
         LEFT JOIN transactions t ON h.code = t.code
         WHERE h.hidden = 0
-        GROUP BY h.id, h.name, h.code, h.target_weight, h.hidden, h.created_at, h.updated_at
+        GROUP BY h.id, h.name, h.code, h.currency, h.target_weight, h.hidden, h.created_at, h.updated_at
         ORDER BY h.id
       `).all();
       
@@ -437,6 +481,7 @@ export class DatabaseService {
           h.id, 
           h.name, 
           h.code, 
+          h.currency,
           h.target_weight, 
           h.hidden,
           h.created_at,
@@ -451,7 +496,7 @@ export class DatabaseService {
         FROM portfolio_holdings h
         LEFT JOIN transactions t ON h.code = t.code
         WHERE h.hidden = 1
-        GROUP BY h.id, h.name, h.code, h.target_weight, h.hidden, h.created_at, h.updated_at
+        GROUP BY h.id, h.name, h.code, h.currency, h.target_weight, h.hidden, h.created_at, h.updated_at
         ORDER BY h.id
       `).all();
       
@@ -500,7 +545,7 @@ export class DatabaseService {
           HAVING current_quantity = 0
         ),
         holding_names AS (
-          SELECT code, name
+          SELECT code, name, currency
           FROM portfolio_holdings
           GROUP BY code
           HAVING MIN(id)
@@ -508,6 +553,7 @@ export class DatabaseService {
         SELECT 
           ps.code,
           COALESCE(hn.name, ps.code) as name,
+          COALESCE(hn.currency, 'USD') as currency,
           ps.total_buy_cost + ps.total_buy_fees as totalCost,
           ps.total_sell_revenue - ps.total_sell_fees as totalRevenue,
           (ps.total_sell_revenue - ps.total_sell_fees) - (ps.total_buy_cost + ps.total_buy_fees) as profitLoss,
@@ -541,12 +587,12 @@ export class MockD1Database {
     
     // Mock portfolio holdings data (without quantity - derived from transactions)
     this.portfolioHoldings = [
-      { id: 1, name: "Vgrd S&P 500", code: "BATS:VOO", target_weight: null, hidden: 0, created_at: now, updated_at: now },
-      { id: 2, name: "GS Gold", code: "BATS:AAAU", target_weight: null, hidden: 0, created_at: now, updated_at: now },
-      { id: 3, name: "Vgrd Ex US", code: "BATS:VXUS", target_weight: null, hidden: 0, created_at: now, updated_at: now },
-      { id: 4, name: "Vgrd S&P 500 Value", code: "BATS:VOOV", target_weight: null, hidden: 0, created_at: now, updated_at: now },
-      { id: 5, name: "Vgrd Mid Cap", code: "BATS:VO", target_weight: null, hidden: 0, created_at: now, updated_at: now },
-      { id: 6, name: "GOP", code: "BATS:GOP", target_weight: null, hidden: 0, created_at: now, updated_at: now }
+      { id: 1, name: "Vgrd S&P 500", code: "BATS:VOO", currency: "USD", target_weight: null, hidden: 0, created_at: now, updated_at: now },
+      { id: 2, name: "GS Gold", code: "BATS:AAAU", currency: "USD", target_weight: null, hidden: 0, created_at: now, updated_at: now },
+      { id: 3, name: "Vgrd Ex US", code: "BATS:VXUS", currency: "USD", target_weight: null, hidden: 0, created_at: now, updated_at: now },
+      { id: 4, name: "Vgrd S&P 500 Value", code: "BATS:VOOV", currency: "USD", target_weight: null, hidden: 0, created_at: now, updated_at: now },
+      { id: 5, name: "Vgrd Mid Cap", code: "BATS:VO", currency: "USD", target_weight: null, hidden: 0, created_at: now, updated_at: now },
+      { id: 6, name: "GOP", code: "BATS:GOP", currency: "USD", target_weight: null, hidden: 0, created_at: now, updated_at: now }
     ];
     
     // Mock transactions data (initial buy transactions from migration)
@@ -561,6 +607,10 @@ export class MockD1Database {
     
     this.portfolioSettings = {
       cash_amount: 101.8,
+      cash_amount_USD: 101.8,
+      cash_amount_SGD: 0,
+      cash_amount_AUD: 0,
+      cash_amount_HKD: 0,
       portfolio_name: "My Portfolio"
     };
     
@@ -629,7 +679,7 @@ class MockPreparedStatement {
     }
     
     // Portfolio holdings queries (new structure with hidden column)
-    if (this.query.includes('SELECT id, name, code, target_weight, hidden, created_at, updated_at FROM portfolio_holdings')) {
+    if (this.query.includes('SELECT id, name, code, currency, target_weight, hidden, created_at, updated_at FROM portfolio_holdings')) {
       // Check if filtering for visible holdings only
       if (this.query.includes('WHERE hidden = 0')) {
         return {
@@ -651,7 +701,7 @@ class MockPreparedStatement {
     }
 
     // Old portfolio holdings queries (without hidden - for backwards compatibility)
-    if (this.query.includes('SELECT id, name, code, target_weight, created_at, updated_at FROM portfolio_holdings')) {
+    if (this.query.includes('SELECT id, name, code, currency, target_weight, created_at, updated_at FROM portfolio_holdings')) {
       return {
         results: this.mockDb.portfolioHoldings,
         success: true
@@ -727,6 +777,7 @@ class MockPreparedStatement {
           return {
             code: pos.code,
             name: holding ? holding.name : pos.code,
+            currency: holding?.currency || 'USD',
             totalCost,
             totalRevenue,
             profitLoss,
@@ -753,10 +804,10 @@ class MockPreparedStatement {
     // Portfolio settings queries (all settings)
     if (this.query.includes('SELECT key, value FROM portfolio_settings')) {
       return {
-        results: [
-          { key: 'cash_amount', value: this.mockDb.portfolioSettings.cash_amount.toString() },
-          { key: 'portfolio_name', value: this.mockDb.portfolioSettings.portfolio_name }
-        ],
+        results: Object.entries(this.mockDb.portfolioSettings).map(([key, value]) => ({
+          key,
+          value: value.toString()
+        })),
         success: true
       };
     }
@@ -779,6 +830,9 @@ class MockPreparedStatement {
       const key = this.bindings[0];
       if (key === 'cash_amount') {
         return { value: this.mockDb.portfolioSettings.cash_amount.toString() };
+      }
+      if (this.mockDb.portfolioSettings[key] != null) {
+        return { value: this.mockDb.portfolioSettings[key].toString() };
       }
       if (key === 'portfolio_name') {
         return { value: this.mockDb.portfolioSettings.portfolio_name };
@@ -825,7 +879,7 @@ class MockPreparedStatement {
 
     // Handle INSERT operations for portfolio holdings (new structure without quantity)
     if (this.query.includes('INSERT INTO portfolio_holdings')) {
-      const [name, code, targetWeight] = this.bindings;
+      const [name, code, currency, targetWeight] = this.bindings;
       const newId = Math.max(...this.mockDb.portfolioHoldings.map(h => h.id), 0) + 1;
       const now = new Date().toISOString();
       
@@ -833,7 +887,9 @@ class MockPreparedStatement {
         id: newId,
         name,
         code,
+        currency,
         target_weight: targetWeight,
+        hidden: 0,
         created_at: now,
         updated_at: now
       });
@@ -875,7 +931,7 @@ class MockPreparedStatement {
     
     // Handle UPDATE operations for portfolio holdings (new structure)
     if (this.query.includes('UPDATE portfolio_holdings SET')) {
-      const [name, code, targetWeight, id] = this.bindings;
+      const [name, code, currency, targetWeight, id] = this.bindings;
       const holdingIndex = this.mockDb.portfolioHoldings.findIndex(h => h.id === id);
       
       if (holdingIndex !== -1) {
@@ -883,6 +939,7 @@ class MockPreparedStatement {
           ...this.mockDb.portfolioHoldings[holdingIndex],
           name,
           code,
+          currency,
           target_weight: targetWeight,
           updated_at: new Date().toISOString()
         };
@@ -902,6 +959,12 @@ class MockPreparedStatement {
     if (this.query.includes('INSERT OR REPLACE INTO portfolio_settings')) {
       const [key, value] = this.bindings;
       this.mockDb.portfolioSettings[key] = value;
+      if (key === 'cash_amount_USD') {
+        this.mockDb.portfolioSettings.cash_amount = value;
+      }
+      if (key === 'cash_amount') {
+        this.mockDb.portfolioSettings.cash_amount_USD = value;
+      }
       return { success: true };
     }
     

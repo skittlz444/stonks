@@ -17,6 +17,7 @@ describe('rebalancing calculations', () => {
       id: params.id,
       name: params.name,
       code: params.code,
+      currency: 'USD',
       quantity: params.quantity,
       target_weight: params.targetWeight,
       visible: 1,

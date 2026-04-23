@@ -8,6 +8,30 @@
 export async function handleConfigSubmission(request, databaseService) {
   let redirectUrl = '/config';
   const isAjax = request.headers.get('Accept')?.includes('application/json');
+
+  const normalizeCurrency = (value) => {
+    const normalized = String(value || 'USD').trim().toUpperCase();
+    return /^[A-Z]{3}$/.test(normalized) ? normalized : 'USD';
+  };
+
+  const parseCashBalances = (formData) => {
+    const cashBalances = {};
+
+    for (const [key, rawValue] of formData.entries()) {
+      if (key !== 'cash_amount' && !key.startsWith('cash_amount_')) {
+        continue;
+      }
+
+      const currency = key === 'cash_amount'
+        ? 'USD'
+        : normalizeCurrency(key.slice('cash_amount_'.length));
+      const amount = parseFloat(String(rawValue || '0'));
+
+      cashBalances[currency] = Number.isFinite(amount) ? amount : 0;
+    }
+
+    return cashBalances;
+  };
   
   try {
     const formData = await request.formData();
@@ -15,9 +39,9 @@ export async function handleConfigSubmission(request, databaseService) {
     switch (action) {
       case 'update_settings':
         const portfolioName = formData.get('portfolio_name');
-        const cashAmount = parseFloat(formData.get('cash_amount'));
+        const cashBalances = parseCashBalances(formData);
         
-        await databaseService.updateCashAmount(cashAmount);
+        await databaseService.updateCashBalances(cashBalances);
         
         // Update portfolio name
         await databaseService.db.prepare(
@@ -29,20 +53,22 @@ export async function handleConfigSubmission(request, databaseService) {
       case 'add_holding':
         const addName = formData.get('name');
         const addCode = formData.get('code');
+        const addCurrency = normalizeCurrency(formData.get('currency'));
         const addTargetWeight = formData.get('target_weight');
         const addTargetWeightValue = addTargetWeight && addTargetWeight.trim() !== '' ? parseFloat(addTargetWeight) : null;
         
-        await databaseService.addPortfolioHolding(addName, addCode, addTargetWeightValue);
+        await databaseService.addPortfolioHolding(addName, addCode, addCurrency, addTargetWeightValue);
         break;
         
       case 'update_holding':
         const updateId = parseInt(formData.get('holding_id'));
         const updateName = formData.get('name');
         const updateCode = formData.get('code');
+        const updateCurrency = normalizeCurrency(formData.get('currency'));
         const updateTargetWeight = formData.get('target_weight');
         const updateTargetWeightValue = updateTargetWeight && updateTargetWeight.trim() !== '' ? parseFloat(updateTargetWeight) : null;
         
-        await databaseService.updatePortfolioHolding(updateId, updateName, updateCode, updateTargetWeightValue);
+        await databaseService.updatePortfolioHolding(updateId, updateName, updateCode, updateCurrency, updateTargetWeightValue);
         break;
         
       case 'delete_holding':

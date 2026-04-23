@@ -118,13 +118,13 @@ describe('PricesControls', () => {
     expect(mockOnRebalanceToggle).toHaveBeenCalledTimes(1);
   });
 
-  test('should disable rebalance button when currency is not USD and not in rebalance mode', () => {
+  test('should enable rebalance button when currency is not USD', () => {
     render(<PricesControls {...defaultProps} currency="SGD" rebalanceMode={false} />);
     
     const rebalanceButton = screen.getByRole('button', { name: 'Rebalance Portfolio' });
     
-    expect(rebalanceButton).toHaveClass('disabled');
-    expect(rebalanceButton).toBeDisabled();
+    expect(rebalanceButton).not.toHaveClass('disabled');
+    expect(rebalanceButton).not.toBeDisabled();
   });
 
   test('should enable rebalance button when currency is USD', () => {

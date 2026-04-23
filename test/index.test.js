@@ -1,13 +1,15 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const mockFxRates = { SGD: 1.35, AUD: 1.52, HKD: 7.82 };
+
 // Mock DatabaseService before importing the worker
 vi.mock('../src/databaseService.js', () => {
   const mockGetVisiblePortfolioHoldings = vi.fn().mockResolvedValue([
-    { id: 1, name: 'Apple', code: 'NASDAQ:AAPL', quantity: 10, target_weight: 50 }
+    { id: 1, name: 'Apple', code: 'NASDAQ:AAPL', currency: 'USD', quantity: 10, target_weight: 50 }
   ]);
   const mockGetHiddenPortfolioHoldings = vi.fn().mockResolvedValue([]);
   const mockGetTransactions = vi.fn().mockResolvedValue([]);
-  const mockGetCashAmount = vi.fn().mockResolvedValue(1000);
+  const mockGetCashBalances = vi.fn().mockResolvedValue({ USD: 1000, SGD: 1350 });
   const mockGetAllTransactionsGroupedByCode = vi.fn().mockResolvedValue({});
   const mockGetClosedPositions = vi.fn().mockResolvedValue([]);
   
@@ -24,7 +26,7 @@ vi.mock('../src/databaseService.js', () => {
         getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
         getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
         getTransactions: mockGetTransactions,
-        getCashAmount: mockGetCashAmount,
+        getCashBalances: mockGetCashBalances,
         getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
         getClosedPositions: mockGetClosedPositions
       };
@@ -40,7 +42,7 @@ vi.mock('../src/databaseService.js', () => {
         getVisiblePortfolioHoldings: mockGetVisiblePortfolioHoldings,
         getHiddenPortfolioHoldings: mockGetHiddenPortfolioHoldings,
         getTransactions: mockGetTransactions,
-        getCashAmount: mockGetCashAmount,
+        getCashBalances: mockGetCashBalances,
         getAllTransactionsGroupedByCode: mockGetAllTransactionsGroupedByCode,
         getClosedPositions: mockGetClosedPositions
       };
@@ -48,18 +50,38 @@ vi.mock('../src/databaseService.js', () => {
   };
 });
 
-// Mock Finnhub and FX services
-vi.mock('../src/finnhubService.js', () => ({
-  createFinnhubService: vi.fn(() => ({
-    getPortfolioQuotes: vi.fn().mockResolvedValue([]),
-    getCacheStats: vi.fn().mockReturnValue({ hit: 0, miss: 0, hitRate: 0 }),
+// Mock Yahoo Finance and FX services
+vi.mock('../src/yfinanceService.js', () => ({
+  createYFinanceService: vi.fn(() => ({
+    getPortfolioQuotes: vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        name: 'Apple',
+        code: 'NASDAQ:AAPL',
+        currency: 'USD',
+        quantity: 10,
+        target_weight: 50,
+        quote: {
+          current: 100,
+          change: 5,
+          changePercent: 5,
+          currency: 'USD',
+        },
+      },
+    ]),
+    getCacheStats: vi.fn().mockReturnValue({ size: 1 }),
     getOldestCacheTimestamp: vi.fn().mockReturnValue(null)
   }))
 }));
 
 vi.mock('../src/fxService.js', () => ({
   createFxService: vi.fn(() => ({
-    getLatestRates: vi.fn().mockResolvedValue({ USD: 1, SGD: 1.35 })
+    getLatestRates: vi.fn().mockResolvedValue(mockFxRates),
+    convertAmount: vi.fn((amount, fromCurrency, toCurrency, rates = {}) => {
+      const normalizedRates = { USD: 1, ...mockFxRates, ...rates };
+      if (fromCurrency === toCurrency) return amount;
+      return (amount / normalizedRates[fromCurrency]) * normalizedRates[toCurrency];
+    })
   }))
 }));
 
@@ -96,7 +118,6 @@ describe('index.js - Cloudflare Worker', () => {
     // Mock environment
     mockEnv = {
       STONKS_DB: mockDb,
-      FINNHUB_API_KEY: 'test-finnhub-key',
       OPENEXCHANGERATES_API_KEY: 'test-fx-key',
       ASSETS: mockASSETS
     };
@@ -252,6 +273,7 @@ describe('index.js - Cloudflare Worker', () => {
       // If successful, check structure; if error, check error field
       if (response.status === 200) {
         expect(data).toHaveProperty('visibleHoldings');
+        expect(data).toHaveProperty('cashBalances');
         expect(data).toHaveProperty('portfolioName');
       } else {
         expect(data).toHaveProperty('error');
@@ -269,24 +291,54 @@ describe('index.js - Cloudflare Worker', () => {
   });
 
   describe('API Endpoints - Prices Data', () => {
-    test('should return error when Finnhub API key not configured', async () => {
-      const envWithoutFinnhub = { ...mockEnv, FINNHUB_API_KEY: null };
-
-      const request = new Request('https://example.com/api/prices-data');
-      const response = await workerHandler.fetch(request, envWithoutFinnhub);
-
-      expect(response.status).toBe(503);
-      const data = await response.json();
-      expect(data.error).toBe('Finnhub API key not configured');
-    });
-
     test('should return prices data when API configured', async () => {
       const request = new Request('https://example.com/api/prices-data');
       const response = await workerHandler.fetch(request, mockEnv);
 
-      // Should succeed or return structured error
-      expect(response).toBeDefined();
-      expect([200, 500]).toContain(response.status);
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toHaveProperty('holdings');
+      expect(data.holdings[0]).toHaveProperty('currency', 'USD');
+      expect(data.holdings[0].quote).toHaveProperty('currency', 'USD');
+      expect(data.holdings[0].quote).toHaveProperty('sourceCurrency', 'USD');
+      expect(data).toHaveProperty('cashBalances');
+      expect(data.cashBalances).toEqual({ USD: 1000, SGD: 1350 });
+      expect(data).toHaveProperty('cashBalancesDisplayCurrency');
+      expect(data.cashBalancesDisplayCurrency.USD).toBeCloseTo(1000);
+      expect(data.cashBalancesDisplayCurrency.SGD).toBeCloseTo(1000);
+      expect(data.cashAmount).toBe(2000);
+      expect(data.fxAvailable).toBe(true);
+      expect(data.fxUsingFallback).toBe(false);
+      expect(data).toHaveProperty('alternateCurrency');
+    });
+
+    test('should support rebalance mode in non-USD currencies', async () => {
+      const request = new Request('https://example.com/api/prices-data?mode=rebalance&currency=SGD');
+      const response = await workerHandler.fetch(request, mockEnv);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.currency).toBe('SGD');
+      expect(data.cashAmount).toBe(2700);
+      expect(data.holdings[0].quote.current).toBe(135);
+      expect(data.holdings[0].quote.currency).toBe('SGD');
+      expect(data.holdings[0].quote.sourceCurrency).toBe('USD');
+      expect(data.cashBalances).toEqual({ USD: 1000, SGD: 1350 });
+      expect(data.cashBalancesDisplayCurrency.USD).toBeCloseTo(1350);
+      expect(data.cashBalancesDisplayCurrency.SGD).toBeCloseTo(1350);
+    });
+
+    test('should report fallback FX availability without an API key', async () => {
+      const request = new Request('https://example.com/api/prices-data?currency=SGD');
+      const response = await workerHandler.fetch(request, {
+        ...mockEnv,
+        OPENEXCHANGERATES_API_KEY: null,
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.fxAvailable).toBe(true);
+      expect(data.fxUsingFallback).toBe(true);
     });
   });
 
@@ -369,15 +421,15 @@ describe('index.js - Cloudflare Worker', () => {
       expect(response2.status).toBe(200);
     });
 
-    test('should handle API key changes', async () => {
+    test('should handle FX key changes', async () => {
       mockASSETS.fetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
 
       // First request
       const request1 = new Request('https://example.com/prices');
       const response1 = await workerHandler.fetch(request1, mockEnv);
 
-      // Second request with different API key
-      const envWithNewKey = { ...mockEnv, FINNHUB_API_KEY: 'new-key' };
+      // Second request with different FX key
+      const envWithNewKey = { ...mockEnv, OPENEXCHANGERATES_API_KEY: 'new-key' };
       const request2 = new Request('https://example.com/prices');
       const response2 = await workerHandler.fetch(request2, envWithNewKey);
 

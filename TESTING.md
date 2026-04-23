@@ -49,20 +49,20 @@ The test suite covers the following modules with comprehensive integration and u
    - API endpoints (/api/prices-data, /api/config-data)
    - Client script serving (React bundles)
    - Database service initialization
-   - Finnhub service integration
+   - Yahoo Finance service integration
    - FX service integration for currency conversion
    - Error handling and fallback
    - Request/response processing
 
-5. **src/finnhubService.js** - API integration (97.76% coverage)
+5. **src/yfinanceService.js** - API integration
     - Quote fetching with caching
-    - Rate limit handling
+    - International exchange symbol mapping
     - Cache expiration logic (1-minute default)
     - Error handling
 
 6. **src/fxService.js** - Currency conversion service (96.66% coverage)
    - OpenExchangeRates API integration
-   - Multi-currency support (USD, SGD, AUD)
+   - Multi-currency support (USD, SGD, AUD, HKD)
    - Caching for exchange rates
    - Fallback rates when API unavailable
    - Currency conversion utilities
@@ -92,8 +92,8 @@ npx vitest --coverage
 
 ## Test Statistics
 
-- **Total Tests**: 456 tests across 25 test files
-- **Passing**: 456 tests ✅ (100%)
+- **Total Tests**: 443 tests across 25 test files
+- **Passing**: 443 tests ✅ (100%)
 - **Overall Coverage**: 88.49% (statements)
 - **Coverage Details**: 
   - Server-side code: 88.64% (src/ directory)
@@ -107,8 +107,8 @@ npx vitest --coverage
 1. `test/index.test.js` - 35 tests (Cloudflare Worker entry point)
 2. `test/databaseService.test.js` - 56 tests (Database operations)
 3. `test/dataUtils.test.js` - 35 tests (Data processing)
-4. `test/finnhubService.test.js` - 19 tests (Stock price API)
-5. `test/finnhubService.cache.test.js` - 17 tests (Price caching)
+4. `test/finnhubService.test.js` - 12 tests (Yahoo Finance quote API)
+5. `test/finnhubService.cache.test.js` - 9 tests (Yahoo Finance caching)
 6. `test/fxService.test.js` - 16 tests (Currency conversion)
 7. `test/api.test.js` - 16 tests (API endpoints)
 8. `test/cache-version.test.js` - 8 tests (PWA cache versioning)
@@ -149,20 +149,20 @@ npx vitest --coverage
 - **Client Context**: ConfigContext provider (100%)
 - **Database Operations**: All CRUD operations, transactions, visibility controls (89.56%)
 - **Data Processing**: Stock data formatting, TradingView integration (92.44%)
-- **Finnhub Integration**: Quote fetching, caching, rate limiting (97.76%)
+- **Yahoo Finance Integration**: Quote fetching, caching, and international symbol mapping
 - **FX Service**: Currency conversion, rate caching, fallback rates (96.66%)
 
 ### ✅ Edge Cases Covered
 
 - Error handling for database failures
-- Finnhub API rate limiting and errors
+- Yahoo Finance API and quote lookup errors
 - OpenExchangeRates API errors with fallback
 - Malformed data processing
 - Missing configuration handling
-- Missing API keys (503 Service Unavailable responses)
+- Missing or fallback FX configuration handling
 - Transaction validation
 - Closed position calculations
-- Cache expiration scenarios (both Finnhub and FX)
+- Cache expiration scenarios (both Yahoo Finance and FX)
 - URL parsing edge cases
 - Query parameter handling (currency, rebalance mode)
 - Response format validation
@@ -174,7 +174,7 @@ npx vitest --coverage
 - API endpoint data integrity
 - React component interactions
 - Database service integration
-- Finnhub service integration
+- Yahoo Finance service integration
 - FX service integration with multi-currency support
 - Configuration management
 - Transaction tracking
@@ -194,7 +194,7 @@ The test setup includes:
 
 - **MockD1Database**: Full SQLite database simulation with transaction support
 - **MockPreparedStatement**: Complete SQL query handling (SELECT, INSERT, UPDATE, DELETE)
-- **Finnhub API**: Mocked with configurable responses and error scenarios
+- **Yahoo Finance API**: Mocked with configurable responses and error scenarios
 - **OpenExchangeRates API**: Mocked with currency conversion scenarios
 - **Cache testing**: Time-based expiration tests with wait periods
 - **External dependencies**: TradingView widgets mocked
@@ -230,10 +230,10 @@ npx vitest test/databaseService.test.js
 # Data processing tests (35 tests)
 npx vitest test/dataUtils.test.js
 
-# Finnhub service tests (19 tests)
+# Yahoo Finance service tests (12 tests)
 npx vitest test/finnhubService.test.js
 
-# Finnhub caching tests (17 tests)
+# Yahoo Finance caching tests (9 tests)
 npx vitest test/finnhubService.cache.test.js
 
 # FX service tests (16 tests)
@@ -325,7 +325,7 @@ npx vitest test/client/components/prices/SummaryCards.test.tsx          # 12 tes
 
 ### Utility Function Testing
 - **Formatting utilities** (32 tests):
-  - Currency formatting (USD, SGD, AUD)
+  - Currency formatting (USD, SGD, AUD, HKD)
   - Number formatting with locale support
   - Percentage formatting
   - Value abbreviation (K, M, B)
@@ -413,4 +413,4 @@ The test suite provides confidence in the reliability and maintainability of the
 - ✅ Transaction tracking and closed positions
 - ✅ API endpoints and data fetching
 - ✅ Error handling and loading states
-- ✅ Multi-currency support (USD, SGD, AUD)
+- ✅ Multi-currency support (USD, SGD, AUD, HKD)

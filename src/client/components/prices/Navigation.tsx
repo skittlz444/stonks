@@ -62,9 +62,8 @@ export const Navigation: React.FC<NavigationProps> = ({
           {/* Rebalance Toggle */}
           <button
             id="rebalance-btn"
-            className={`btn btn-sm ${rebalanceMode ? 'btn-warning' : 'btn-outline-warning'} me-3 ${currency !== 'USD' && !rebalanceMode ? 'disabled' : ''}`}
+            className={`btn btn-sm ${rebalanceMode ? 'btn-warning' : 'btn-outline-warning'} me-3`}
             onClick={toggleRebalanceMode}
-            disabled={currency !== 'USD' && !rebalanceMode}
           >
             {rebalanceMode ? 'Exit Rebalance Mode' : 'Rebalance Portfolio'}
           </button>

@@ -1,15 +1,20 @@
 // Core data types for Stonks Portfolio application
 
+export type CashBalances = Record<string, number>;
+
 export interface Holding {
   id: number;
   name: string;
   code: string;
+  currency: string;
   quantity: number;
   target_weight?: number;
   visible?: number;
 }
 
 export interface Quote {
+  currency?: string;
+  sourceCurrency?: string;
   current: number;
   previous_close: number;
   change: number;
@@ -45,6 +50,7 @@ export interface Transaction {
 export interface ClosedPosition {
   name: string;
   code: string;
+  currency?: string;
   totalCost: number;
   totalRevenue: number;
   profitLoss: number;
@@ -61,14 +67,19 @@ export interface PricesData {
   holdings: HoldingWithQuote[];
   closedPositions: ClosedPosition[];
   cashAmount: number;
+  cashBalances?: CashBalances;
+  cashBalancesDisplayCurrency?: CashBalances;
   portfolioTotal: number;
   totalGainLoss: number;
   totalGainLossPercent: number;
   currency: string;
   portfolioName: string;
   fxAvailable?: boolean;
+  fxUsingFallback?: boolean;
   fxRate?: number;
-  sgdRate?: number;
+  alternateCurrency?: string;
+  alternateFxRate?: number;
+  fxRates?: Record<string, number>;
   cacheStats?: CacheStats;
 }
 
@@ -77,6 +88,7 @@ export interface ConfigData {
   hiddenHoldings: Holding[];
   transactions: Transaction[];
   cashAmount: number;
+  cashBalances: CashBalances;
   portfolioName: string;
   totalTargetWeight: number;
 }

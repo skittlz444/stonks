@@ -53,9 +53,8 @@ export const PricesControls: React.FC<PricesControlsProps> = ({
 
       {/* Rebalance Toggle */}
       <button
-        className={`btn btn-sm ${rebalanceMode ? 'btn-warning' : 'btn-outline-warning'} ${currency !== 'USD' && !rebalanceMode ? 'disabled' : ''}`}
+        className={`btn btn-sm ${rebalanceMode ? 'btn-warning' : 'btn-outline-warning'}`}
         onClick={onRebalanceToggle}
-        disabled={currency !== 'USD' && !rebalanceMode}
       >
         {rebalanceMode ? 'Exit Rebalance Mode' : 'Rebalance Portfolio'}
       </button>

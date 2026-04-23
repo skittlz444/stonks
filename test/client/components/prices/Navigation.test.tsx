@@ -73,4 +73,10 @@ describe('Navigation', () => {
     const usdButton = screen.getByText('USD').closest('button');
     expect(usdButton).toHaveClass('btn-primary');
   });
+
+  test('should allow rebalance mode from non-USD currencies', () => {
+    render(<Navigation {...defaultProps} currency="SGD" fxAvailable={true} />);
+    const rebalanceButton = screen.getByText('Rebalance Portfolio').closest('button');
+    expect(rebalanceButton).not.toBeDisabled();
+  });
 });

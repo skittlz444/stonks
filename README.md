@@ -8,7 +8,7 @@ A unified Cloudflare Worker that serves multiple stock portfolio visualization a
 ├── src/
 │   ├── index.js                # Cloudflare Worker entry point with routing
 │   ├── databaseService.js      # D1 database abstraction layer
-│   ├── finnhubService.js       # Finnhub API integration with caching
+│   ├── yfinanceService.js      # Yahoo Finance integration with caching
 │   ├── fxService.js            # Currency conversion service (OpenExchangeRates)
 │   ├── dataUtils.js            # Data processing and formatting utilities
 │   └── client/                 # React/TypeScript client-side code
@@ -23,7 +23,7 @@ A unified Cloudflare Worker that serves multiple stock portfolio visualization a
 │   ├── manifest.json           # PWA manifest
 │   └── sw.js                   # Service Worker for PWA
 ├── migrations/                 # D1 database migrations
-├── test/                       # Comprehensive test suite (456 tests)
+├── test/                       # Comprehensive test suite
 │   ├── client/                 # React component tests (TypeScript)
 │   └── *.test.js               # Server-side tests
 ├── scripts/                    # Build scripts for cache versioning
@@ -44,7 +44,7 @@ The worker serves the following routes:
 - `/stonks/charts/large` - Large interactive charts with advanced features
 - `/stonks/prices` - Live prices with sortable/filterable columns, gain/loss tracking, and closed positions
 - `/stonks/prices?mode=rebalance` - Portfolio rebalancing mode with buy/sell recommendations
-- `/stonks/prices?currency=SGD` - View prices in different currencies (USD, SGD, AUD)
+- `/stonks/prices?currency=SGD` - View prices in different selectable currencies (USD, SGD, AUD)
 - `/stonks/config` - Portfolio configuration interface for managing holdings, transactions, and settings
 
 ### API Routes (Client-Side Data)
@@ -82,12 +82,11 @@ The application uses a **modern React/TypeScript architecture**:
    wrangler d1 migrations apply stonks-portfolio --remote
    ```
 
-2. **Finnhub API Setup**: Configure the Finnhub API for real-time stock prices (see [FINNHUB_SETUP.md](FINNHUB_SETUP.md)):
-   - Sign up at https://finnhub.io
-   - Add your API key to `.env` file or Cloudflare environment variables
-   - Free tier provides sufficient requests for personal portfolio tracking
+2. **Quote Provider Setup**: Yahoo Finance is used for quote data and does not require an API key.
 
-3. **Update wrangler.toml**: Configure your database ID and bindings in `wrangler.toml`
+3. **FX Setup**: Configure OpenExchangeRates if you want live display-currency conversions beyond the built-in fallback rates.
+
+4. **Update wrangler.toml**: Configure your database ID and bindings in `wrangler.toml`
 
 ### Development
 
@@ -139,11 +138,15 @@ npm run deploy
 - Target weight allocation with deviation monitoring
 
 ### Live Price Integration
-- Real-time stock prices via Finnhub API
+- Real-time stock prices via Yahoo Finance
 - Intelligent caching (1-minute cache for rapid updates)
 - Price change tracking and market value calculations
 - Support for multiple exchanges (NYSE, NASDAQ, AMEX, etc.)
-- Multi-currency support with OpenExchangeRates (USD, SGD, AUD)
+- Multi-currency holdings with per-holding currency tracking
+- Quote/source currency handling for international exchanges via Yahoo Finance
+- Multi-currency display support with OpenExchangeRates + fallback rates
+- Selectable display currencies: USD, SGD, AUD
+- Holdings and cash conversion support also includes HKD
 - Currency conversion with fallback rates
 
 ### Portfolio Visualization
@@ -157,7 +160,7 @@ npm run deploy
   - Total gain/loss with percentage
   - Column visibility controls
   - Closed positions section
-  - Multi-currency view (USD, SGD, AUD)
+  - Multi-currency view supporting USD, SGD, AUD display currencies with additional HKD support for holdings and cash balances
   - **Rebalance Mode**: Calculate optimal buy/sell recommendations to reach target weights
 
 ### Portfolio Configuration
@@ -165,7 +168,7 @@ npm run deploy
 - Manage buy/sell transactions
 - Set target portfolio weights
 - Hide/show holdings (e.g., for closed positions)
-- Configure cash amount and portfolio name
+- Configure cash balances and portfolio name
 - View transaction history per holding
 
 ### Portfolio Rebalancing
@@ -192,6 +195,7 @@ Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️
 - `id` - Primary key
 - `name` - Display name
 - `code` - Trading symbol (e.g., "BATS:VOO")
+- `currency` - Holding / transaction currency (e.g., "USD", "SGD", "HKD")
 - `target_weight` - Optional target allocation percentage
 - `hidden` - Visibility flag (0=visible, 1=hidden)
 - `created_at`, `updated_at` - Timestamps
@@ -208,12 +212,13 @@ Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️
 
 ### portfolio_settings
 - Key-value store for:
-  - `cash_amount` - Cash balance
+  - `cash_amount` - Legacy USD cash balance
+  - `cash_amount_<CURRENCY>` - Per-currency cash balances (e.g. USD, SGD, AUD, HKD)
   - `portfolio_name` - Portfolio display name
 
 ## Testing
 
-Comprehensive test suite with **456 tests** achieving **88.49% code coverage**:
+Comprehensive test suite with coverage reporting:
 
 **Test Coverage**:
 - **Server-Side** (88.64%): Database, API endpoints, routing, external services
@@ -284,8 +289,8 @@ npm run deploy
 
 - **[API_ARCHITECTURE.md](API_ARCHITECTURE.md)** - Client-side rendering architecture and API endpoints
 - **[D1_SETUP.md](D1_SETUP.md)** - Database setup and migration instructions
-- **[FINNHUB_SETUP.md](FINNHUB_SETUP.md)** - API key configuration for live price data
-- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports (456 tests, 88.49% coverage)
+- Yahoo Finance does not require a quote API key
+- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports
 - **[CACHING.md](CACHING.md)** - Caching architecture and strategy (Finnhub + FX)
 - **[PWA_README.md](PWA_README.md)** - Progressive Web App architecture and implementation
 - **[public/icons/README.md](public/icons/README.md)** - PWA icon specifications
