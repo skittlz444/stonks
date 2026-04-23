@@ -62,7 +62,7 @@ The test suite covers the following modules with comprehensive integration and u
 
 6. **src/fxService.js** - Currency conversion service (96.66% coverage)
    - OpenExchangeRates API integration
-   - Multi-currency support (USD, SGD, AUD)
+   - Multi-currency support (USD, SGD, AUD, HKD)
    - Caching for exchange rates
    - Fallback rates when API unavailable
    - Currency conversion utilities
@@ -92,8 +92,8 @@ npx vitest --coverage
 
 ## Test Statistics
 
-- **Total Tests**: 438 tests across 25 test files
-- **Passing**: 438 tests ✅ (100%)
+- **Total Tests**: 442 tests across 25 test files
+- **Passing**: 442 tests ✅ (100%)
 - **Overall Coverage**: 88.49% (statements)
 - **Coverage Details**: 
   - Server-side code: 88.64% (src/ directory)
@@ -325,7 +325,7 @@ npx vitest test/client/components/prices/SummaryCards.test.tsx          # 12 tes
 
 ### Utility Function Testing
 - **Formatting utilities** (32 tests):
-  - Currency formatting (USD, SGD, AUD)
+  - Currency formatting (USD, SGD, AUD, HKD)
   - Number formatting with locale support
   - Percentage formatting
   - Value abbreviation (K, M, B)
@@ -413,4 +413,4 @@ The test suite provides confidence in the reliability and maintainability of the
 - ✅ Transaction tracking and closed positions
 - ✅ API endpoints and data fetching
 - ✅ Error handling and loading states
-- ✅ Multi-currency support (USD, SGD, AUD)
+- ✅ Multi-currency support (USD, SGD, AUD, HKD)

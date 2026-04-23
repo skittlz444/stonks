@@ -300,8 +300,15 @@ describe('index.js - Cloudflare Worker', () => {
       expect(data).toHaveProperty('holdings');
       expect(data.holdings[0]).toHaveProperty('currency', 'USD');
       expect(data.holdings[0].quote).toHaveProperty('currency', 'USD');
+      expect(data.holdings[0].quote).toHaveProperty('sourceCurrency', 'USD');
       expect(data).toHaveProperty('cashBalances');
+      expect(data.cashBalances).toEqual({ USD: 1000, SGD: 1350 });
+      expect(data).toHaveProperty('cashBalancesDisplayCurrency');
+      expect(data.cashBalancesDisplayCurrency.USD).toBeCloseTo(1000);
+      expect(data.cashBalancesDisplayCurrency.SGD).toBeCloseTo(1000);
       expect(data.cashAmount).toBe(2000);
+      expect(data.fxAvailable).toBe(true);
+      expect(data.fxUsingFallback).toBe(false);
       expect(data).toHaveProperty('alternateCurrency');
     });
 
@@ -314,6 +321,24 @@ describe('index.js - Cloudflare Worker', () => {
       expect(data.currency).toBe('SGD');
       expect(data.cashAmount).toBe(2700);
       expect(data.holdings[0].quote.current).toBe(135);
+      expect(data.holdings[0].quote.currency).toBe('SGD');
+      expect(data.holdings[0].quote.sourceCurrency).toBe('USD');
+      expect(data.cashBalances).toEqual({ USD: 1000, SGD: 1350 });
+      expect(data.cashBalancesDisplayCurrency.USD).toBeCloseTo(1350);
+      expect(data.cashBalancesDisplayCurrency.SGD).toBeCloseTo(1350);
+    });
+
+    test('should report fallback FX availability without an API key', async () => {
+      const request = new Request('https://example.com/api/prices-data?currency=SGD');
+      const response = await workerHandler.fetch(request, {
+        ...mockEnv,
+        OPENEXCHANGERATES_API_KEY: null,
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.fxAvailable).toBe(true);
+      expect(data.fxUsingFallback).toBe(true);
     });
   });
 

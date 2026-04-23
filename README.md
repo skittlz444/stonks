@@ -23,7 +23,7 @@ A unified Cloudflare Worker that serves multiple stock portfolio visualization a
 │   ├── manifest.json           # PWA manifest
 │   └── sw.js                   # Service Worker for PWA
 ├── migrations/                 # D1 database migrations
-├── test/                       # Comprehensive test suite (456 tests)
+├── test/                       # Comprehensive test suite
 │   ├── client/                 # React component tests (TypeScript)
 │   └── *.test.js               # Server-side tests
 ├── scripts/                    # Build scripts for cache versioning
@@ -44,7 +44,7 @@ The worker serves the following routes:
 - `/stonks/charts/large` - Large interactive charts with advanced features
 - `/stonks/prices` - Live prices with sortable/filterable columns, gain/loss tracking, and closed positions
 - `/stonks/prices?mode=rebalance` - Portfolio rebalancing mode with buy/sell recommendations
-- `/stonks/prices?currency=SGD` - View prices in different currencies (USD, SGD, AUD)
+- `/stonks/prices?currency=SGD` - View prices in different selectable currencies (USD, SGD, AUD)
 - `/stonks/config` - Portfolio configuration interface for managing holdings, transactions, and settings
 
 ### API Routes (Client-Side Data)
@@ -144,7 +144,7 @@ npm run deploy
 - Support for multiple exchanges (NYSE, NASDAQ, AMEX, etc.)
 - Multi-currency holdings with per-holding currency tracking
 - Quote/source currency handling for international exchanges via Yahoo Finance
-- Multi-currency display support with OpenExchangeRates + fallback rates (USD, SGD, AUD)
+- Multi-currency display support with OpenExchangeRates + fallback rates (selectable: USD, SGD, AUD; supported conversions also include HKD)
 - Currency conversion with fallback rates
 
 ### Portfolio Visualization
@@ -158,7 +158,7 @@ npm run deploy
   - Total gain/loss with percentage
   - Column visibility controls
   - Closed positions section
-  - Multi-currency view (USD, SGD, AUD)
+  - Multi-currency view (USD, SGD, AUD) with currency-aware holdings/cash support including HKD
   - **Rebalance Mode**: Calculate optimal buy/sell recommendations to reach target weights
 
 ### Portfolio Configuration
@@ -166,7 +166,7 @@ npm run deploy
 - Manage buy/sell transactions
 - Set target portfolio weights
 - Hide/show holdings (e.g., for closed positions)
-- Configure cash amount and portfolio name
+- Configure cash balances and portfolio name
 - View transaction history per holding
 
 ### Portfolio Rebalancing
@@ -210,12 +210,13 @@ Access rebalancing mode via `/stonks/prices?mode=rebalance` or click the "⚖️
 
 ### portfolio_settings
 - Key-value store for:
-  - `cash_amount` - Cash balance
+  - `cash_amount` - Legacy USD cash balance
+  - `cash_amount_<CURRENCY>` - Per-currency cash balances (e.g. USD, SGD, AUD, HKD)
   - `portfolio_name` - Portfolio display name
 
 ## Testing
 
-Comprehensive test suite with **456 tests** achieving **88.49% code coverage**:
+Comprehensive test suite with coverage reporting:
 
 **Test Coverage**:
 - **Server-Side** (88.64%): Database, API endpoints, routing, external services
@@ -287,7 +288,7 @@ npm run deploy
 - **[API_ARCHITECTURE.md](API_ARCHITECTURE.md)** - Client-side rendering architecture and API endpoints
 - **[D1_SETUP.md](D1_SETUP.md)** - Database setup and migration instructions
 - Yahoo Finance does not require a quote API key
-- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports (456 tests, 88.49% coverage)
+- **[TESTING.md](TESTING.md)** - Testing strategy and coverage reports
 - **[CACHING.md](CACHING.md)** - Caching architecture and strategy (Finnhub + FX)
 - **[PWA_README.md](PWA_README.md)** - Progressive Web App architecture and implementation
 - **[public/icons/README.md](public/icons/README.md)** - PWA icon specifications

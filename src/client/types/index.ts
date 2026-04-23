@@ -14,6 +14,7 @@ export interface Holding {
 
 export interface Quote {
   currency?: string;
+  sourceCurrency?: string;
   current: number;
   previous_close: number;
   change: number;
@@ -67,12 +68,14 @@ export interface PricesData {
   closedPositions: ClosedPosition[];
   cashAmount: number;
   cashBalances?: CashBalances;
+  cashBalancesDisplayCurrency?: CashBalances;
   portfolioTotal: number;
   totalGainLoss: number;
   totalGainLossPercent: number;
   currency: string;
   portfolioName: string;
   fxAvailable?: boolean;
+  fxUsingFallback?: boolean;
   fxRate?: number;
   alternateCurrency?: string;
   alternateFxRate?: number;

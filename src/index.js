@@ -329,8 +329,10 @@ async function handleRequest(request, env) {
           // Fetch quotes
           const holdingsWithQuotes = await yfinanceService.getPortfolioQuotes(activeHoldings);
 
-          // Fetch FX rates for all currencies involved in the response
-          const requiredCurrencies = new Set(['USD', 'SGD', 'AUD', currency]);
+          const alternateCurrency = currency !== 'USD' ? 'USD' : 'SGD';
+
+          // Fetch FX rates only for currencies involved in the response
+          const requiredCurrencies = new Set([currency, alternateCurrency]);
           for (const holding of activeHoldings) {
             requiredCurrencies.add((holding.currency || 'USD').toUpperCase());
           }
@@ -394,7 +396,8 @@ async function handleRequest(request, env) {
                   current: convertedPrice,
                   change: convertedChange,
                   changePercent: holding.quote.changePercent,
-                  currency: quoteCurrency
+                  currency,
+                  sourceCurrency: quoteCurrency
                 },
                 costBasis: convertedCostBasis,
                 marketValue,
@@ -450,8 +453,9 @@ async function handleRequest(request, env) {
             : 0;
 
           const displayRate = fxService.convertAmount(1, 'USD', currency, fxRates);
-          const alternateCurrency = currency !== 'USD' ? 'USD' : 'SGD';
           const alternateFxRate = fxService.convertAmount(1, currency, alternateCurrency, fxRates);
+          const fxAvailable = typeof fxService?.convertAmount === 'function';
+          const fxUsingFallback = !env.OPENEXCHANGERATES_API_KEY;
           
           // Get cache stats (synchronous, no await needed)
           const cacheStats = yfinanceService.getCacheStats();
@@ -461,13 +465,15 @@ async function handleRequest(request, env) {
             holdings: optimizedHoldings,
             closedPositions: convertedClosedPositions,
             cashAmount,
-            cashBalances: convertedCashBalances,
+            cashBalances,
+            cashBalancesDisplayCurrency: convertedCashBalances,
             portfolioTotal,
             totalGainLoss,
             totalGainLossPercent,
             currency,
             portfolioName,
-            fxAvailable: !!env.OPENEXCHANGERATES_API_KEY,
+            fxAvailable,
+            fxUsingFallback,
             fxRate: displayRate,
             alternateCurrency,
             alternateFxRate,
@@ -539,5 +545,9 @@ async function handleRequest(request, env) {
 
 // For backwards compatibility with addEventListener style
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request, { STONKS_DB: typeof STONKS_DB !== 'undefined' ? STONKS_DB : null }));
+  event.respondWith(handleRequest(event.request, {
+    STONKS_DB: typeof STONKS_DB !== 'undefined' ? STONKS_DB : null,
+    ASSETS: typeof ASSETS !== 'undefined' ? ASSETS : null,
+    OPENEXCHANGERATES_API_KEY: typeof OPENEXCHANGERATES_API_KEY !== 'undefined' ? OPENEXCHANGERATES_API_KEY : null,
+  }));
 });
