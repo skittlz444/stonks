@@ -8,6 +8,7 @@ import { createFxService } from './fxService.js';
 let cachedYFinanceService = null;
 let cachedFxService = null;
 let cachedFxApiKey = null;
+const SELECTABLE_DISPLAY_CURRENCIES = ['USD', 'SGD', 'AUD'];
 
 /**
  * Serve static files from ASSETS binding
@@ -455,9 +456,11 @@ async function handleRequest(request, env) {
           const displayRate = fxService.convertAmount(1, 'USD', currency, fxRates);
           const alternateFxRate = fxService.convertAmount(1, currency, alternateCurrency, fxRates);
           const fallbackDisplayRates = typeof fxService?.getFallbackRates === 'function'
-            ? fxService.getFallbackRates(['SGD', 'AUD'])
+            ? fxService.getFallbackRates(SELECTABLE_DISPLAY_CURRENCIES.filter(code => code !== 'USD'))
             : {};
-          const fxAvailable = ['SGD', 'AUD'].every(code => (fxRates[code] || fallbackDisplayRates[code]));
+          const fxAvailable = SELECTABLE_DISPLAY_CURRENCIES
+            .filter(code => code !== 'USD')
+            .every(code => (fxRates[code] || fallbackDisplayRates[code]));
           const fxUsingFallback = !env.OPENEXCHANGERATES_API_KEY;
           
           // Get cache stats (synchronous, no await needed)

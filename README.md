@@ -144,7 +144,9 @@ npm run deploy
 - Support for multiple exchanges (NYSE, NASDAQ, AMEX, etc.)
 - Multi-currency holdings with per-holding currency tracking
 - Quote/source currency handling for international exchanges via Yahoo Finance
-- Multi-currency display support with OpenExchangeRates + fallback rates (selectable display currencies: USD, SGD, AUD; holdings/cash conversion support also includes HKD)
+- Multi-currency display support with OpenExchangeRates + fallback rates
+- Selectable display currencies: USD, SGD, AUD
+- Holdings and cash conversion support also includes HKD
 - Currency conversion with fallback rates
 
 ### Portfolio Visualization
@@ -158,7 +160,7 @@ npm run deploy
   - Total gain/loss with percentage
   - Column visibility controls
   - Closed positions section
-  - Multi-currency view with selectable display currencies USD/SGD/AUD and currency-aware holdings/cash support including HKD
+  - Multi-currency view supporting USD, SGD, AUD display currencies with additional HKD support for holdings and cash balances
   - **Rebalance Mode**: Calculate optimal buy/sell recommendations to reach target weights
 
 ### Portfolio Configuration
