@@ -12,7 +12,7 @@
     "build:client": "vite build",
     "build:sw": "node scripts/update-cache-version.js",
     "build:sw:reset": "node scripts/reset-cache-version.js",
-    "dev": "npm run build:sw:reset && pnpm seedLocalD1 && wrangler dev --local --persist-to ./local-db",
+    "dev": "npm run build:sw:reset && npm run seedLocalD1 && wrangler dev --local --persist-to ./local-db",
     "dev:client": "vite",
     "deploy": "npm run build && wrangler deploy",
     "seedLocalD1": "wrangler d1 migrations apply stonks-portfolio --local --persist-to ./local-db",
